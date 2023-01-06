@@ -1,0 +1,2 @@
+ramdiskobjs=\
+$(ramdiskdir)/ramdisk.o

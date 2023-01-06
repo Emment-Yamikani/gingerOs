@@ -1,0 +1,2 @@
+rtcobjs=\
+$(rtcdir)/rtc.o

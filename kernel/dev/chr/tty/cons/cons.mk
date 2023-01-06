@@ -1,0 +1,2 @@
+consobjs=\
+$(consdir)/cons.o

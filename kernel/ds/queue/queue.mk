@@ -1,0 +1,2 @@
+queueobjs=\
+$(queuedir)/queue.o

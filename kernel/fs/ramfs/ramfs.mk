@@ -1,0 +1,2 @@
+ramfsobjs=\
+$(ramfsdir)/ramfs.o

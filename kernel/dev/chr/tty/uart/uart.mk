@@ -1,0 +1,2 @@
+uartobjs=\
+$(uartdir)/uart.o

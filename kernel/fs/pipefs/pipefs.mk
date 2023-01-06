@@ -1,0 +1,2 @@
+pipefsobjs=\
+$(pipefsdir)/pipe.o

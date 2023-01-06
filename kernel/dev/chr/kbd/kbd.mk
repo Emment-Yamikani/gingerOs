@@ -1,0 +1,2 @@
+kbdobjs=\
+$(kbddir)/kbd.o

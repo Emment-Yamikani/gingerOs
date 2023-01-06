@@ -1,0 +1,9 @@
+posixobjs=\
+$(posixdir)/open.o\
+$(posixdir)/close.o\
+$(posixdir)/read.o\
+$(posixdir)/write.o\
+$(posixdir)/ioctl.o\
+$(posixdir)/lseek.o\
+$(posixdir)/helpers.o\
+$(posixdir)/readdir.o

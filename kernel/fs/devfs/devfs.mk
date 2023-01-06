@@ -1,0 +1,2 @@
+devfsobjs=\
+$(devfsdir)/devfs.o

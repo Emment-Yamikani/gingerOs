@@ -1,0 +1,2 @@
+elfobjs:=\
+$(elfdir)/elf.o

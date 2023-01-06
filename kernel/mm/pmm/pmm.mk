@@ -1,0 +1,2 @@
+pmmobjs=\
+$(pmmdir)/pmm.o

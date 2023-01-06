@@ -1,0 +1,2 @@
+acpiobjs=\
+$(acpidir)/acpi.o

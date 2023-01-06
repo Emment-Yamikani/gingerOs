@@ -1,0 +1,2 @@
+vmmobjs:=\
+$(vmmdir)/vmm.o
