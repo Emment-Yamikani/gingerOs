@@ -8,6 +8,16 @@
 #include <bits/errno.h>
 #include <dev/dev.h>
 
+#define CHK_FPTR(file)                     \
+{                                          \
+    if (!file->f_inode->ifs)               \
+        return -ENOSYS;                    \
+    if (!file->f_inode->ifs->fsuper)       \
+        return -ENOSYS;                    \
+    if (!file->f_inode->ifs->fsuper->fops) \
+        return -ENOSYS;                    \
+}
+
 void f_free_table(struct file_table *ftable)
 {
     if (ftable->lock) spinlock_free(ftable->lock);
@@ -47,71 +57,162 @@ int fdup(file_t *file)
     return 0;
 }
 
-int fopen(file_t *file, int oflags)
+int fcan_read(struct file *file, size_t size)
 {
-    if (!file)
+    if (!file || !file->f_inode)
         return -EINVAL;
-   return iopen(file->f_inode, oflags);
+
+    if (ISDEV(file->f_inode))
+        return kdev_fcan_read(_INODE_DEV(file->f_inode), file, size);
+
+    CHK_FPTR(file);
+
+    if (!file->f_inode->ifs->fsuper->fops->can_read)
+        return -ENOSYS;
+
+    return file->f_inode->ifs->fsuper->fops->can_read(file, size);
+}
+
+int fcan_write(struct file *file, size_t size)
+{
+    if (!file || !file->f_inode)
+        return -EINVAL;
+
+    if (ISDEV(file->f_inode))
+        return kdev_fcan_write(_INODE_DEV(file->f_inode), file, size);
+    
+   CHK_FPTR(file);
+
+    if (!file->f_inode->ifs->fsuper->fops->can_write)
+        return -ENOSYS;
+
+    return file->f_inode->ifs->fsuper->fops->can_write(file, size);
+}
+
+size_t feof(struct file *file)
+{
+    if (!file || !file->f_inode)
+        return -EINVAL;
+
+    if (ISDEV(file->f_inode))
+        return kdev_feof(_INODE_DEV(file->f_inode), file);
+
+   CHK_FPTR(file);
+
+    if (!file->f_inode->ifs->fsuper->fops->eof)
+        return -ENOSYS;
+
+    return file->f_inode->ifs->fsuper->fops->eof(file);
+}
+
+int fopen(file_t *file, int oflags, ...)
+{
+    if (!file || !file->f_inode)
+        return -EINVAL;
+    
+    if (ISDEV(file->f_inode))
+        return kdev_fopen(_INODE_DEV(file->f_inode), file, oflags);
+
+   CHK_FPTR(file);
+    
+    if (!file->f_inode->ifs->fsuper->fops->open)
+        return -ENOSYS;
+    
+    return file->f_inode->ifs->fsuper->fops->open(file, oflags);
 }
 
 int fread(file_t *file, void *buf, size_t sz)
 {
-    if (!file)
+    if (!file || !file->f_inode)
         return -EINVAL;
-    return iread(file->f_inode, file->f_pos, buf, sz);
+    
+    if (ISDEV(file->f_inode))
+        return kdev_fread(_INODE_DEV(file->f_inode), file, buf, sz);
+
+    CHK_FPTR(file);
+    
+    if (!file->f_inode->ifs->fsuper->fops->read)
+        return -ENOSYS;
+    
+    return file->f_inode->ifs->fsuper->fops->read(file, buf, sz);
 }
 
 int fwrite(file_t *file, void *buf, size_t sz)
 {
-    if (!file)
+    if (!file || !file->f_inode)
         return -EINVAL;
-    return iwrite(file->f_inode, file->f_pos, buf, sz);
+    
+    if (ISDEV(file->f_inode))
+        return kdev_fwrite(_INODE_DEV(file->f_inode), file, buf, sz);
+
+    CHK_FPTR(file);
+
+    if (!file->f_inode->ifs->fsuper->fops->write)
+        return -ENOSYS;
+
+    return file->f_inode->ifs->fsuper->fops->write(file, buf, sz);
 }
 
 off_t flseek(file_t *file, off_t offset, int whence)
 {
-    if (!file)  return -EINVAL;
+    if (!file || !file->f_inode)
+        return -EINVAL;
+    
     if (ISDEV(file->f_inode))
-        return kdev_lseek(_INODE_DEV(file->f_inode), offset, whence);
-    switch (whence)
-    {
-    case 0: /* SEEK_SET */
-        file->f_pos = offset;
-        break;
-    case 1: /* SEEK_CUR */
-        file->f_pos += offset;
-        break;
-    case 2: /* SEEK_END */
-        file->f_pos = file->f_inode->i_size + offset;
-        break;
-    }
-    return file->f_pos;
+        return kdev_flseek(_INODE_DEV(file->f_inode), file, offset, whence);
+
+    CHK_FPTR(file);
+
+    if (!file->f_inode->ifs->fsuper->fops->lseek)
+        return -ENOSYS;
+
+    return file->f_inode->ifs->fsuper->fops->lseek(file, offset, whence);
 }
 
 int ffstat(file_t *file, struct stat *buf)
 {
-    if (!file) return -EINVAL;
-    return istat(file->f_inode, buf);
+    if (!file || !file->f_inode)
+        return -EINVAL;
+
+    if (ISDEV(file->f_inode))
+        return kdev_fstat(_INODE_DEV(file->f_inode), file, buf);
+
+    CHK_FPTR(file);
+
+    if (!file->f_inode->ifs->fsuper->fops->stat)
+        return -ENOSYS;
+
+    return file->f_inode->ifs->fsuper->fops->stat(file, buf);
 }
 
-void file_free(file_t *file);
 int fclose(file_t *file)
 {
-    if (!file) return -EINVAL;
-    flock(file);
-    file->f_ref--;
-    if (file->f_ref > 0)
-    {
-        funlock(file);
-        return 0;
-    }
-    iclose(file->f_inode);
-    file_free(file);
-    return 0;
+    if (!file || !file->f_inode)
+        return -EINVAL;
+    
+    if (ISDEV(file->f_inode))
+        return kdev_fclose(_INODE_DEV(file->f_inode), file);
+
+    CHK_FPTR(file);
+
+    if (!file->f_inode->ifs->fsuper->fops->close)
+        return -ENOSYS;
+
+    return file->f_inode->ifs->fsuper->fops->close(file);
 }
 
 int fioctl(file_t *file, int request, void *args/* args */)
 {
-    if (!file) return -EINVAL;
-    return iioctl(file->f_inode, request, args);
+    if (!file || !file->f_inode)
+        return -EINVAL;
+    
+    if (ISDEV(file->f_inode))
+        return kdev_fioctl(_INODE_DEV(file->f_inode), file, request, args/* args */);
+
+    CHK_FPTR(file);
+    
+    if (!file->f_inode->ifs->fsuper->fops->ioctl)
+        return -ENOSYS;
+    
+    return file->f_inode->ifs->fsuper->fops->ioctl(file, request, args);
 }

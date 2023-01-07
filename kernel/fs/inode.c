@@ -5,8 +5,6 @@
 #include <mm/kalloc.h>
 #include <printk.h>
 
-static iops_t iops;
-
 int ialloc(inode_t **ref)
 {
     int err =0;
@@ -36,7 +34,6 @@ int ialloc(inode_t **ref)
     ip->i_lock = lock;
     ip->i_rwait = reader_wait;
     ip->i_rwait = writer_wait;
-    ip->iops = iops;
 
     *ref = ip;
     return 0;
@@ -104,8 +101,3 @@ error:
     printk("irelease(), called @ 0x%p, error=%d\n", return_address(0), err);
     return err;
 }
-
-static iops_t iops =
-{
-    0
-};

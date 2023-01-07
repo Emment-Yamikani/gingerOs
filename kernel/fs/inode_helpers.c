@@ -6,15 +6,29 @@
 #include <mm/kalloc.h>
 #include <printk.h>
 
+#define CHK_IPTR(ip)                \
+    {                               \
+        if (!ip->ifs)               \
+            return -ENOSYS;         \
+        if (!ip->ifs->fsuper)       \
+            return -ENOSYS;         \
+        if (!ip->ifs->fsuper->iops) \
+            return -ENOSYS;         \
+    }
+
 int iopen(inode_t *ip, int mode, ...)
 {
     if (!ip)
         return -EINVAL;
     if (ISDEV(ip))
         return kdev_open(_INODE_DEV(ip), mode);
-    if (!ip->iops.open)
+    
+    CHK_IPTR(ip);
+
+    if (!ip->ifs->fsuper->iops->open)
         return -ENOSYS;
-    return ip->iops.open(ip, mode);
+
+    return ip->ifs->fsuper->iops->open(ip, mode);
 }
 
 int iclose(inode_t *ip)
@@ -23,9 +37,13 @@ int iclose(inode_t *ip)
         return -EINVAL;
     if (ISDEV(ip))
         return kdev_close(_INODE_DEV(ip));
-    if (!ip->iops.close)
+    
+    CHK_IPTR(ip);
+
+    if (!ip->ifs->fsuper->iops->close)
         return -ENOSYS;
-    return ip->iops.close(ip);
+
+    return ip->ifs->fsuper->iops->close(ip);
 }
 
 size_t iread(inode_t *ip, off_t pos, void *buf, size_t sz)
@@ -34,9 +52,13 @@ size_t iread(inode_t *ip, off_t pos, void *buf, size_t sz)
         return -EINVAL;
     if (ISDEV(ip))
         return kdev_read(_INODE_DEV(ip), pos, buf, sz);
-    if (!ip->iops.read)
+    
+    CHK_IPTR(ip);
+
+    if (!ip->ifs->fsuper->iops->read)
         return -ENOSYS;
-    return ip->iops.read(ip, pos, buf, sz);
+
+    return ip->ifs->fsuper->iops->read(ip, pos, buf, sz);
 }
 
 size_t iwrite(inode_t *ip, off_t pos, void *buf, size_t sz)
@@ -45,9 +67,13 @@ size_t iwrite(inode_t *ip, off_t pos, void *buf, size_t sz)
         return -EINVAL;
     if (ISDEV(ip))
         return kdev_write(_INODE_DEV(ip), pos, buf, sz);
-    if (!ip->iops.write)
+    
+    CHK_IPTR(ip);
+
+    if (!ip->ifs->fsuper->iops->write)
         return -ENOSYS;
-    return ip->iops.write(ip, pos, buf, sz);
+
+    return ip->ifs->fsuper->iops->write(ip, pos, buf, sz);
 }
 
 int iioctl(inode_t *ip, int req, void *argp)
@@ -56,20 +82,29 @@ int iioctl(inode_t *ip, int req, void *argp)
         return -EINVAL;
     if (ISDEV(ip))
         return kdev_ioctl(_INODE_DEV(ip), req, argp);
-    if (!ip->iops.ioctl)
+    
+    CHK_IPTR(ip);
+
+    if (!ip->ifs->fsuper->iops->ioctl)
         return -ENOSYS;
-    return ip->iops.ioctl(ip, req, argp);
+
+    return ip->ifs->fsuper->iops->ioctl(ip, req, argp);
 }
 
 int ifind(inode_t *dir, dentry_t *dentry, inode_t **ref)
 {
     if (!dir || !dentry || !ref)
         return -EINVAL;
-    if (ISDEV(dir))
+    if (ISDEV(dir) || dir->i_type != FS_DIR)
         return -ENOTDIR;
-    if (!dir->iops.find)
+    
+    CHK_IPTR(dir);
+    printk("ifind\n");
+
+    if (!dir->ifs->fsuper->iops->find)
         return -ENOSYS;
-    return dir->iops.find(dir, dentry, ref);
+
+    return dir->ifs->fsuper->iops->find(dir, dentry, ref);
 }
 
 /* check for file permission */
@@ -159,9 +194,13 @@ int ilseek(inode_t *ip, off_t off, int whence)
         return -EINVAL;
     if (ISDEV(ip))
         return kdev_lseek(_INODE_DEV(ip), off, whence);
-    if (!ip->iops.lseek)
+    
+    CHK_IPTR(ip);
+
+    if (!ip->ifs->fsuper->iops->lseek)
         return -ENOSYS;
-    return ip->iops.lseek(ip, off, whence);
+
+    return ip->ifs->fsuper->iops->lseek(ip, off, whence);
 }
 
 int istat(inode_t *ip, struct stat *buf)

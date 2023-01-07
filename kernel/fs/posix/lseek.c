@@ -6,10 +6,15 @@
  *
  */
 
-long posix_file_lseek(struct file *file, long offset, int whence)
+off_t posix_file_lseek(struct file *file, off_t offset, int whence)
 {
-    struct inode *inode = file->f_dentry->d_inode;
+    size_t pos = 0;
+    struct inode *inode = NULL;
+    
 
+    flock(file);
+
+    inode = file->f_inode;
     switch (whence) {
         case 0: /* SEEK_SET */
             file->f_pos = offset;
@@ -21,6 +26,8 @@ long posix_file_lseek(struct file *file, long offset, int whence)
             file->f_pos = inode->i_size + offset;
             break;
     }
+    pos = file->f_pos;
 
-    return file->f_pos;
+    funlock(file);
+    return pos;
 }

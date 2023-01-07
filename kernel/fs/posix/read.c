@@ -27,7 +27,7 @@
  * @returns read bytes on success, or error-code on failure.
  */
 
-long posix_file_read(struct file *file, char *buf, long size)
+size_t posix_file_read(struct file *file, void *buf, size_t size)
 {
     if (file->f_flags & O_WRONLY) /* File is not opened for reading */
         return -EBADFD;

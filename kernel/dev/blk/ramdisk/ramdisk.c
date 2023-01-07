@@ -10,6 +10,7 @@
 #include <arch/i386/cpu.h>
 #include <lime/module.h>
 #include <fs/devfs.h>
+#include <fs/posix.h>
 
 struct dev ramdiskdev;
 spinlock_t *ramdisklock = SPINLOCK_NEW("ramdisklock");
@@ -99,6 +100,23 @@ struct dev ramdiskdev =
         .write = ramdisk_write,
         .ioctl = ramdisk_ioctl,
         .close = ramdisk_close
+    },
+
+    .fops =
+    {
+        .close = posix_file_close,
+        .ioctl = posix_file_ioctl,
+        .lseek = posix_file_lseek,
+        .open = posix_file_open,
+        .perm = NULL,
+        .read = posix_file_read,
+        .sync = NULL,
+        .stat = posix_file_ffstat,
+        .write = posix_file_write,
+        
+        .can_read = (size_t(*)(struct file *, size_t))__always,
+        .can_write = (size_t(*)(struct file *, size_t))__always,
+        .eof = (size_t(*)(struct file *))__never
     }
 };
 

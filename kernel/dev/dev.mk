@@ -7,4 +7,5 @@ include $(chrdir)/chr.mk
 devobjs:=\
 $(blkobjs)\
 $(chrobjs)\
+$(devdir)/dev_file.o\
 $(devdir)/dev.o

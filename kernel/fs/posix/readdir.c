@@ -32,7 +32,7 @@ long posix_file_readdir(struct file *file, struct dirent *dirent)
     if (file->f_flags & O_WRONLY) /* File is not opened for reading */
         return -EBADFD;
     
-    int retval = vfs_ireaddir(file->f_dentry->d_inode, file->f_pos, dirent);
+    int retval = ireaddir(file->f_inode, file->f_pos, dirent);
 
     /* Update file offset */
     file->f_pos += retval;

@@ -8,6 +8,7 @@
 #include <lime/string.h>
 #include <fs/fs.h>
 
+__unused
 static iops_t iops;
 
 static dev_t **devices [3] = {NULL};
@@ -23,7 +24,6 @@ int devfs_init(void)
     if ((err = ialloc(&inode)))
         goto error;
 
-    inode->iops = iops;
     inode->i_mask = 0755;
     inode->i_type = FS_DIR;
 

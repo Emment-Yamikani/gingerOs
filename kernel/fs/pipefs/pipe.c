@@ -8,22 +8,15 @@
 #include <lime/string.h>
 #include <bits/errno.h>
 #include <sys/thread.h>
+#include <fs/posix.h>
 
 static iops_t pipefs_iops;
+static filesystem_t pipefs;
+static struct super_block pipefs_sb;
 
 int pipefs_init(void)
 {
-    int err = 0;
-    inode_t *pipefs = NULL;
-    if ((err = ialloc(&pipefs)))
-        return err;
-    pipefs->i_mask = 0770;
-    pipefs->i_type = FS_DIR;
-    pipefs->iops = pipefs_iops;
-
-    if ((err = vfs_mount("/", "pipefs", pipefs)))
-        return err;
-    return 0;
+    return vfs_register(&pipefs);
 }
 
 static int pipefs_mkpipe(pipe_t **rpipe)
@@ -106,13 +99,13 @@ int pipefs_pipe(file_t *f0, file_t *f1)
     r->i_mask = 0400;
     r->i_type = FS_PIPE;
     r->i_size = PIPESZ;
-    r->iops = pipefs_iops;
+    r->ifs = &pipefs;
     r->i_priv = (void *)pipe;
 
     w->i_mask = 0200;
     w->i_type = FS_PIPE;
     w->i_size = PIPESZ;
-    w->iops = pipefs_iops;
+    w->ifs = &pipefs;
     w->i_priv = (void *)pipe;
     
     pipe->read_open = 1;
@@ -145,8 +138,14 @@ static int pipefs_close(pipe_t *pipe, int writable)
     }
 
     if (!pipe->read_open && !pipe->write_open)
+    {
+        klog(KLOG_OK, "free pipe\n");
+        spin_unlock(pipe->lock);
         pipefs_free(pipe);
-    else spin_unlock(pipe->lock);
+        return 0;
+    }
+
+    spin_unlock(pipe->lock);
 
     return 0;
 }
@@ -267,6 +266,39 @@ static int pipefs_iclose(inode_t *inode __unused)
     return pipefs_close(pipe, writable);
 }
 
+
+int pipefs_mount()
+{
+    int err = 0;
+    inode_t *pipefs_iroot = NULL;
+
+    if ((err = ialloc(&pipefs_iroot)))
+        goto error;
+    
+    pipefs_iroot->i_mask = 0770;
+    pipefs_iroot->i_type = FS_DIR;
+    pipefs_sb.s_count = 1;
+    pipefs_sb.s_iroot = pipefs_iroot;
+    
+    if ((err = vfs_mount("/", "pipefs", pipefs_iroot)))
+        goto error;
+    
+    return 0;
+error:
+    if (pipefs_iroot)
+        irelease(pipefs_iroot);
+    klog(KLOG_FAIL, "Failed to mount pipefs, error=%d\n", err);
+    return err;
+}
+
+int pipefs_load()
+{
+    pipefs_sb.fops->can_read = (size_t(*)(struct file *, size_t))__always;
+    pipefs_sb.fops->can_write = (size_t(*)(struct file *, size_t))__always;
+    pipefs_sb.fops->eof = (size_t(*)(struct file *))__never;
+    return 0;
+}
+
 static iops_t pipefs_iops=
 {
     .close = pipefs_iclose,
@@ -278,4 +310,20 @@ static iops_t pipefs_iops=
     .lseek = pipe_ilseek,
     .open = pipe_iopen,
     .sync = pipe_isync
+};
+
+static super_block_t pipefs_sb = {
+    .fops = &posix_fops,
+    .iops = &pipefs_iops,
+    .s_blocksz = PIPESZ,
+    .s_magic = 0xc0de,
+    .s_maxfilesz = PIPESZ,
+};
+
+static filesystem_t pipefs = {
+    .fname = "pipefs",
+    .flist_node = NULL,
+    .fsuper = &pipefs_sb,
+    .load = pipefs_load,
+    .mount = pipefs_mount,
 };

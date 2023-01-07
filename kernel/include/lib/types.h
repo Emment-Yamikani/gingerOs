@@ -40,6 +40,9 @@ typedef struct proc proc_t;
 
 struct super_block;
 
+struct fops;
+struct iops;
+
 typedef struct super_block super_block_t;
 
 #endif

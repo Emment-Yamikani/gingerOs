@@ -16,6 +16,7 @@
 #include <lime/module.h>
 #include <lib/string.h>
 #include <fs/devfs.h>
+#include <fs/posix.h>
 #include <mm/kalloc.h>
 
 #define RTC_CMD 0x70
@@ -129,6 +130,37 @@ int rtc0_ioctl(struct devid *dd __unused, int request __unused, void *argp __unu
     return 0;
 }
 
-DEV(rtc0, _DEV_T(DEV_RTC0, 0));
+struct dev rtc0dev = 
+{
+    .dev_name = "rtc0",
+    .dev_probe = rtc0_probe,
+    .dev_mount = rtc0_mount,
+    .devid = _DEV_T(DEV_RTC0, 0),
+    .devops = 
+    {
+        .open = rtc0_open,
+        .read = rtc0_read,
+        .write = rtc0_write,
+        .ioctl = rtc0_ioctl,
+        .close = rtc0_close
+    },
+
+    .fops =
+    {
+        .close = posix_file_close,
+        .ioctl = posix_file_ioctl,
+        .lseek = posix_file_lseek,
+        .open = posix_file_open,
+        .perm = NULL,
+        .read = posix_file_read,
+        .sync = NULL,
+        .stat = posix_file_ffstat,
+        .write = posix_file_write,
+        
+        .can_read = (size_t(*)(struct file *, size_t))__always,
+        .can_write = (size_t(*)(struct file *, size_t))__always,
+        .eof = (size_t(*)(struct file *))__never
+    },
+};
 
 MODULE_INIT(rtc0, rtc_init, NULL);

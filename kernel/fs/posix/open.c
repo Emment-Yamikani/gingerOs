@@ -5,7 +5,7 @@
 //#include <sys/sched.h>
 #include <printk.h>
 
-int posix_file_open(struct file *file __unused)
+int posix_file_open(struct file *file __unused, int mode __unused, ...)
 {
     return 0;
 }

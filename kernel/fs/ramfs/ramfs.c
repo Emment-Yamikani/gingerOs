@@ -6,6 +6,7 @@
 #include <lime/string.h>
 #include <mm/kalloc.h>
 #include <printk.h>
+#include <fs/posix.h>
 
 static iops_t ramfs_iops;
 static inode_t *iroot = NULL;
@@ -24,7 +25,7 @@ static int ramfs_ialloc(inode_t **ref)
         goto error;
     ip->i_mask = 0555;
     ip->i_type = FS_RGL;
-    ip->iops = ramfs_iops;
+    ip->ifs = &ramfs;
     *ref = ip;
     return 0;
 error:
@@ -80,7 +81,7 @@ static int ramfs_find(inode_t *dir, dentry_t *dentry, inode_t **ref)
 
             if ((err = ramfs_ialloc(&ip)))
                 goto error;
-            
+
             ip->i_mask = 0555;
             ip->i_gid = ramfs_super.inode[i].gid;
             ip->i_uid = ramfs_super.inode[i].uid;
@@ -145,17 +146,6 @@ static int ramfs_lseek(inode_t *ip __unused, off_t off __unused, int whence __un
     return -EINVAL;
 }
 
-static iops_t ramfs_iops ={
-    .close = ramfs_close,
-    .creat = ramfs_creat,
-    .find = ramfs_find,
-    .ioctl = ramfs_ioctl,
-    .lseek = ramfs_lseek,
-    .open = ramfs_open,
-    .read = ramfs_read,
-    .sync = ramfs_sync,
-    .write = ramfs_write
-};
 
 static int ramfs_read_super()
 {
@@ -184,36 +174,79 @@ error:
 int ramfs_init(void)
 {
     int err =0;
-    uio_t uio = {.u_cwd = "/", .u_gid =0, .u_uid =0};
-    if ((err = vfs_lookup("/dev/ramdisk", &uio, O_RDONLY | O_EXCL, &iramdisk, NULL)))
+    if ((err = vfs_register(&ramfs)))
         goto error;
-    
-    if ((err = ramfs_ialloc(&iroot)))
-        goto error;
-    
-    iroot->i_type = FS_DIR;
-
-    if ((err = vfs_mount("/mnt", "ramfs", iroot)))
-        goto error;
-    
-    if ((err = ramfs_read_super()))
-        goto error;
-
-    if ((err = vfs_mount_root(iroot)))
-        goto error;
-
     return 0;
 error:
     printk("ramfs_init(): called @ 0x%p, error=%d\n", return_address(0), err);
     return err;
 }
 
-static super_block_t ramfs_sb = {
+int ramfs_mount()
+{
+    int err = 0;
+    if ((err = ialloc(&iroot)))
+        goto error;
+    
+    iroot->ifs = &ramfs;
+    iroot->i_type = FS_DIR;
+    iroot->i_mask = 0777;
 
+    ramfs_sb.s_iroot = iroot;
+    ramfs_sb.s_count = 1;
+
+    if ((err = vfs_mount("mnt", "ramfs", iroot)))
+        goto error;
+    if ((err = vfs_mount_root(iroot)))
+        goto error;
+
+    return 0;
+error:
+    if (iroot)
+        irelease(iroot);
+    iroot = NULL;
+    klog(KLOG_FAIL, "Failed to mount ramfs, error=%d\n", err);
+    return err;
+}
+
+int ramfs_load()
+{
+    int err = 0;
+    uio_t uio = {.u_cwd = "/", .u_gid = 0, .u_uid = 0};
+    if ((err = vfs_lookup("/dev/ramdisk", &uio, O_RDONLY | O_EXCL, &iramdisk, NULL)))
+        goto error;
+    if ((err = ramfs_read_super()))
+        goto error;
+    return 0;
+error:
+    klog(KLOG_FAIL, "Failed to load ramfs, error=%d\n", err);
+    return err;
+}
+
+static iops_t ramfs_iops ={
+    .close = ramfs_close,
+    .creat = ramfs_creat,
+    .find = ramfs_find,
+    .ioctl = ramfs_ioctl,
+    .lseek = ramfs_lseek,
+    .open = ramfs_open,
+    .read = ramfs_read,
+    .sync = ramfs_sync,
+    .write = ramfs_write
+};
+
+static super_block_t ramfs_sb = {
+    .fops = &posix_fops,
+    .iops = &ramfs_iops,
+    .s_blocksz = 512,
+    .s_magic = 0xc0deb00c,
+    .s_maxfilesz = -1,
 };
 
 static filesystem_t ramfs = {
     .fname = "ramfs",
     .flist_node = NULL,
     .fsuper = &ramfs_sb,
+    .load = ramfs_load,
+    .mount = ramfs_mount,
 };

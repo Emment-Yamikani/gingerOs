@@ -14,6 +14,7 @@
 #include <lime/module.h>
 #include <fs/devfs.h>
 #include <arch/boot/early.h>
+#include <fs/posix.h>
 
 int use_earlycon = 0;
 
@@ -218,7 +219,24 @@ dev_t consoledev =
         .ioctl = cons_ioctl,
         .read = cons_read,
         .write = console_write
-    }
+    },
+
+     .fops =
+    {
+        .close = posix_file_close,
+        .ioctl = posix_file_ioctl,
+        .lseek = posix_file_lseek,
+        .open = posix_file_open,
+        .perm = NULL,
+        .read = posix_file_read,
+        .sync = NULL,
+        .stat = posix_file_ffstat,
+        .write = posix_file_write,
+        
+        .can_read = (size_t(*)(struct file *, size_t))__never,
+        .can_write = (size_t(*)(struct file *, size_t))__always,
+        .eof = (size_t(*)(struct file *))__never
+    },
 };
 
 MODULE_INIT(cons, console_init, NULL);

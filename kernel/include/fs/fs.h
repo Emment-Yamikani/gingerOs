@@ -57,8 +57,7 @@ typedef struct inode
     cond_t *i_rwait;    /*per-inode readers wait condition*/
     cond_t *i_wwait;    /*per-inode writers wait condition*/
     void *i_priv;       /*private data*/
-    iops_t iops;
-    struct super_block *isb; /*super block on which this inode resides*/
+    struct filesystem *ifs; /*super block on which this inode resides*/
 } inode_t;
 
 /*is inode pointing to a device*/
@@ -91,12 +90,13 @@ struct fops
     int (*close)(file_t *);
     int (*perm)(file_t *, int);
     int (*open)(file_t *, int, ...);
-    int (*lseek)(file_t *, off_t, int);
+    off_t (*lseek)(file_t *, off_t, int);
     int (*ioctl)(file_t *, int, void *);
     size_t (*read)(file_t *, void *, size_t);
     size_t (*write)(file_t *, void *, size_t);
-
-    int (*eof)(file_t *);
+    int (*stat)(file_t *, struct stat *);
+    
+    size_t (*eof)(file_t *);
     size_t (*can_read)(struct file *file, size_t size);
     size_t (*can_write)(struct file *file, size_t size);
 };
@@ -114,8 +114,8 @@ typedef struct super_block
     void *s_private;
     spinlock_t *s_lock;
     sops_t sops;
-    struct fops fops;
-    struct iops iops;
+    struct fops *fops;
+    struct iops *iops;
 } super_block_t;
 
 typedef struct filesystem
@@ -214,14 +214,17 @@ int istat(inode_t *, struct stat *buf);
 #define flock(f) spin_lock(f->f_lock)
 #define funlock(f) spin_unlock(f->f_lock)
 
-int feof(file_t *);
+int fcan_read(struct file *file, size_t size);
+int fcan_write(struct file *file, size_t size);
+size_t feof(file_t *);
 int fclose(file_t *);
 int fdup(file_t *);
-int fopen(file_t *, int);
+int fopen(file_t *, int, ...);
 int fread(file_t *, void *, size_t);
 int fwrite(file_t *, void *, size_t);
 int ffstat(file_t *, struct stat *);
 off_t flseek(file_t *, off_t, int);
 int fioctl(file_t *, int, void * /* args */);
+void file_free(file_t *file);
 
 #endif // FS_FS_H

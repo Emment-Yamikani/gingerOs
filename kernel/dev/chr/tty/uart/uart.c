@@ -7,6 +7,7 @@
 #include <bits/errno.h>
 #include <lime/module.h>
 #include <fs/devfs.h>
+#include <fs/posix.h>
 
 volatile int use_uart = 0;
 
@@ -157,20 +158,37 @@ int uart_probe()
     return 0;
 }
 
-struct dev uartdev=
+struct dev uartdev = 
 {
     .dev_name = "uart",
     .dev_probe = uart_probe,
     .dev_mount = uart_mount,
-    .devid = _DEV_T(DEV_UART, 0),
+    .devid = _DEV_T(DEV_CONS, 0),
     .devops = 
     {
+        .open = uart_open,
         .read = uart_read,
         .write = uart_write,
-        .open = uart_open,
-        .close = uart_close,
-        .ioctl = uart_ioctl
-    }
-};
+        .ioctl = uart_ioctl,
+        .close = uart_close
+    },
+
+    .fops =
+    {
+        .close = posix_file_close,
+        .ioctl = posix_file_ioctl,
+        .lseek = posix_file_lseek,
+        .open = posix_file_open,
+        .perm = NULL,
+        .read = posix_file_read,
+        .sync = NULL,
+        .stat = posix_file_ffstat,
+        .write = posix_file_write,
+        
+        .can_read = (size_t(*)(struct file *, size_t))__never,
+        .can_write = (size_t(*)(struct file *, size_t))__always,
+        .eof = (size_t(*)(struct file *))__never
+    },
+};;
 
 MODULE_INIT(uart, uart_dev_init, NULL);

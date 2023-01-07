@@ -2,5 +2,6 @@
 
 int posix_file_close(struct file *file)
 {
-    return vfs_fclose(file);
+    int err = iclose(file->f_inode);
+    return err;
 }

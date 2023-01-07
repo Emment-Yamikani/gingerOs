@@ -28,13 +28,13 @@
  * @returns written bytes on success, or error-code on failure.
  */
 
-long posix_file_write(struct file *file, void *buf, long size)
+size_t posix_file_write(struct file *file, void *buf, size_t size)
 {
 	if (!(file->f_flags & (O_WRONLY | O_RDWR)))	/* File is not opened for writing */
 		return -EBADFD;
 	
 	if (file->f_flags & O_NONBLOCK) {	/* Non-blocking I/O */
-		if (vfs_fcan_write(file, size)) {
+		if (fcan_write(file, size)) {
 			/* write up to `size' from `buf' into file */
 			long retval = iwrite(file->f_inode, file->f_pos, buf, size);
 

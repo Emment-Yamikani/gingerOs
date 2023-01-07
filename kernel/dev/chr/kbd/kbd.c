@@ -11,6 +11,7 @@
 #include <lime/module.h>
 #include <sys/thread.h>
 #include <fs/devfs.h>
+#include <fs/posix.h>
 
 dev_t kbd0dev;
 
@@ -234,6 +235,37 @@ int kbd0_init(void)
     return kdev_register(&kbd0dev, DEV_KBD, FS_CHRDEV);
 }
 
-DEV(kbd0, _DEV_T(DEV_KBD, 0));
+struct dev kbd0dev = 
+{
+    .dev_name = "kbd0",
+    .dev_probe = kbd0_probe,
+    .dev_mount = kbd0_mount,
+    .devid = _DEV_T(DEV_KBD, 0),
+    .devops = 
+    {
+        .open = kbd0_open,
+        .read = kbd0_read,
+        .write = kbd0_write,
+        .ioctl = kbd0_ioctl,
+        .close = kbd0_close
+    },
+
+    .fops =
+    {
+        .close = posix_file_close,
+        .ioctl = posix_file_ioctl,
+        .lseek = posix_file_lseek,
+        .open = posix_file_open,
+        .perm = NULL,
+        .read = posix_file_read,
+        .sync = NULL,
+        .stat = posix_file_ffstat,
+        .write = posix_file_write,
+        
+        .can_read = (size_t(*)(struct file *, size_t))__always,
+        .can_write = (size_t(*)(struct file *, size_t))__never,
+        .eof = (size_t(*)(struct file *))__never
+    },
+};
 
 MODULE_INIT(kbd, kbd0_init, NULL);

@@ -1,0 +1,65 @@
+[0m
+registered device 'uart'
+registered device 'rtc0'
+vfs initializing...
+initializing devfs...
+dev: 'ramdisk' mounted successfully...
+dev: 'kbd0' mounted successfully...
+dev: 'uart' mounted successfully...
+dev: 'console' mounted successfully...
+dev: 'rtc0' mounted successfully...
+'ramfs' registered succefully
+Only '1' cpu exists on this machine
+thread(1) starting...
+'kernel main thread' running
+vfs_get_mountpoint(), called @ 0xC0111BA2, error=-2
+ifind
+kernel/arch/i386/mmu/page.c:174: return [C0103145]
+Only map part of user stack that is acutally in use
+kthread_main done executing
+thread(2) starting...
+dup2() not yet perfect
+Do we have to fork pending signals
+thread(3) starting...
+thread(4) starting...
+kernel/arch/i386/mmu/pagefault.c:71: [TODO] implement demand paging
+vfs_get_mountpoint(), called @ 0xC0111BA2, error=-2
+ifind
+kernel/arch/i386/mmu/page.c:174: return [C0103145]
+Only map part of user stack that is acutally in use
+thread(4) starting...
+Do we have to fork pending signals
+thread(5) starting...
+kernel/arch/i386/mmu/pagefault.c:71: [TODO] implement demand paging
+PGF: 1008000
+vfs_get_mountpoint(), called @ 0xC0111BA2, error=-2
+ifind
+kernel/arch/i386/mmu/page.c:174: return [C0103145]
+Only map part of user stack that is acutally in use
+thread(5) starting...
+vfs_get_mountpoint(), called @ 0xC0111BA2, error=-2
+ifind
+ramfs_find(): called @ 0xC0111C10, error=-2
+dentry_free(inifo.txt)
+vfs_lookup(inifo.txt), called @ 0xC010D7F7, error=-2
+open(): called @ 0xC012B426, error=-2
+exit(0)
+trashing thread(5)
+kernel/arch/i386/mmu/page.c:174: return [C0103145]
+kernel/arch/i386/mmu/pagefault.c:71: [TODO] implement demand paging
+kernel/arch/i386/mmu/pagefault.c:71: [TODO] implement demand paging
+kernel/arch/i386/mmu/pagefault.c:71: [TODO] implement demand paging
+Do we have to fork pending signals
+thread(6) starting...
+kernel/arch/i386/mmu/pagefault.c:71: [TODO] implement demand paging
+PGF: 1008000
+kernel/arch/i386/mmu/page.c:174: return [C0103145]
+Only map part of user stack that is acutally in use
+thread(6) starting...
+vfs_get_mountpoint(), called @ 0xC0111BA2, error=-2
+ifind
+exit(0)
+trashing thread(6)
+kernel/arch/i386/mmu/page.c:174: return [C0103145]
+kernel/arch/i386/mmu/pagefault.c:71: [TODO] implement demand paging
+kernel/arch/i386/mmu/pagefault.c:71: [TODO] implement demand paging

@@ -4,6 +4,7 @@
 #include <lib/types.h>
 #include <lib/stddef.h>
 #include <lib/stdint.h>
+#include <fs/fs.h>
 
 #define DEV_KBD     0
 #define DEV_UART    4
@@ -23,10 +24,10 @@ struct devid
 
 typedef struct devops
 {
-    int (*open)(struct devid *, int, ...);
     int (*close)(struct devid *);
-    int (*ioctl)(struct devid *, int, void *);
+    int (*open)(struct devid *, int, ...);
     int (*lseek)(struct devid *, off_t, int);
+    int (*ioctl)(struct devid *, int, void *);
     size_t (*read)(struct devid *, off_t, void *, size_t);
     size_t (*write)(struct devid *, off_t, void *, size_t);
 } devops_t;
@@ -38,6 +39,7 @@ typedef struct dev
     int (*dev_probe)();
     int (*dev_mount)();
     devops_t devops;
+    struct fops fops;
 } dev_t;
 
 #define DEV(d, T)     \
@@ -73,5 +75,22 @@ int kdev_ioctl(struct devid *dd, int request, void *argp);
 size_t kdev_lseek(struct devid *dd, off_t offset, int whence);
 size_t kdev_read(struct devid *dd, off_t offset, void *buf, size_t sz);
 size_t kdev_write(struct devid *dd, off_t offset, void *buf, size_t sz);
+
+
+
+size_t kdev_feof(struct devid *dd, file_t *file);
+int kdev_fstat(struct devid *, file_t *file, struct stat *buf);
+
+size_t kdev_fread(struct devid *dd, file_t *file, void *buf, size_t sz);
+size_t kdev_fwrite(struct devid *dd, file_t *file, void *buf, size_t sz);
+off_t kdev_flseek(struct devid *dd, file_t *file, off_t offset, int whence);
+
+int kdev_fsync(struct devid *dd, file_t *file);
+off_t kdev_fclose(struct devid *dd, file_t *file);
+off_t kdev_fperm(struct devid *dd, file_t *file, int mode);
+int kdev_fcan_read(struct devid *dd, file_t *file, size_t sz);
+int kdev_fcan_write(struct devid *dd, file_t *file, size_t sz);
+off_t kdev_fopen(struct devid *dd, file_t *file, int mode, ...);
+off_t kdev_fioctl(struct devid *dd, file_t *file, int request, void *args);
 
 #endif // DEV_DEV_H
