@@ -168,10 +168,16 @@ static size_t pipe_iread(inode_t *inode, off_t off __unused, void *buf, size_t s
 
     while(read < size)
     {
-        if (atomic_read(&current->t_killed)) // in case we have been killed break
+        if (atomic_read(&current->t_killed) || pipe->write_open == 0) // in case we have been killed break
             break;
-        if (ringbuf_available(pipe->ringbuf) == 0) // pipe is empty, sleep
+        
+        ringbuf_lock(pipe->ringbuf);
+        int cursz = ringbuf_available(pipe->ringbuf);
+        ringbuf_unlock(pipe->ringbuf);
+        
+        if (cursz == 0) // pipe is empty, sleep
         {
+            cond_signal(pipe->writers);
             spin_unlock(pipe->lock);
             iunlock(inode);
             cond_wait(pipe->readers);
@@ -206,10 +212,16 @@ static size_t pipe_iwrite(inode_t *inode, off_t off __unused, void *buf, size_t 
 
     while (written < size)
     {
-        if (atomic_read(&current->t_killed)) // in case we have been killed break
+        if (atomic_read(&current->t_killed) || pipe->read_open == 0) // in case we have been killed break
             break;
-        if (ringbuf_available(pipe->ringbuf) == PIPESZ) // pipe is full, sleep
+        
+        ringbuf_lock(pipe->ringbuf);
+        int cursz = ringbuf_available(pipe->ringbuf);
+        ringbuf_unlock(pipe->ringbuf);
+        
+        if (cursz == PIPESZ) // pipe is full, sleep
         {
+            cond_signal(pipe->readers);
             spin_unlock(pipe->lock);
             iunlock(inode);
             cond_wait(pipe->writers);
@@ -266,6 +278,25 @@ static int pipefs_iclose(inode_t *inode __unused)
     return pipefs_close(pipe, writable);
 }
 
+static size_t pipefs_can_read(struct file *file, size_t size)
+{
+    struct inode *node = file->f_inode;
+    struct pipe *pipe = node->i_priv;
+    ringbuf_lock(pipe->ringbuf);
+    size_t can = size <= ringbuf_available(pipe->ringbuf);
+    ringbuf_unlock(pipe->ringbuf);
+    return can;
+}
+
+static size_t pipefs_can_write(struct file *file, size_t size)
+{
+    struct inode *node = file->f_inode;
+    struct pipe *pipe = node->i_priv;
+    ringbuf_lock(pipe->ringbuf);
+    size_t can = size >= pipe->ringbuf->size - ringbuf_available(pipe->ringbuf);
+    ringbuf_unlock(pipe->ringbuf);
+    return can;
+}
 
 int pipefs_mount()
 {
@@ -293,8 +324,8 @@ error:
 
 int pipefs_load()
 {
-    pipefs_sb.fops->can_read = (size_t(*)(struct file *, size_t))__always;
-    pipefs_sb.fops->can_write = (size_t(*)(struct file *, size_t))__always;
+    pipefs_sb.fops->can_read = pipefs_can_read;
+    pipefs_sb.fops->can_write = pipefs_can_write;
     pipefs_sb.fops->eof = (size_t(*)(struct file *))__never;
     return 0;
 }

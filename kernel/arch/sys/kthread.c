@@ -10,7 +10,7 @@
 
 void arch_thread_start(void)
 {
-    printk("thread(%d) starting...\n", thread_self());
+    //printk("thread(%d) starting...\n", thread_self());
     current_unlock();
 }
 

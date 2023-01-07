@@ -171,7 +171,7 @@ int paging_unmappages(uintptr_t v, size_t sz)
     assert(!(v & PAGEMASK), "page address must be page aligned");
     assert(!(sz & PAGEMASK), "invalid size, must be page aligned");
     int err = 0, np = GET_BOUNDARY_SIZE(v, sz) / PAGESZ;
-    printk("%s:%d: return [%p]\n", __FILE__, __LINE__, return_address(0));
+    //printk("%s:%d: return [%p]\n", __FILE__, __LINE__, return_address(0));
     while (np--)
     {
         if ((err = paging_unmap(v)))

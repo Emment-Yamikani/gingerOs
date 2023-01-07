@@ -68,7 +68,7 @@ void paging_pagefault(trapframe_t *tf)
             {
                 pte->structure.w = 1;
                 send_tlb_shootdown();
-                klog(KLOG_WARN, "%s:%d: [TODO] implement demand paging\n", __FILE__, __LINE__);
+                //klog(KLOG_WARN, "%s:%d: [TODO] implement demand paging\n", __FILE__, __LINE__);
             }
             else
             {
@@ -91,7 +91,7 @@ void paging_pagefault(trapframe_t *tf)
         }
         else
         {
-            printk("PGF: %p\n", addr);
+            //printk("PGF: %p\n", addr);
             if (!(vmr = shm_lookup(current->mmap, addr)))
             {
                 shm_pgdir_unlock(current->mmap);

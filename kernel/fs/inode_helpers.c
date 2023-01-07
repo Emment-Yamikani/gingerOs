@@ -99,8 +99,7 @@ int ifind(inode_t *dir, dentry_t *dentry, inode_t **ref)
         return -ENOTDIR;
     
     CHK_IPTR(dir);
-    printk("ifind\n");
-
+    
     if (!dir->ifs->fsuper->iops->find)
         return -ENOSYS;
 
