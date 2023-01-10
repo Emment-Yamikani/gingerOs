@@ -9,15 +9,12 @@ dev: 'uart' mounted successfully...
 dev: 'console' mounted successfully...
 dev: 'rtc0' mounted successfully...
 'ramfs' registered succefully
-Only '1' cpu exists on this machine
+'pipefs' registered succefully
+Starting 1 AP(s)...
+AP1 started...
 'kernel main thread' running
-vfs_get_mountpoint(), called @ 0xC0111B72, error=-2
-Only map part of user stack that is acutally in use
 kthread_main done executing
-dup2() not yet perfect
-Do we have to fork pending signals
-vfs_get_mountpoint(), called @ 0xC0111B72, error=-2
-Only map part of user stack that is acutally in use
-Do we have to fork pending signals
-vfs_get_mountpoint(), called @ 0xC0111B72, error=-2
-Only map part of user stack that is acutally in use
+[3:4]: 'test' exit(0)
+trashing thread(4)
+[4:7]: 'test' exit(0)
+trashing thread(7)

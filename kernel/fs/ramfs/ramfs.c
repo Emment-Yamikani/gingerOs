@@ -128,11 +128,16 @@ static size_t ramfs_read(inode_t *ip, off_t off, void *buf, size_t sz)
     ramfs_inode_t *ramfs_inode = NULL;
     if (!ip)
         return -EINVAL;
-    if (off > ip->i_size)
-        return -EOVERFLOW;
     if (!(ramfs_inode = ramfs_convert(ip)))
         return -EINVAL;
-    size = MIN(ip->i_size - off, sz);
+    if ((int)off >= ramfs_inode->size)
+        return -1;
+    if ((off + sz) < off)
+        return -EINVAL;
+    if ((int)(off + sz) > ramfs_inode->size)
+        sz = ramfs_inode->size - off;
+
+    size = MIN(ramfs_inode->size - off, sz);
     return iread(iramdisk, ramfs_inode->offset + off, buf, size);
 }
 

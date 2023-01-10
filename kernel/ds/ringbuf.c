@@ -61,7 +61,7 @@ size_t ringbuf_read(struct ringbuf *ring, size_t n, char *buf)
 {
     size_t size = n;
     ringbuf_assert(ring);
-    ringbuf_lock(ring);
+    ringbuf_assert_lock(ring);
     while (n)
     {
         if (ringbuf_isempty(ring))
@@ -70,7 +70,6 @@ size_t ringbuf_read(struct ringbuf *ring, size_t n, char *buf)
         ring->count--;
         n--;
     }
-    ringbuf_unlock(ring);
     return size - n;
 }
 
@@ -78,7 +77,7 @@ size_t ringbuf_write(struct ringbuf *ring, size_t n, char *buf)
 {
     size_t size = n;
     ringbuf_assert(ring);
-    ringbuf_lock(ring);    
+    ringbuf_assert_lock(ring);    
     while (n)
     {
         if (ringbuf_isfull(ring))
@@ -88,7 +87,6 @@ size_t ringbuf_write(struct ringbuf *ring, size_t n, char *buf)
         ring->count++;
         n--;
     }
-    ringbuf_unlock(ring);
     return size - n;
 }
 
@@ -96,11 +94,8 @@ size_t ringbuf_available(struct ringbuf *ring)
 {
     ringbuf_assert(ring);
     ringbuf_assert_lock(ring);
-
     if (ring->tail >= ring->head)
-    {
         return ring->tail - ring->head;
-    }
     size_t aval = ring->tail + ring->size - ring->head;
     return aval;
 }

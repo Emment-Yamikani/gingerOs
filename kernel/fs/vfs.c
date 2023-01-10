@@ -7,6 +7,7 @@
 #include <lime/string.h>
 #include <mm/kalloc.h>
 #include <printk.h>
+#include <fs/pipefs.h>
 
 static dentry_t *droot = NULL;
 
@@ -34,6 +35,9 @@ int vfs_init(void)
         goto error;
     
     if ((err = ramfs_init()))
+        goto error;
+    
+    if ((err = pipefs_init()))
         goto error;
 
     return 0;
@@ -404,7 +408,7 @@ int vfs_get_mountpoint(char **abs_path, path_t **ref)
         goto error;
     return 0;
 error:
-    printk("vfs_get_mountpoint(), called @ 0x%p, error=%d\n", return_address(0), err);
+    //printk("vfs_get_mountpoint(), called @ 0x%p, error=%d\n", return_address(0), err);
     return err;
 }
 

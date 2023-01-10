@@ -51,7 +51,7 @@ main(int argc, char *argv[])
 
   for(i = 2; i < argc; i++){
     if((fd = open(argv[i], 0)) < 0){
-      dprintf(2, "grep: cannot open %s\n", argv[i]);
+      dprintf(1, "grep: cannot open %s\n", argv[i]);
       exit(fd);
     }
     grep(pattern, fd);

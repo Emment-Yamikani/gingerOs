@@ -18,7 +18,7 @@ void tgroup_free(tgroup_t *tgrp)
         queue_lock(tgrp->queue);
         while ((thread = thread_dequeue(tgrp->queue)))
         {
-            printk("trashing thread(%d)\n", thread->t_tid);
+            printk("\e[07;04mtrashing thread(%d)\e[0m\n", thread->t_tid);
             thread_free(thread);
         }
         queue_free(tgrp->queue);

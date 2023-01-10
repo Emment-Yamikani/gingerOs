@@ -9,6 +9,9 @@
 #include <bits/errno.h>
 #include <sys/thread.h>
 #include <fs/posix.h>
+#include <sys/thread.h>
+#include <sys/proc.h>
+#include <arch/i386/cpu.h>
 
 static iops_t pipefs_iops;
 static filesystem_t pipefs;
@@ -22,18 +25,17 @@ int pipefs_init(void)
 static int pipefs_mkpipe(pipe_t **rpipe)
 {
     int err = 0;
-    cond_t *ww = NULL;
-    cond_t *rw = NULL;
     pipe_t *pipe = NULL;
     ringbuf_t *ring = NULL;
     spinlock_t *lock = NULL;
+    cond_t *readers = NULL, *writers = NULL;
 
     assert(rpipe, "no pipe reference");
 
-    if ((err = cond_init(NULL, "readers", &rw)))
+    if ((err = cond_init(NULL, "pipe_readers", &readers)))
         goto error;
-    
-    if ((err = cond_init(NULL, "writers", &ww)))
+
+    if ((err = cond_init(NULL, "pipe_writers", &writers)))
         goto error;
 
     if ((err = ringbuf_new(PIPESZ, &ring)))
@@ -48,24 +50,26 @@ static int pipefs_mkpipe(pipe_t **rpipe)
         goto error;
     }
 
-    *pipe = (pipe_t)
-    {
-        .read_open =0,
-        .write_open =0,
+    *pipe = (pipe_t){
+        .ropen = 0,
+        .wopen = 0,
         .ringbuf = ring,
-        .readers = rw,
-        .writers = ww,
-        .lock = lock
+        .lock = lock,
+        .readers = readers,
+        .writers = writers,
     };
 
     *rpipe = pipe;
     return 0;
 error:
-    if (ww) cond_free(ww);
-    if (rw) cond_free(rw);
-    if (pipe) kfree(pipe);
-    if (ring) ringbuf_free(ring);
-
+    if (readers)
+        cond_free(readers);
+    if (writers)
+        cond_free(writers);
+    if (pipe)
+        kfree(pipe);
+    if (ring)
+        ringbuf_free(ring);
     return err;
 }
 
@@ -73,52 +77,63 @@ static void pipefs_free(pipe_t *pipe)
 {
     assert(pipe, "no pipe");
 
-    if (pipe->ringbuf) ringbuf_free(pipe->ringbuf);
-    if (pipe->writers) cond_free(pipe->writers);
-    if (pipe->readers) cond_free(pipe->readers);
+    if (pipe->ringbuf)
+        ringbuf_free(pipe->ringbuf);
+    if (pipe->lock)
+        spinlock_free(pipe->lock);
     kfree(pipe);
 }
 
-int pipefs_pipe(file_t *f0, file_t *f1)
+int pipefs_pipe(file_t *read, file_t *write)
 {
     int err = 0;
     pipe_t *pipe = NULL;
-    inode_t *r = NULL, *w = NULL;
-    assert(f0, "no file descriptor");
-    assert(f1, "no file descriptor");
+    inode_t *iread = NULL, *iwrite = NULL;
+    assert(read, "no file descriptor");
+    assert(write, "no file descriptor");
 
-    if ((err = ialloc(&r)))
+    if ((err = ialloc(&iread)))
         goto error;
 
-    if ((err = ialloc(&w)))
+    if ((err = ialloc(&iwrite)))
         goto error;
 
     if ((err = pipefs_mkpipe(&pipe)))
         goto error;
 
-    r->i_mask = 0400;
-    r->i_type = FS_PIPE;
-    r->i_size = PIPESZ;
-    r->ifs = &pipefs;
-    r->i_priv = (void *)pipe;
+    iread->i_mask = 0444;
+    iread->i_priv = pipe;
+    iread->ifs = &pipefs;
+    cond_free(iread->i_readers);
+    iread->i_readers = NULL;
+    cond_free(iread->i_writers);
+    iread->i_writers = NULL;
 
-    w->i_mask = 0200;
-    w->i_type = FS_PIPE;
-    w->i_size = PIPESZ;
-    w->ifs = &pipefs;
-    w->i_priv = (void *)pipe;
-    
-    pipe->read_open = 1;
-    pipe->write_open =1;
-    
-    f0->f_inode = r;
-    f1->f_inode = w;
+    iwrite->i_mask = 0222;
+    iwrite->i_priv = pipe;
+    iwrite->ifs = &pipefs;
+    cond_free(iwrite->i_readers);
+    iwrite->i_readers = NULL;
+    cond_free(iwrite->i_writers);
+    iwrite->i_writers = NULL;
+
+    pipe->ropen = 1;
+    pipe->wopen = 1;
+
+    read->f_inode = iread;
+    read->f_flags |= O_RDONLY;
+
+    write->f_inode = iwrite;
+    write->f_flags |= O_WRONLY;
 
     return 0;
 error:
-    if (r) irelease(r);
-    if (w) irelease(w);
-    if (pipe) pipefs_free(pipe);
+    if (iread)
+        irelease(iread);
+    if (iwrite)
+        irelease(iwrite);
+    if (pipe)
+        pipefs_free(pipe);
     return err;
 }
 
@@ -126,114 +141,146 @@ static int pipefs_close(pipe_t *pipe, int writable)
 {
     assert(pipe, "no pipe");
     spin_lock(pipe->lock);
+
     if (writable)
     {
-        pipe->write_open =0;
-        cond_signal(pipe->readers);
+        //klog(KLOG_OK, "write pipe end\n");
+        pipe->wopen = 0;
     }
     else
     {
-        pipe->read_open = 0;
-        cond_signal(pipe->writers);
+        //klog(KLOG_OK, "read pipe end\n");
+        pipe->ropen = 0;
     }
 
-    if (!pipe->read_open && !pipe->write_open)
+    if (!pipe->ropen && !pipe->wopen)
     {
-        klog(KLOG_OK, "free pipe\n");
+        //klog(KLOG_OK, "free pipe\n");
         spin_unlock(pipe->lock);
         pipefs_free(pipe);
         return 0;
     }
 
     spin_unlock(pipe->lock);
-
     return 0;
 }
 
-static size_t pipe_iread(inode_t *inode, off_t off __unused, void *buf, size_t size)
+static size_t pipe_iread(inode_t *inode, off_t off __unused, void *buf __unused, size_t size)
 {
-    size_t read =0, pos =0;
+    size_t read = 0, pos __unused = 0;
     pipe_t *pipe = NULL;
 
     ilock(inode);
     pipe = inode->i_priv;
-
     spin_lock(pipe->lock);
-    if ((pipe->read_open == 0) || ((inode->i_mask & S_IREAD) == 0)) // pipe not open for read
+
+    if ((inode->i_mask & S_IREAD) == 0) // pipe not open for read
     {
+        printk("pipe not open for reading\n");
         spin_unlock(pipe->lock);
         iunlock(inode);
-        return 0;
+        return -1;
     }
 
-    while(read < size)
+    //printk("pipe read\n");
+
+    while (read < size)
     {
-        if (atomic_read(&current->t_killed) || pipe->write_open == 0) // in case we have been killed break
-            break;
-        
         ringbuf_lock(pipe->ringbuf);
-        int cursz = ringbuf_available(pipe->ringbuf);
-        ringbuf_unlock(pipe->ringbuf);
-        
-        if (cursz == 0) // pipe is empty, sleep
+        if (ringbuf_isempty(pipe->ringbuf)) //pipe is empty
         {
+            //printk("pipe is empty\n");
+            if (pipe->wopen == 0) // write end of pipe is closed
+            {
+                //printk("broken pipe, no write end\n");
+                ringbuf_unlock(pipe->ringbuf);
+                spin_unlock(pipe->lock);
+                iunlock(inode);
+                if (!read)
+                    return -EPIPE;
+                else
+                    return read;
+            }
+
             cond_signal(pipe->writers);
+            
+            ringbuf_unlock(pipe->ringbuf);
             spin_unlock(pipe->lock);
             iunlock(inode);
+            
             cond_wait(pipe->readers);
+            
             ilock(inode);
             spin_lock(pipe->lock);
+            ringbuf_lock(pipe->ringbuf);
         }
 
-        pos += read += ringbuf_read(pipe->ringbuf, (size - read), (buf + pos));
-        cond_signal(pipe->writers); //notify the writers that we are done for now
+        read += ringbuf_read(pipe->ringbuf, size - read, buf + read);
+        ringbuf_unlock(pipe->ringbuf);
     }
+
+    cond_signal(pipe->writers);
     spin_unlock(pipe->lock);
     iunlock(inode);
-
     return read;
 }
 
-static size_t pipe_iwrite(inode_t *inode, off_t off __unused, void *buf, size_t size)
+static size_t pipe_iwrite(inode_t *inode, off_t off __unused, void *buf __unused, size_t size)
 {
-    size_t written =0, pos = 0;
+    size_t written = 0, pos __unused = 0;
     pipe_t *pipe = NULL;
 
     ilock(inode);
     pipe = inode->i_priv;
 
     spin_lock(pipe->lock);
-    if ((pipe->write_open == 0) || ((inode->i_mask & S_IWRITE) == 0)) // pipe not open for writing
+    if ((inode->i_mask & S_IWRITE) == 0) // pipe not open for writing
     {
+        printk("pipe not open for writing\n");
         spin_unlock(pipe->lock);
         iunlock(inode);
-        return 0;
+        return -1;
     }
+
+    //printk("pipe write\n");
 
     while (written < size)
     {
-        if (atomic_read(&current->t_killed) || pipe->read_open == 0) // in case we have been killed break
-            break;
-        
         ringbuf_lock(pipe->ringbuf);
-        int cursz = ringbuf_available(pipe->ringbuf);
-        ringbuf_unlock(pipe->ringbuf);
-        
-        if (cursz == PIPESZ) // pipe is full, sleep
+        if (ringbuf_available(pipe->ringbuf) == PIPESZ)
         {
+            //printk("pipe is full\n");
+            if (pipe->ropen == 0) // read end of pipe is closed
+            {
+                //printk("broken pipe, no read end\n");
+                ringbuf_unlock(pipe->ringbuf);
+                spin_unlock(pipe->lock);
+                iunlock(inode);
+                if (!written)
+                    return -EPIPE;
+                else return written;
+            }
+
             cond_signal(pipe->readers);
+            
+            ringbuf_unlock(pipe->ringbuf);
             spin_unlock(pipe->lock);
             iunlock(inode);
+            
             cond_wait(pipe->writers);
+
             ilock(inode);
             spin_lock(pipe->lock);
+            ringbuf_lock(pipe->ringbuf);
         }
-        pos += written += ringbuf_write(pipe->ringbuf, (size - written), buf + pos);
-        cond_signal(pipe->readers); // notify the writers that we are done for now
+
+        written += ringbuf_write(pipe->ringbuf, size - written, buf + written);
+        ringbuf_unlock(pipe->ringbuf);
     }
+    
+    cond_signal(pipe->readers);
     spin_unlock(pipe->lock);
     iunlock(inode);
-
     return written;
 }
 
@@ -269,13 +316,16 @@ static int pipe_ilseek(inode_t *inode __unused, off_t off __unused, int whence _
 
 static int pipefs_iclose(inode_t *inode __unused)
 {
-    int writable = 0;
+    int err = 0, writable = 0;
     pipe_t *pipe = NULL;
     ilock(inode);
     pipe = (pipe_t *)inode->i_priv;
-    writable = inode->i_mask & 0200;
+    writable = inode->i_mask & S_IWUSR ? 1 : 
+               inode->i_mask & S_IWGRP ? 1 :
+               inode->i_mask & S_IWOTH ? 1 : 0;
+    err = pipefs_close(pipe, writable);
     iunlock(inode);
-    return pipefs_close(pipe, writable);
+    return err;
 }
 
 static size_t pipefs_can_read(struct file *file, size_t size)
@@ -305,15 +355,15 @@ int pipefs_mount()
 
     if ((err = ialloc(&pipefs_iroot)))
         goto error;
-    
+
     pipefs_iroot->i_mask = 0770;
     pipefs_iroot->i_type = FS_DIR;
     pipefs_sb.s_count = 1;
     pipefs_sb.s_iroot = pipefs_iroot;
-    
+
     if ((err = vfs_mount("/", "pipefs", pipefs_iroot)))
         goto error;
-    
+
     return 0;
 error:
     if (pipefs_iroot)
@@ -330,8 +380,7 @@ int pipefs_load()
     return 0;
 }
 
-static iops_t pipefs_iops=
-{
+static iops_t pipefs_iops = {
     .close = pipefs_iclose,
     .read = pipe_iread,
     .write = pipe_iwrite,
@@ -340,7 +389,7 @@ static iops_t pipefs_iops=
     .ioctl = pipe_iioctl,
     .lseek = pipe_ilseek,
     .open = pipe_iopen,
-    .sync = pipe_isync
+    .sync = pipe_isync,
 };
 
 static super_block_t pipefs_sb = {

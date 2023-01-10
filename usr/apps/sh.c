@@ -108,16 +108,14 @@ void runcmd(struct cmd *cmd)
             panic("pipe");
         if (fork1() == 0)
         {
-            close(1);
-            dup(p[1]);
+            dup2(p[1], 1);
             close(p[0]);
             close(p[1]);
             runcmd(pcmd->left);
         }
         if (fork1() == 0)
         {
-            close(0);
-            dup(p[0]);
+            dup2(p[0], 0);
             close(p[0]);
             close(p[1]);
             runcmd(pcmd->right);
@@ -134,8 +132,6 @@ void runcmd(struct cmd *cmd)
             runcmd(bcmd->cmd);
         break;
     }
-
-    printf("runcmd exiting\n");
     exit(0);
 }
 
@@ -179,9 +175,8 @@ int main(void)
         }
 
         if (!strncmp("exit", buf, strlen("exit")))
-            exit(0);
-
-        printf("running command\n");
+            break;
+    
         if (fork1() == 0)
             runcmd(parsecmd(buf));
         wait(&statloc);

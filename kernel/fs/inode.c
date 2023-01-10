@@ -31,9 +31,10 @@ int ialloc(inode_t **ref)
     
     memset(ip, 0, sizeof *ip);
 
+    ip->i_refs = 1;
     ip->i_lock = lock;
-    ip->i_rwait = reader_wait;
-    ip->i_rwait = writer_wait;
+    ip->i_readers = reader_wait;
+    ip->i_writers = writer_wait;
 
     *ref = ip;
     return 0;
@@ -92,8 +93,8 @@ int irelease(inode_t *ip)
     iunlock(ip);
 
     spinlock_free(ip->i_lock);
-    cond_free(ip->i_rwait);
-    cond_free(ip->i_wwait);
+    cond_free(ip->i_readers);
+    cond_free(ip->i_writers);
     kfree(ip);
 
     return 0;

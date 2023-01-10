@@ -54,8 +54,8 @@ typedef struct inode
     int i_refs;         /*reference count*/
     itype_t i_type;     /*file type*/
     spinlock_t *i_lock; /*per-inode lock*/
-    cond_t *i_rwait;    /*per-inode readers wait condition*/
-    cond_t *i_wwait;    /*per-inode writers wait condition*/
+    cond_t *i_readers;    /*per-inode readers wait condition*/
+    cond_t *i_writers;    /*per-inode writers wait condition*/
     void *i_priv;       /*private data*/
     struct filesystem *ifs; /*super block on which this inode resides*/
 } inode_t;

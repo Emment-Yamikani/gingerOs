@@ -53,7 +53,7 @@ int fdup(file_t *file)
     flock(file);
     file->f_ref++;
     funlock(file);
-
+    //printk("file->refs: %d\n", file->f_ref);
     return 0;
 }
 

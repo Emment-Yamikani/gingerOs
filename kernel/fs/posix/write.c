@@ -15,6 +15,9 @@
 #include <printk.h>
 #include <sys/fcntl.h>
 #include <lib/errno.h>
+#include <sys/thread.h>
+#include <sys/proc.h>
+#include <arch/i386/cpu.h>
 //#include <bits/dirent.h>
 
 /**
@@ -42,8 +45,10 @@ size_t posix_file_write(struct file *file, void *buf, size_t size)
 			file->f_pos += retval;
 			
 			/* Wake up all sleeping readers if a `read_queue' is attached */
-			if (file->f_inode->i_rwait)
-				cond_signal(file->f_inode->i_rwait);
+			if (file->f_inode->i_readers){
+				printk("[%d:%d] posix signaling readers\n", proc->pid, current->t_tid);
+				cond_signal(file->f_inode->i_readers);
+			}
 
 			/* Return written bytes count */
 			return retval;
@@ -54,15 +59,22 @@ size_t posix_file_write(struct file *file, void *buf, size_t size)
 	} else {	/* Blocking I/O */
 		long retval = size;
 
+		long written = 0;
 		while (size) {
-			size -= iwrite(file->f_inode, file->f_pos, buf, size);
+			size -= written = iwrite(file->f_inode, file->f_pos, buf, size);
 
+			if (written < 0)
+				return written;
 			/* No bytes left to be written, or reached END-OF-FILE */
 			if (!size || feof(file))	/* Done writting */
 				break;
 
 			/* Sleep on the file writers queue */
-			cond_wait(file->f_inode->i_wwait);
+			if (file->f_inode->i_writers){
+				printk("posix waiting for readers\n");
+				if (cond_wait(file->f_inode->i_writers))
+					return -EINTR;
+			}
 		}
 		
 		/* Store written bytes count */
@@ -72,8 +84,8 @@ size_t posix_file_write(struct file *file, void *buf, size_t size)
 		file->f_pos += retval;
 
 		/* Wake up all sleeping readers if a `read_queue' is attached */
-		if (file->f_inode->i_rwait)
-			cond_signal(file->f_inode->i_rwait);
+		if (file->f_inode->i_readers)
+			cond_signal(file->f_inode->i_readers);
 
 		return retval;
 	}

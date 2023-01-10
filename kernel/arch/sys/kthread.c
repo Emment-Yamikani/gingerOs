@@ -7,6 +7,7 @@
 #include <arch/sys/uthread.h>
 #include <arch/i386/paging.h>
 #include <bits/errno.h>
+#include <lib/string.h>
 
 void arch_thread_start(void)
 {
@@ -68,8 +69,20 @@ int arch_uthread_init(x86_thread_t *thread, void *(*entry)(void *), const char *
     ustack = stack->vaddr + USTACKSIZE;
     kstack = (uint32_t *)(thread->kstack + KSTACKSIZE);
 
-    klog(KLOG_WARN, "\e[0;013mOnly map part of user stack that is acutally in use\e[0m\n");
-    if ((err = paging_mappages(stack->vaddr, stack->size, stack->vflags)))
+    //klog(KLOG_WARN, "\e[0;013mOnly map part of user stack that is acutally in use\e[0m\n");
+
+    size_t mapsz =  2 * sizeof (char *) + 5 * sizeof (uint32_t);
+
+    if (argp)
+        foreach (arg, argp)
+            mapsz += strlen(arg) + 1 + sizeof(char *);
+    if (envp)
+        foreach (env, envp)
+            mapsz += strlen(env) + 1 + sizeof(char *);
+    
+    //printk("mapsize: %d\n", mapsz);
+
+    if ((err = paging_mappages(ustack - GET_BOUNDARY_SIZE(0, mapsz), GET_BOUNDARY_SIZE(0, mapsz), stack->vflags)))
         goto error;
 
     if ((err = arch_uthread_execve(&ustack, argp, envp)))
@@ -121,7 +134,7 @@ int arch_uthread_create(x86_thread_t *thread, void *(*entry)(void *), void *arg)
     ustack = (uint32_t *)(stack->vaddr + USTACKSIZE);
     kstack = (uint32_t *)(thread->kstack + KSTACKSIZE);
 
-    if ((err = paging_mappages(stack->vaddr, stack->size, stack->vflags)))
+    if ((err = paging_mappages(((uintptr_t)ustack) - PAGESZ, PAGESZ, stack->vflags)))
         goto error;
 
     *--ustack = (uint32_t)arg;

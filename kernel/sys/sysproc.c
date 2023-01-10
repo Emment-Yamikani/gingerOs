@@ -40,7 +40,7 @@ void exit(int status)
     for (int i = 0; i < NFILE; ++i)
         close(i);
 
-    printk("\e[017;04mexit(%d)\e[0m\n", status);
+    printk("\e[017;0m[%d:%d]\e[0m: '%s' \e[0;04mexit(%d)\e[0m\n", proc->pid, current->t_tid, proc->name, status);
     // orphan all chilren
     queue_lock(proc->children);
     // don't waste time if there is no child to orphan
@@ -116,8 +116,6 @@ pid_t fork(void)
         proc_unlock(proc);
         goto error;
     }
-
-    klog(KLOG_WARN, "Do we have to fork pending signals\n");
 
     proc_lock(child);
     shm_lock(child->mmap);

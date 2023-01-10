@@ -21,21 +21,6 @@ static int open_stdio(void)
     return 0;
 }
 
-void *timer(void *arg)
-{
-    int rtc = open("/dev/rtc0", O_RDONLY);
-    long sec = 0;
-    long old = 0;
-    for (;;)
-    {
-        read(rtc, &sec, sizeof sec);
-        if ((!(sec % 20)) && (sec != old))
-            printf("sec: %d\n", sec);
-        old = sec;
-    }
-    thread_exit(0);
-}
-
 int main(int argc, char *argv[])
 {
     int err = 0;
@@ -47,8 +32,6 @@ int main(int argc, char *argv[])
 
     if ((err = open_stdio()))
         return err;
-
-    thread_create(&tid, timer, NULL);
 
     if ((pid = fork()) > 0)
     {

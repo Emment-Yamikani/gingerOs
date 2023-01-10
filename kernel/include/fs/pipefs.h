@@ -6,14 +6,15 @@
 
 typedef struct pipe
 {
-    int read_open;
-    int write_open;
+    int ropen; /*read end is open?*/
+    int wopen; /*write end is open?*/
     cond_t *readers;
     cond_t *writers;
-    spinlock_t *lock;
-    ringbuf_t *ringbuf;
+    spinlock_t *lock; /*pipe lock*/
+    ringbuf_t *ringbuf; /*pipe circular buffer*/
 } pipe_t;
 
-#define PIPESZ  512
+#define PIPESZ  512 /*max allowed buffer size*/
 
+int pipefs_init(void);
 int pipefs_pipe(file_t *f0, file_t *f1);
