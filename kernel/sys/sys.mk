@@ -11,6 +11,7 @@ $(binfmtobjs)\
 $(schedobjs)\
 $(threadsobjs)\
 $(sysdir)/proc.o\
+$(sysdir)/session.o\
 $(sysdir)/sleep.o\
 $(sysdir)/sysproc.o\
 $(sysdir)/sysprot.o\

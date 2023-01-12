@@ -10,6 +10,9 @@
 #include <fs/fs.h>
 
 typedef struct tgroup tgroup_t;
+struct session;
+struct pgroup;
+
 
 typedef struct proc
 {
@@ -28,6 +31,10 @@ typedef struct proc
     queue_t *children;
     queue_t *signals;
     cond_t *wait;
+
+    struct pgroup *pgroup;
+    struct session *session;
+
     spinlock_t *lock;
 } proc_t;
 

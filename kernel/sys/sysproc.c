@@ -373,3 +373,23 @@ error:
         vmr_free(vmr);
     return NULL;
 }
+
+#include <sys/session.h>
+
+int setpgrp(void)
+{
+    int err = 0;
+    pid_t pgid = 0;
+    PGROUP pgroup = NULL;
+    SESSION session = NULL;
+
+    return -1;
+error:
+    klog(KLOG_FAIL, "failed to set pgroup\n");
+    return err;
+}
+
+pid_t setsid(void);
+pid_t getsid(pid_t pid);
+pid_t getpgid(pid_t pid);
+int setpgid(pid_t pid, pid_t pgid);

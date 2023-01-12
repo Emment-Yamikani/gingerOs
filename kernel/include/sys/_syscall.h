@@ -127,8 +127,8 @@ extern int sys_execve(void);
 /*Process relationships*/
 
 extern int sys_getppid(void);
-extern pid_t sys_setsid(void);
 extern pid_t sys_getpgrp(void);
+extern pid_t sys_setsid(void);
 extern pid_t sys_setpgrp(void);
 extern pid_t sys_getsid(pid_t pid);
 extern pid_t sys_getpgid(pid_t pid);

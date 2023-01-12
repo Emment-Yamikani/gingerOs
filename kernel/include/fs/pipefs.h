@@ -8,8 +8,8 @@ typedef struct pipe
 {
     int ropen; /*read end is open?*/
     int wopen; /*write end is open?*/
-    cond_t *readers;
-    cond_t *writers;
+    cond_t *readers; /*readers wait queue*/
+    cond_t *writers; /*writers queue*/
     spinlock_t *lock; /*pipe lock*/
     ringbuf_t *ringbuf; /*pipe circular buffer*/
 } pipe_t;

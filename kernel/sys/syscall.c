@@ -42,9 +42,6 @@ static uintptr_t (*syscall[])(void) =
         [SYS_EXECV](void *) sys_execv,
         [SYS_SBRK](void *) sys_sbrk,
 
-        /*Process relationships*/
-
-        [SYS_GETPPID](void *) sys_getppid,
 
         /*Memory Management*/
 
@@ -64,6 +61,11 @@ static uintptr_t (*syscall[])(void) =
         [SYS_SETUID](void *) sys_setuid,
         [SYS_GETGID](void *) sys_getgid,
         [SYS_SETGID](void *) sys_setgid,
+        
+        /*Process relationships*/
+
+        [SYS_GETPPID](void *) sys_getppid,
+        [SYS_SETPGRP](void *) sys_setpgrp,
 };
 
 static int sys_syscall_ni(trapframe_t *tf)
@@ -370,13 +372,6 @@ void *sys_sbrk(void)
     return sbrk(incr);
 }
 
-/*Process relationships*/
-
-pid_t sys_getppid(void)
-{
-    return getppid();
-}
-
 /*Memery management*/
 
 int sys_getpagesize(void)
@@ -447,4 +442,16 @@ int sys_setuid(void)
     uid_t uid = 0;
     assert(!argint(0, &uid), "err fetching uid");
     return setuid(uid);
+}
+
+/*Process relationships*/
+
+pid_t sys_getppid(void)
+{
+    return getppid();
+}
+
+pid_t sys_setpgrp(void)
+{
+    return setpgrp();
 }
