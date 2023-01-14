@@ -38,6 +38,7 @@ void exit(int status)
 
     proc_lock(parent);
 
+
     if (thread_kill_all() == -ERFKILL)
     {
         proc_unlock(parent);
@@ -69,11 +70,10 @@ void exit(int status)
         child = node->data;
         proc_lock(child);
 
+        child->parent = initproc;
         queue_remove(proc->children, child);
         atomic_or(&child->flags, PROC_ORPHANED);
         enqueue(initproc->children, child);
-        child->parent = initproc;
-        printk("child: %d, abandoned to %d\n", child->pid, initproc->pid);
         proc_unlock(child);
     }
 
@@ -89,8 +89,18 @@ void exit(int status)
     proc->state = ZOMBIE;
     proc->exit = status;
 
-    cond_broadcast(parent->wait);
     cond_broadcast(proc->wait);
+    
+    spin_lock(parent->wait->guard);
+    queue_lock(parent->wait->waiters);
+    forlinked(node, parent->wait->waiters->head, node->next)
+    {
+        //printk("TID: %d, %s(), thread: %p, queue: %p\n", thread_self(), __func__, node->data, ((thread_t *)node->data)->t_queues);
+    }
+    queue_unlock(parent->wait->waiters);
+    spin_unlock(parent->wait->guard);
+
+    cond_broadcast(parent->wait);
 
     printk("[\e[0;11m%d\e[0m:\e[0;012m%d\e[0m:\e[0;02m%d\e[0m]: "
         "\e[0;04mexit(\e[0;017m%d\e[0m)\e[0m\n",

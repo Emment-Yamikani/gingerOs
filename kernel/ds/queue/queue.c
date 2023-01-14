@@ -158,12 +158,16 @@ int queue_remove_node(queue_t *q, queue_node_t *node)
 
     if (node->prev)
         node->prev->next = node->next;
+    else
+        q->head = node->next;
+    
     if (node->next)
         node->next->prev = node->prev;
-    if (q->head == node)
-        q->head = node->next;
-    if (q->tail == node)
+    else
         q->tail = node->prev;
+
+    node->next = NULL;
+    node->prev = NULL;
 
     q->count--;
     kfree(node);

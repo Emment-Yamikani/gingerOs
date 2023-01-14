@@ -72,7 +72,17 @@ int mutex_lock(mutex_t *mutex)
         panic("thread(%d) holding mutex return [\e[0;013m%p\e[0m]\n", thread_self(), return_address(0));
 
     if ((int)atomic_incr(&mutex->lock) > 0)
+    {
+        current_lock();
+        current->sleep.data = mutex;
+        current->sleep.type = MUTEX;
+
         retval = sched_sleep(mutex->waiters, mutex->guard);
+
+        current->sleep.data = NULL;
+        current->sleep.type = INVALID;
+        current_unlock();
+    }
 
     mutex->thread = current;
     spin_unlock(mutex->guard);

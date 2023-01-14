@@ -8,11 +8,9 @@ int main(int argc, char *argv[])
     
     if ((pid = fork()))
     {
-        printf("parent\n");
     }
     else
     {
-        printf("child\n");
         sleep(2);
     }
     exit(0);

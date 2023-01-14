@@ -35,13 +35,16 @@ int main(int argc, char *argv[])
 
     if ((pid = fork()) > 0)
     {
-        do
-            if ((pid = wait(&staloc)) > 0)
-                if (staloc) printf("pid: %d exited with status: %d\n", pid, staloc);
-        while (1);
+        loop:
+        pid = wait(&staloc);
+            goto loop;
     }
     else if (pid < 0)
-        panic("failed to fork");
-    else
+        panic("failed to fork a child\n");
+    else{
         execv(argp[0], argp);
+        panic("execv returned\n");
+    }
+
+    exit(0);
 }

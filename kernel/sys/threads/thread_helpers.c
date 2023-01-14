@@ -11,6 +11,7 @@
 #include <sys/proc.h>
 #include <arch/i386/cpu.h>
 #include <arch/sys/proc.h>
+#include <locks/mutex.h>
 
 tid_t thread_self(void)
 {
@@ -26,21 +27,63 @@ void thread_exit(uintptr_t exit_code)
 
 int thread_wake(thread_t *thread)
 {
+    cond_t *cond = NULL;
+    mutex_t *mutex = NULL;
+    int locked = 0;
     thread_assert(thread);
     thread_assert_lock(thread);
+    assert(thread->sleep.queue, "sleeping thread has no queue");
     
-    printk("thread: %p, t_queue: %p\n", thread, thread->t_queues);
-    queue_lock(thread->t_queues);                          // lock thread->queue
-    queue_remove(thread->t_queues, thread->t_sleep_queue); // remove sleep_queue from thread->queue
-    queue_unlock(thread->t_queues);                        // unlock thread->queue
+    switch (thread->sleep.type)
+    {
+    case CONDITION:
+        cond = thread->sleep.data;
+        if (spin_holding(cond->guard) == 0)
+        {
+            spin_lock(cond->guard);
+            locked = 1;
+        }
 
-    queue_remove_node(thread->t_sleep_queue, thread->t_sleep_node); // remove thread from sleep_queue
+        assert(cond->waiters == thread->sleep.queue, "sleep queues don't match");
+        
+        queue_remove(cond->waiters, thread);
+        queue_lock(thread->t_queues);
+        queue_remove(thread->t_queues, cond->waiters);
+        queue_unlock(thread->t_queues);
 
-    
+        atomic_decr(&cond->count);
+
+        if (spin_holding(cond->guard)  && locked)
+            spin_unlock(cond->guard);
+
+        break;
+    case MUTEX:
+        mutex =  thread->sleep.data;
+        if (spin_holding(mutex->guard) == 0)
+        {
+            spin_lock(mutex->guard);
+            locked = 1;
+        }
+
+        assert(mutex->waiters == thread->sleep.queue, "sleep queues don't match");
+        
+        queue_remove(mutex->waiters, thread);
+        queue_lock(thread->t_queues);
+        queue_remove(thread->t_queues, mutex->waiters);
+        queue_unlock(thread->t_queues);
+
+        atomic_decr(&mutex->lock);
+
+        if (spin_holding(mutex->guard)  && locked)
+            spin_unlock(mutex->guard);
+
+        break;
+    default:
+        panic("sleeping thread has no sleep struct type\n");
+    }
+
     // park thread ready for running
     thread->t_state = T_READY;
-    thread->t_sleep_node = NULL;
-    thread->t_sleep_queue = NULL;
     return sched_park(thread);
 }
 

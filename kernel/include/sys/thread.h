@@ -76,17 +76,22 @@ typedef struct thread
     spinlock_t *t_lock;        /*thread lock*/
     sched_attr_t t_sched_attr; /*thread scheduling attributes*/
 
-    shm_t *mmap;            /*memory map*/
-    tgroup_t *t_group;      /*thread group*/
-    queue_t *t_queues;      /*thread queues*/
-    queue_t *t_sleep_queue; /*thread's sleep queue if sleeping*/
+    shm_t *mmap;       /*memory map*/
+    tgroup_t *t_group; /*thread group*/
+    queue_t *t_queues; /*thread queues*/
     struct
     {
-        int type;               /*type of queue*/
-        void *data;             /*used to specify what holds the sleep-queue, e.g mutex, condition-variable, etc.*/
-        queue_t *t_sleep_queue; /*thread's sleep queue if sleeping*/
+        enum
+        {
+            INVALID, /*invalid sleep struct*/
+            CONDITION, /*condition variable*/
+            MUTEX,           /*mutex*/
+        } type;             /*type of queue*/
+        void *data;         /*used to specify what holds the sleep-queue, e.g mutex, condition-variable, etc.*/
+        queue_t *queue;     /*thread's sleep queue if sleeping*/
+        queue_node_t *node; /*thread's sleep queue node*/
     } sleep;
-    queue_node_t *t_sleep_node;      /*thread's sleep queue node*/
+
     struct file_table *t_file_table; /*thread file table*/
     cond_t *t_wait;                  /*thread wait condition*/
 } thread_t;
