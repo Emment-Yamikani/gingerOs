@@ -11,7 +11,7 @@ struct session;
 
 typedef struct pgroup
 {
-    pid_t pg_pid; /*process group ID*/
+    pid_t pg_id; /*process group ID*/
     proc_t *pg_leader; /*process group leader*/
     queue_t *pg_procs; /*process queue*/
     atomic_t pg_refs; /*process group reference count*/
@@ -83,6 +83,6 @@ int session_leave(SESSION, proc_t *);
 int session_add(SESSION, PGROUP);
 int session_remove(SESSION, PGROUP);
 int session_contains(SESSION, PGROUP);
-int session_alloc(proc_t *, session_t **);
+int session_create(proc_t *, SESSION *);
 int session_lookup(SESSION, pid_t, pgroup_t **);
 int session_create_pgroup(SESSION, proc_t *, PGROUP *);

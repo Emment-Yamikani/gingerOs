@@ -17,4 +17,7 @@ extern void *sbrk(ptrdiff_t nbytes);
 pid_t getppid(void);
 
 int setpgrp(void);
-
+pid_t getpgid(pid_t pid);
+pid_t setsid(void);
+pid_t getsid(pid_t pid);
+int setpgid(pid_t pid, pid_t pgid);

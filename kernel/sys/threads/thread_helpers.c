@@ -28,13 +28,15 @@ int thread_wake(thread_t *thread)
 {
     thread_assert(thread);
     thread_assert_lock(thread);
-
+    
+    printk("thread: %p, t_queue: %p\n", thread, thread->t_queues);
     queue_lock(thread->t_queues);                          // lock thread->queue
     queue_remove(thread->t_queues, thread->t_sleep_queue); // remove sleep_queue from thread->queue
     queue_unlock(thread->t_queues);                        // unlock thread->queue
 
     queue_remove_node(thread->t_sleep_queue, thread->t_sleep_node); // remove thread from sleep_queue
 
+    
     // park thread ready for running
     thread->t_state = T_READY;
     thread->t_sleep_node = NULL;
@@ -159,7 +161,6 @@ int thread_kill_all(void)
 
     while (atomic_read(&tgrp->nthreads) > 1)
         ;
-
     return 0;
 }
 

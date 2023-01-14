@@ -153,6 +153,7 @@ int main(void)
     static char buf[100];
     int err = 0;
     int statloc = 0;
+    pid_t child = 0;
 
     // Ensure that three file descriptors are open.
     /*while((fd = open("console", O_RDWR)) >= 0){

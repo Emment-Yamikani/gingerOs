@@ -11,6 +11,7 @@
 #include <mm/kalloc.h>
 #include <lib/string.h>
 #include <arch/i386/paging.h>
+#include <sys/session.h>
 
 pid_t getpid(void)
 {
@@ -24,59 +25,78 @@ void exit(int status)
 {
     proc_t *child = NULL;
     proc_t *parent = NULL;
+    SESSION session = NULL;
 
     proc_assert(proc);
 
     if (proc == initproc)
         panic("init exiting\n");
-
+    
+    proc_lock(proc);
     parent = proc->parent;
+    session = proc->session;
 
-    // guarante that we're the only ones running
+    proc_lock(parent);
+
     if (thread_kill_all() == -ERFKILL)
+    {
+        proc_unlock(parent);
+        proc_unlock(proc);
         thread_exit(status);
+    }
 
-    // close all open files
-    for (int i = 0; i < NFILE; ++i)
-        close(i);
+    queue_lock(processes);
+    queue_remove(processes, proc);
+    queue_unlock(processes);
 
-    printk("\e[017;0m[%d:%d]\e[0m: '%s' \e[0;04mexit(%d)\e[0m\n", proc->pid, current->t_tid, proc->name, status);
-    // orphan all chilren
-    queue_lock(proc->children);
-    // don't waste time if there is no child to orphan
-    if (queue_count(proc->children) == 0)
-        goto done_orphaning;
+    if (session)
+    {
+        session_lock(session);
+        session_leave(session, proc);
+        session_unlock(session);
+    }
+
+    for (int fd =0; fd < NFILE; ++fd)
+        close(fd);
+
+    klog(KLOG_WARN, "cancel pending signals\n");
 
     queue_lock(initproc->children);
+    queue_lock(proc->children);
 
     forlinked(node, proc->children->head, node->next)
     {
         child = node->data;
         proc_lock(child);
-        queue_remove_node(proc->children, node);
-        atomic_write(&child->orphan, 1);
 
+        queue_remove(proc->children, child);
+        atomic_or(&child->flags, PROC_ORPHANED);
         enqueue(initproc->children, child);
         child->parent = initproc;
+        printk("child: %d, abandoned to %d\n", child->pid, initproc->pid);
         proc_unlock(child);
     }
 
-    queue_unlock(initproc->children);
-
-done_orphaning:
     queue_unlock(proc->children);
+    queue_unlock(initproc->children);
 
     shm_lock(proc->mmap);
     shm_pgdir_lock(proc->mmap);
     shm_unmap_addrspace(proc->mmap);
     shm_pgdir_unlock(proc->mmap);
     shm_unlock(proc->mmap);
-
-    proc_lock(proc);
-    proc->exit = status;
+    
     proc->state = ZOMBIE;
-    cond_broadcast(proc->wait);   // signal all processes waiting on proc
-    cond_broadcast(parent->wait); // signal all processes waiting on parent
+    proc->exit = status;
+
+    cond_broadcast(parent->wait);
+    cond_broadcast(proc->wait);
+
+    printk("[\e[0;11m%d\e[0m:\e[0;012m%d\e[0m:\e[0;02m%d\e[0m]: "
+        "\e[0;04mexit(\e[0;017m%d\e[0m)\e[0m\n",
+        parent->pid, proc->pid, thread_self(), status);
+    
+    proc_unlock(parent);
     proc_unlock(proc);
 
     thread_exit(status);
@@ -184,11 +204,13 @@ pid_t wait(int *staloc)
 {
     pid_t pid = 0;
     proc_t *child = NULL;
-    atomic_t haskids = 0;
-
+    atomic_t haskids;
+    
     for (;;)
     {
-        atomic_write(&haskids, 0);
+        atomic_clear(&haskids);
+
+        proc_lock(proc);
         queue_lock(proc->children);
 
         forlinked(node, proc->children->head, node->next)
@@ -198,30 +220,48 @@ pid_t wait(int *staloc)
             proc_lock(child);
             if (child->state == ZOMBIE)
             {
+                queue_remove(proc->children, child);
+                
+                *staloc = child->exit;
                 pid = child->pid;
-                *staloc = (int)child->exit;
-                proc_unlock(child);
-                queue_unlock(proc->children);
+
+                assert(child->tgroup, "No tgroup");
                 while (atomic_read(&child->tgroup->nthreads))
-                    ;
-                queue_lock(proc->children);
-                queue_remove_node(proc->children, node);
-                queue_unlock(proc->children);
+                    CPU_RELAX();
+
+                proc_unlock(child);
                 proc_free(child);
+                queue_unlock(proc->children);
+                proc_unlock(proc);
                 goto done;
             }
             proc_unlock(child);
         }
 
         queue_unlock(proc->children);
+        
+        if (atomic_read(&proc->flags) & PROC_KILLED)
+        {
+            proc_unlock(proc);
+            return -EINTR;
+        }
+
         if (atomic_read(&haskids))
-            cond_wait(proc->wait);
+        {
+            proc_unlock(proc);
+            if (cond_wait(proc->wait))
+                return -EINTR;
+            continue;
+        }
         else
-            return -1;
+        {
+            proc_unlock(proc);
+            return -EINVAL;
+        }
+        proc_unlock(proc);
     }
 
 done:
-    //printk("child: %d\n", pid);
     return pid;
 }
 
@@ -236,8 +276,7 @@ int execve(char *path, char *argp[], char *envp[])
         goto error;
     }
 
-
-    //printk("execve(%s, %p, %p)\n", path, argp, envp);
+    // printk("execve(%s, %p, %p)\n", path, argp, envp);
 
     if (!(argp_envp = arch_execve_cpy(argp, envp)))
     {
@@ -292,7 +331,7 @@ void *sbrk(ptrdiff_t nbytes)
 {
     int err = 0;
     vmr_t *vmr = NULL;
-    
+
     shm_lock(proc->mmap);
     shm_pgdir_lock(proc->mmap);
 
@@ -312,8 +351,7 @@ void *sbrk(ptrdiff_t nbytes)
         return NULL;
     }
 
-    //printk("sbrk(%d): BRK: %p\n", nbytes, _brk);
-
+    // printk("sbrk(%d): BRK: %p\n", nbytes, _brk);
 
     vmr = shm_lookup(proc->mmap, _brk - 1);
 
@@ -341,7 +379,7 @@ creat:
     vmr->vaddr = _brk;
     vmr->vflags = VM_URW;
 
-    //printk("brk: vmr: %p, oflags: \e[0;013m0%b\e[0m, vflags: \e[0;012m0%b\e[0m\n", vmr->vaddr, vmr->oflags, vmr->vflags);
+    // printk("brk: vmr: %p, oflags: \e[0;013m0%b\e[0m, vflags: \e[0;012m0%b\e[0m\n", vmr->vaddr, vmr->oflags, vmr->vflags);
 
     if ((err = shm_map(proc->mmap, vmr)))
     {
@@ -383,13 +421,105 @@ int setpgrp(void)
     PGROUP pgroup = NULL;
     SESSION session = NULL;
 
-    return -1;
+    proc_lock(proc);
+    pgid = proc->pid;
+    pgroup = proc->pgroup;
+    session = proc->session;
+
+    if (session)
+    {
+        session_lock(session);
+        if (issession_leader(session, proc))
+        {
+            session_unlock(session);
+            goto done;
+        }
+
+        if ((err = session_leave(session, proc)))
+        {
+            session_unlock(session);
+            proc_unlock(proc);
+            goto error;
+        }
+
+        if ((err = session_create_pgroup(session, proc, &pgroup)))
+        {
+            session_unlock(session);
+            proc_unlock(proc);
+            goto error;
+        }
+
+        session_unlock(session);
+        goto done;
+    }
+    else
+    {
+        if ((err = session_create(proc, &session)))
+        {
+            proc_unlock(proc);
+            goto error;
+        }
+        goto done;
+    }
+
+done:
+    proc_unlock(proc);
+    return pgid;
+
 error:
     klog(KLOG_FAIL, "failed to set pgroup\n");
     return err;
 }
 
+pid_t getpgid(pid_t pid)
+{
+    int err = 0;
+    pid_t pgid = 0;
+    proc_t *p = NULL;
+
+    if (pid < 0)
+        return -EINVAL;
+
+    proc_lock(proc);
+    if ((pid == 0) || (pid == proc->pid))
+        goto self;
+    else
+        proc_unlock(proc);
+
+    if ((err = proc_get(pid, &p)))
+        return err;
+
+    proc_lock(proc);
+
+    if (proc->pgroup == NULL || proc->session == NULL
+        || p->session == NULL || p->pgroup == NULL
+        || (p->session != proc->session))
+    {
+        proc_unlock(proc);
+        proc_unlock(p);
+        return -EPERM;
+    }
+
+    pgroup_lock(p->pgroup);
+    pgid = p->pgroup->pg_id;
+    pgroup_unlock(p->pgroup);
+    proc_unlock(proc);
+    proc_unlock(p);
+    goto done;
+self:
+    if (proc->pgroup == NULL)
+    {
+        proc_unlock(proc);
+        return -EINVAL;
+    }
+    pgroup_lock(proc->pgroup);
+    pgid = proc->pgroup->pg_id;
+    pgroup_unlock(proc->pgroup);
+    proc_unlock(proc);
+done:
+    return pgid;
+}
+
 pid_t setsid(void);
 pid_t getsid(pid_t pid);
-pid_t getpgid(pid_t pid);
 int setpgid(pid_t pid, pid_t pgid);

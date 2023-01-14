@@ -66,6 +66,7 @@ static uintptr_t (*syscall[])(void) =
 
         [SYS_GETPPID](void *) sys_getppid,
         [SYS_SETPGRP](void *) sys_setpgrp,
+        [SYS_GETPGID](void *) sys_getpgid,
 };
 
 static int sys_syscall_ni(trapframe_t *tf)
@@ -454,4 +455,11 @@ pid_t sys_getppid(void)
 pid_t sys_setpgrp(void)
 {
     return setpgrp();
+}
+
+pid_t sys_getpgid(void)
+{
+    pid_t pid = 0;
+    assert(!argint(0, &pid), "err fetching pid");
+    return getpgid(pid);
 }

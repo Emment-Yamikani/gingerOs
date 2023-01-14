@@ -11,8 +11,10 @@
 #include <arch/sys/proc.h>
 #include <arch/sys/uthread.h>
 #include <sys/binfmt.h>
+#include <sys/session.h>
 
 proc_t *initproc = NULL;
+queue_t *processes = QUEUE_NEW("All Processes");
 
 pid_t pids = 0;
 spinlock_t *pids_lock = SPINLOCK_NEW("proc-ID-lock");
@@ -126,8 +128,18 @@ int proc_alloc(const char *name, proc_t **ref)
     tmain->t_file_table = ft;
     tmain->t_group = tgroup;
 
+    queue_lock(processes);
+    if (enqueue(processes, proc) == NULL)
+    {
+        err = -ENOMEM;
+        queue_unlock(processes);
+        goto error;
+    }
+    queue_unlock(processes);
+
     queue_unlock(sigs);
     queue_unlock(children);
+
     *ref = proc;
     return 0;
 
@@ -150,7 +162,6 @@ error:
         spinlock_free(lock);
     if (ft)
         f_free_table(ft);
-
     klog(KLOG_FAIL, "failed to allocate proc struct, error= %d\n", err);
     return err;
 }
@@ -241,6 +252,20 @@ int proc_copy(proc_t *dst, proc_t *src)
 
     file_table_unlock(dst->ftable);
     file_table_unlock(src->ftable);
+
+    if (src->pgroup)
+    {
+        pgroup_lock(src->pgroup);
+        if ((err = pgroup_add(src->pgroup, dst)))
+        {
+            pgroup_unlock(src->pgroup);
+            goto error;
+        }
+        
+        dst->session = src->session;
+        pgroup_unlock(src->pgroup);
+    }
+
     return 0;
 
 error:
@@ -282,4 +307,30 @@ void proc_free(proc_t *proc)
     
     if (proc)
         kfree(proc);
+}
+
+int proc_get(pid_t pid, proc_t **ref)
+{
+    proc_t *p = NULL;
+    if (pid <= 0)
+        return -EINVAL;
+    
+    assert(ref, "no ref to proc");
+
+    queue_lock(processes);
+    forlinked(node, processes->head, node->next)
+    {
+        p = node->data;
+        proc_lock(p);
+        if (p->pid == pid)
+        {
+            *ref = p;
+            queue_unlock(processes);
+            return 0;
+        }
+        proc_unlock(p);
+    }
+    queue_unlock(processes);
+
+    return -ESRCH;
 }

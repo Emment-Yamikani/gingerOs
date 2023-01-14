@@ -130,9 +130,9 @@ extern int sys_getppid(void);
 extern pid_t sys_getpgrp(void);
 extern pid_t sys_setsid(void);
 extern pid_t sys_setpgrp(void);
-extern pid_t sys_getsid(pid_t pid);
-extern pid_t sys_getpgid(pid_t pid);
-extern int sys_setpgid(pid_t pid, pid_t pgid);
+extern pid_t sys_getsid(void);
+extern pid_t sys_getpgid(void);
+extern int sys_setpgid(void);
 
 /*Thread management*/
 

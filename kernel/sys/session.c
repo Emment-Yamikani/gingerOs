@@ -18,7 +18,7 @@ int pgroup_free(PGROUP pgroup)
         queue_free(pgroup->pg_procs);
     }
 
-    assert(0 <= (int)atomic_read(&pgroup->pg_refs), "error pg->refs not \'<= 0\'");
+    assert(0 <= (int)atomic_read(&pgroup->pg_refs), "error pgroup->refs not \'<= 0\'");
 
     if (pgroup->pg_lock)
         spinlock_free(pgroup->pg_lock);
@@ -54,7 +54,7 @@ int pgroup_create(proc_t *leader, PGROUP *pgref)
     if ((err = queue_new(name, &pgroup_queue)))
         goto error;
 
-    if ((pgroup = kmcreate(sizeof *pgroup)) == NULL)
+    if ((pgroup = kmalloc(sizeof *pgroup)) == NULL)
     {
         err = -ENOMEM;
         goto error;
@@ -62,7 +62,7 @@ int pgroup_create(proc_t *leader, PGROUP *pgref)
 
     memset(pgroup, 0, sizeof *pgroup);
 
-    pgroup->pg_pid = pgid;
+    pgroup->pg_id = pgid;
     pgroup->pg_lock = lock;
     pgroup->pg_leader = leader;
     pgroup->pg_procs = pgroup_queue;
@@ -120,7 +120,7 @@ int pgroup_add(PGROUP pgroup, proc_t *p)
     }
     queue_unlock(pgroup->pg_procs);
 
-    proc->pgroup = pgroup;
+    p->pgroup = pgroup;
 
     return 0;
 error:
@@ -203,22 +203,22 @@ int pgroup_leave(PGROUP pgroup)
     return pgroup_remove(pgroup, proc);
 }
 
-int session_free(SESSION ss)
+int session_free(SESSION session)
 {
-    session_assert(ss);
+    session_assert(session);
 
-    if (ss->ss_pgroups)
+    if (session->ss_pgroups)
     {
-        queue_lock(ss->ss_pgroups);
-        queue_free(ss->ss_pgroups);
+        queue_lock(session->ss_pgroups);
+        queue_free(session->ss_pgroups);
     }
 
-    assert(0 <= (int)atomic_read(&ss->ss_refs), "error ss->refs not \'<= 0\'");
+    assert(0 <= (int)atomic_read(&session->ss_refs), "error session->refs not \'<= 0\'");
 
-    if (ss->ss_lock)
-        spinlock_free(ss->ss_lock);
+    if (session->ss_lock)
+        spinlock_free(session->ss_lock);
 
-    kfree(ss);
+    kfree(session);
 
     return 0;
 }
@@ -227,70 +227,60 @@ int session_create(proc_t *leader, SESSION *ref)
 {
     int err = 0;
     pid_t sid = 0;
-    SESSION ss = NULL;
+    SESSION session = NULL;
     char *name = NULL;
     PGROUP pgroup = NULL;
     spinlock_t *lock = NULL;
     queue_t *ss_queue = NULL;
 
+    proc_assert_lock(leader);
     assert(ref, "no session ref");
-
-    proc_lock(leader);
 
     sid = leader->pid;
 
-    if ((name = strcat_num("session-", sid, 10)))
+    if ((name = strcat_num("session-", sid, 10)) == NULL)
     {
         err = -ENOMEM;
-        proc_unlock(leader);
         goto error;
     }
 
     if ((err = spinlock_init(NULL, name, &lock)))
-    {
-        proc_unlock(leader);
         goto error;
-    }
 
     if ((err = queue_new(name, &ss_queue)))
-    {
-        proc_unlock(leader);
         goto error;
-    }
 
-    if ((ss = kmalloc(sizeof *ss)) == NULL)
+    if ((session = kmalloc(sizeof *session)) == NULL)
     {
         err = -ENOMEM;
-        proc_unlock(leader);
         goto error;
     }
 
-    memset(ss, 0, sizeof *ss);
+    memset(session, 0, sizeof *session);
 
-    ss->ss_sid = sid;
-    ss->ss_lock = lock;
-    ss->ss_leader = leader;
-    ss->ss_pgroups = ss_queue;
-    atomic_incr(&ss->ss_refs);
+    session->ss_sid = sid;
+    session->ss_lock = lock;
+    session->ss_leader = leader;
+    session->ss_pgroups = ss_queue;
+    atomic_incr(&session->ss_refs);
 
-    session_lock(ss);
-    if ((err = session_create_pgroup(ss, &pgroup, leader)))
+    session_lock(session);
+    if ((err = session_create_pgroup(session, leader, &pgroup)))
     {
-        proc_unlock(leader);
-        session_unlock(ss);
+        session_unlock(session);
         goto error;
     }
-    session_unlock(ss);
+    session_unlock(session);
 
     if (name)
         kfree(name);
 
-    *ref = ss;
+    *ref = session;
 
     return 0;
 error:
-    if (ss)
-        kfree(ss);
+    if (session)
+        kfree(session);
     if (name)
         kfree(name);
     if (lock)
@@ -304,52 +294,58 @@ error:
     return err;
 }
 
-int session_create_pgroup(SESSION ss, proc_t *leader, PGROUP *ref)
+int session_create_pgroup(SESSION session, proc_t *leader, PGROUP *ref)
 {
     int err = 0;
-    PGROUP pg = NULL;
+    PGROUP pgroup = NULL;
 
-    session_assert_lock(ss);
+    session_assert_lock(session);
     proc_assert_lock(leader);
     assert(ref, "no pgroup ref");
 
-    if ((err = pgroup_create(leader, &pg)))
+    if ((err = pgroup_create(leader, &pgroup)))
         goto error;
-        
-    if ((err = session_add(ss, pg)))
+    
+    pgroup_lock(pgroup);
+    if ((err = session_add(session, pgroup)))
+    {
+        pgroup_unlock(pgroup);
         goto error;
+    }
 
+    pgroup_unlock(pgroup);
+    leader->session = session;
     return 0;
 error:
-    if (pg)
-        pgroup_free(pg);
+    if (pgroup)
+        pgroup_free(pgroup);
     klog(KLOG_FAIL, "failed to create pgroup in session, error=%d\n", err);
     return err;
 }
 
-int session_add(SESSION ss, PGROUP pg)
+int session_add(SESSION session, PGROUP pgroup)
 {
     int err = 0;
-    session_assert_lock(ss);
-    pgroup_assert_lock(pg);
+    session_assert_lock(session);
+    pgroup_assert_lock(pgroup);
 
-    if (session_contains(ss, pg))
+    if (session_contains(session, pgroup))
     {
         err = -EEXIST;
         goto error;
     }
 
-    queue_lock(ss->ss_pgroups);
-    if (enqueue(ss->ss_pgroups, pg) == NULL)
+    queue_lock(session->ss_pgroups);
+    if (enqueue(session->ss_pgroups, pgroup) == NULL)
     {
         err = -ENOMEM;
-        queue_unlock(ss->ss_pgroups);
+        queue_unlock(session->ss_pgroups);
         goto error;
     }
-    queue_unlock(ss->ss_pgroups);
+    queue_unlock(session->ss_pgroups);
 
-    pg->pg_sessoin = ss;
-    pgroup_incr(pg);
+    pgroup->pg_sessoin = session;
+    pgroup_incr(pgroup);
 
     return 0;
 error:
@@ -357,69 +353,69 @@ error:
     return err;
 }
 
-int session_contains(SESSION ss, PGROUP pg)
+int session_contains(SESSION session, PGROUP pgroup)
 {
-    session_assert_lock(ss);
-    pgroup_assert(pg);
+    session_assert_lock(session);
+    pgroup_assert(pgroup);
 
-    queue_lock(ss->ss_pgroups);
-    forlinked(node, ss->ss_pgroups->head, node)
+    queue_lock(session->ss_pgroups);
+    forlinked(node, session->ss_pgroups->head, node)
     {
-        if (pg == (PGROUP)node->data)
+        if (pgroup == (PGROUP)node->data)
         {
-            queue_unlock(ss->ss_pgroups);
+            queue_unlock(session->ss_pgroups);
             return 1;
         }
     }
-    queue_unlock(ss->ss_pgroups);
+    queue_unlock(session->ss_pgroups);
     return 0;
 }
 
-int session_lookup(SESSION ss, pid_t pgid, PGROUP *ref)
+int session_lookup(SESSION session, pid_t pgid, PGROUP *ref)
 {
-    PGROUP pg = NULL;
-    session_assert_lock(ss);
+    PGROUP pgroup = NULL;
+    session_assert_lock(session);
     assert(ref, "no pgroup ref");
 
-    queue_lock(ss->ss_pgroups);
-    forlinked(node, ss->ss_pgroups->head, node->next)
+    queue_lock(session->ss_pgroups);
+    forlinked(node, session->ss_pgroups->head, node->next)
     {
-        pg = node->data;
-        pgroup_lock(pg)
-        if (pg->pg_pid == pgid)
+        pgroup = node->data;
+        pgroup_lock(pgroup)
+        if (pgroup->pg_id == pgid)
         {
-            *ref = pg;
-            pgroup_unlock(pg);
+            *ref = pgroup;
+            pgroup_unlock(pgroup);
             return 0;
         }
-        pgroup_unlock(pg);
+        pgroup_unlock(pgroup);
     }
-    queue_unlock(ss->ss_pgroups);
+    queue_unlock(session->ss_pgroups);
 
     return -ENOENT;
 }
 
-int session_remove(SESSION ss, PGROUP pg)
+int session_remove(SESSION session, PGROUP pgroup)
 {
     int err = 0;
-    session_assert_lock(ss);
-    pgroup_assert_lock(pg);
+    session_assert_lock(session);
+    pgroup_assert_lock(pgroup);
 
-    if (session_contains(ss, pg) == 0)
+    if (session_contains(session, pgroup) == 0)
     {
         err = -ENOENT;
         goto error;
     }
 
-    queue_lock(ss->ss_pgroups);
-    if ((err = queue_remove(ss->ss_pgroups, pg)))
+    queue_lock(session->ss_pgroups);
+    if ((err = queue_remove(session->ss_pgroups, pgroup)))
     {
-        queue_unlock(ss->ss_pgroups);
+        queue_unlock(session->ss_pgroups);
         goto error;
     }
-    queue_unlock(ss->ss_pgroups);
+    queue_unlock(session->ss_pgroups);
 
-    pg->pg_sessoin = NULL;
+    pgroup->pg_sessoin = NULL;
 
     return 0;
 error:
@@ -427,60 +423,47 @@ error:
     return err;
 }
 
-int session_leave(SESSION ss, proc_t *p)
+int session_leave(SESSION session, proc_t *p)
 {
     int err = 0;
-    PGROUP pg = NULL;
+    PGROUP pgroup = NULL;
 
-    proc_lock(p);
-    session_lock(ss);
-    pg = p->pgroup;
+    proc_assert_lock(p);
+    session_assert_lock(session);
+    pgroup = p->pgroup;
 
-    if (session_contains(ss, pg) == 0)
+    if (session_contains(session, pgroup) == 0)
     {
         err = -ENOENT;
-        session_unlock(ss);
-        proc_unlock(p);
         goto error;
     }
 
-    pgroup_lock(pg);
+    pgroup_lock(pgroup);
 
-    if ((err = pgroup_remove(pg, p)))
+    if ((err = pgroup_remove(pgroup, p)))
     {
-        pgroup_unlock(pg);
-        session_unlock(ss);
-        proc_unlock(p);
+        pgroup_unlock(pgroup);
         goto error;
     }
 
-    queue_lock(pg->pg_procs);
+    p->session = NULL;
 
-    if (queue_count(pg->pg_procs) == 0)
+    queue_lock(pgroup->pg_procs);
+    if (queue_count(pgroup->pg_procs) == 0)
     {
-        if ((err = session_remove(ss, pg)))
+        if ((err = session_remove(session, pgroup)))
         {
-            pgroup_unlock(pg);
-            session_unlock(ss);
-            proc_unlock(p);
+            pgroup_unlock(pgroup);
             goto error;
         }
 
-        pgroup_unlock(pg);
-        queue_unlock(pg->pg_procs);
-        
-        pgroup_free(pg);
-
-        session_unlock(ss);
-        proc_unlock(p);
+        pgroup_unlock(pgroup);
+        queue_unlock(pgroup->pg_procs);
+        pgroup_free(pgroup);
         return 0;
     }
-
-    queue_unlock(pg->pg_procs);
-    pgroup_unlock(pg);
-    
-    session_unlock(ss);
-    proc_unlock(p);
+    queue_unlock(pgroup->pg_procs);
+    pgroup_unlock(pgroup);
     return 0;
 error:
     klog(KLOG_FAIL, "failed to leave session, error=%d\n", err);

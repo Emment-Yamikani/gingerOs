@@ -38,7 +38,7 @@ $(kernelobjs)
 .asm.o:
 	nasm $< -f elf32 -o $@
 
-all: lime.elf module _iso_ run
+all: lime.elf module _iso_ debug run
 
 lime.elf: $(isodir)/boot/lime.elf
 
@@ -47,7 +47,7 @@ $(isodir)/boot/lime.elf: $(archdir)/linker.ld $(linked_objs)
 
 run:
 	qemu-system-i386	\
-	-smp 2 				\
+	-smp 1 				\
 	-m size=512M		\
 	-cdrom	ginger.iso	\
 	-no-reboot			\
@@ -72,7 +72,7 @@ passwd:
 	./crypt
 
 clean:
-	rm $(linked_objs) $(linked_objs:.o=.d) ginger.iso lime.asm $(isodir)/modules/initrd $(isodir)/boot/lime.elf $(isodir)/modules/*
+	rm $(linked_objs) $(linked_objs:.o=.d) ginger.iso lime.asm $(isodir)/modules/initrd $(isodir)/boot/lime.elf $(isodir)/modules/* serial.log
 
 usr_dir=usr
 

@@ -5,8 +5,8 @@
 #include <bits/errno.h>
 #include <lime/assert.h>
 
-__unused static queue_t *embryo_queue = QUEUE_NEW("embryo-queue");
-__unused static queue_t *zombie_queue = QUEUE_NEW("zombie-queue");
+static queue_t *embryo_queue = QUEUE_NEW("embryo-queue");
+static queue_t *zombie_queue = QUEUE_NEW("zombie-queue");
 
 int sched_park(thread_t *thread)
 {
@@ -154,7 +154,6 @@ int sched_wakeall(queue_t *sleep_queue)
         assert(!thread_wake(thread), "failed to park thread");
         thread_unlock(thread);
     }
-
     queue_unlock(sleep_queue);
 
     return count;
@@ -167,7 +166,7 @@ int sched_zombie(thread_t *thread)
     thread_assert_lock(thread);
     if ((err = thread_enqueue(zombie_queue, thread, NULL)))
         return err;
-    atomic_decr(&thread->t_group->nthreads);
     cond_broadcast(thread->t_wait);
+    atomic_decr(&thread->t_group->nthreads);
     return 0;
 }
