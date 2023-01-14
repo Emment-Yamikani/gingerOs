@@ -1,6 +1,9 @@
 # gingerOs
 Minimal Unix-like hobby OS
 #
+
+https://img.shields.io/tokei/lines/github/emment-yamikani/gingerOs?style=plastic
+
 ## Architecture
 x86-32bit
 #
