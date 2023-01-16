@@ -2,17 +2,12 @@
 
 int main(int argc, char *argv[])
 {
-    int statloc =0;
-    pid_t pid = 0;
+    int err = 0;
+    int statloc = 0;
     void *ret = NULL;
+    pid_t pid = 0, pgid = 0;
+    int i = 0;
     
-    if ((pid = fork()))
-    {
-    }
-    else
-    {
-        sleep(2);
-    }
     exit(0);
     return 0;
 }

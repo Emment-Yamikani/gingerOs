@@ -334,3 +334,21 @@ int proc_get(pid_t pid, proc_t **ref)
 
     return -ESRCH;
 }
+
+int proc_has_execed(proc_t *p)
+{
+    proc_assert_lock(p);
+    return (atomic_read(&p->flags) & PROC_EXECED);
+}
+
+int proc_iskilled(proc_t *p)
+{
+    proc_assert_lock(p);
+    return (atomic_read(&p->flags) & PROC_KILLED);
+}
+
+int proc_isorphan(proc_t *p)
+{
+    proc_assert_lock(p);
+    return (atomic_read(&p->flags) & PROC_ORPHANED);
+}

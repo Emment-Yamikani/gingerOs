@@ -31,3 +31,4 @@ void mutex_free(mutex_t *);
 void mutex_unlock(mutex_t *);
 int mutex_try_lock(mutex_t *);
 int mutex_init(mutex_t *, mutex_t **);
+void mutex_remove(mutex_t *mutex, thread_t *thread);

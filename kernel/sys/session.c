@@ -9,6 +9,9 @@
 #include <sys/sched.h>
 #include <bits/errno.h>
 
+static queue_t *sessions = QUEUE_NEW("All-sessions");
+
+
 int pgroup_free(PGROUP pgroup)
 {
     pgroup_assert(pgroup);
@@ -200,12 +203,19 @@ error:
 
 int pgroup_leave(PGROUP pgroup)
 {
-    return pgroup_remove(pgroup, proc);
+    pgroup_lock(pgroup);
+    int err = pgroup_remove(pgroup, proc);
+    pgroup_unlock(pgroup);
+    return err;
 }
 
 int session_free(SESSION session)
 {
     session_assert(session);
+
+    queue_lock(sessions);
+    queue_remove(sessions, session);
+    queue_unlock(sessions);
 
     if (session->ss_pgroups)
     {
@@ -277,6 +287,15 @@ int session_create(proc_t *leader, SESSION *ref)
 
     *ref = session;
 
+    queue_lock(sessions);
+    if ((enqueue(sessions, session)) == NULL)
+    {
+        queue_unlock(sessions);
+        err = -ENOMEM;
+        goto error;
+    }
+    queue_unlock(sessions);
+
     return 0;
 error:
     if (session)
@@ -290,6 +309,8 @@ error:
         queue_lock(ss_queue);
         queue_free(ss_queue);
     }
+    if (pgroup)
+        pgroup_free(pgroup);
     klog(KLOG_FAIL, "failed to create session, error=%d\n", err);
     return err;
 }
@@ -307,14 +328,16 @@ int session_create_pgroup(SESSION session, proc_t *leader, PGROUP *ref)
         goto error;
     
     pgroup_lock(pgroup);
+    //printk("created PGID: %d\n", pgroup->pg_id);
     if ((err = session_add(session, pgroup)))
     {
         pgroup_unlock(pgroup);
         goto error;
     }
-
     pgroup_unlock(pgroup);
+
     leader->session = session;
+    *ref = pgroup;
     return 0;
 error:
     if (pgroup)
@@ -345,6 +368,7 @@ int session_add(SESSION session, PGROUP pgroup)
     queue_unlock(session->ss_pgroups);
 
     pgroup->pg_sessoin = session;
+    
     pgroup_incr(pgroup);
 
     return 0;
@@ -359,7 +383,7 @@ int session_contains(SESSION session, PGROUP pgroup)
     pgroup_assert(pgroup);
 
     queue_lock(session->ss_pgroups);
-    forlinked(node, session->ss_pgroups->head, node)
+    forlinked(node, session->ss_pgroups->head, node->next)
     {
         if (pgroup == (PGROUP)node->data)
         {
@@ -368,6 +392,7 @@ int session_contains(SESSION session, PGROUP pgroup)
         }
     }
     queue_unlock(session->ss_pgroups);
+
     return 0;
 }
 
@@ -385,7 +410,7 @@ int session_lookup(SESSION session, pid_t pgid, PGROUP *ref)
         if (pgroup->pg_id == pgid)
         {
             *ref = pgroup;
-            pgroup_unlock(pgroup);
+            queue_unlock(session->ss_pgroups);
             return 0;
         }
         pgroup_unlock(pgroup);
@@ -425,7 +450,7 @@ error:
 
 int session_leave(SESSION session, proc_t *p)
 {
-    int err = 0;
+    int err = 0, count = 0;
     PGROUP pgroup = NULL;
 
     proc_assert_lock(p);
@@ -449,7 +474,7 @@ int session_leave(SESSION session, proc_t *p)
     p->session = NULL;
 
     queue_lock(pgroup->pg_procs);
-    if (queue_count(pgroup->pg_procs) == 0)
+    if ((count = queue_count(pgroup->pg_procs)) == 0)
     {
         if ((err = session_remove(session, pgroup)))
         {
@@ -457,11 +482,14 @@ int session_leave(SESSION session, proc_t *p)
             goto error;
         }
 
-        pgroup_unlock(pgroup);
+        //klog(KLOG_WARN, "removed pgroup(%d) from session(%d)\n", pgroup->pg_id, session->ss_sid);
         queue_unlock(pgroup->pg_procs);
+        pgroup_unlock(pgroup);
         pgroup_free(pgroup);
         return 0;
     }
+
+    //printk("%d processes remaining in pgroup(%d)\n", count, pgroup->pg_id);
     queue_unlock(pgroup->pg_procs);
     pgroup_unlock(pgroup);
     return 0;
@@ -469,3 +497,162 @@ error:
     klog(KLOG_FAIL, "failed to leave session, error=%d\n", err);
     return err;
 }
+
+int session_pgroup_join(SESSION session, pid_t pgid, proc_t *process)
+{
+    int err = 0;
+    PGROUP pgroup = NULL;
+
+    if (pgid < 0) return -EINVAL;
+
+    proc_assert_lock(proc);
+    session_assert_lock(session);
+
+    if ((err = session_lookup(session, pgid, &pgroup)))
+        goto error;
+    
+    if (process->pgroup == pgroup) // Already in this pgroup
+        goto done;
+
+    // found the pgroup with PGID == pgid
+    
+    /*process shouldn't belong to any session or a pgroup*/
+    if ((err = session_exit(session, process, 0)))
+    {
+        pgroup_unlock(pgroup);
+        goto error;
+    }
+
+    if ((err = pgroup_add(pgroup, process)))
+    {
+        pgroup_unlock(pgroup);
+        goto error;
+    }
+    
+done:
+    //klog(KLOG_OK, "process(%d) successfully joined pgroup(%d)\n", process->pid, pgroup->pg_id);
+    pgroup_unlock(pgroup);
+    process->session = session;
+    return 0;
+error:
+    klog(KLOG_FAIL, "failed to join PGID(%d), error: %d\n", pgid, err);
+    return err;
+}
+
+ssize_t session_pgroup_count(SESSION session)
+{
+    ssize_t count = 0;
+    session_assert_lock(session);
+    session_lock_queue(session);
+    count = queue_count(session->ss_pgroups);
+    session_unlock_queue(session);
+    return count;
+}
+
+int session_exit(SESSION session, proc_t *process, int free_session)
+{
+    int err = 0, locked = 0;
+    ssize_t count = 0;
+
+    proc_assert_lock(process);
+
+    if (spin_holding(session->ss_lock) == 0){
+        session_lock(session);
+        locked = 1;
+    }
+
+    // make sure process is in this session
+    if (session != process->session)
+    {
+        err = -EINVAL;
+        if (spin_holding(session->ss_lock) && locked)
+            session_unlock(session);
+        goto error;
+    }
+
+    // leave this session
+    if ((err = session_leave(session, process))){
+        if (spin_holding(session->ss_lock) && locked)
+            session_unlock(session);
+        goto error;
+    }
+    
+    // If there are no more pgroups in this session free it
+    count = session_pgroup_count(session);
+    if ((count <= 0) && free_session){
+        klog(KLOG_WARN, "freeing session(count: %d)\n", count);
+        session_free(session);
+        return 0;
+    }
+
+    //klog(KLOG_WARN, "session(count: %d), free: %d\n", count, free_session);
+
+    if (spin_holding(session->ss_lock) && locked)
+        session_unlock(session);
+    return 0;
+error:
+    klog(KLOG_FAIL, "failed to exit session, error: %d\n", err);
+    return err;
+}
+
+int sessions_get(pid_t sid, SESSION *ref)
+{
+    SESSION session = NULL;
+    queue_lock(sessions);
+    forlinked(node, sessions->head, node->next)
+    {
+        session = node->data;
+        session_lock(session);
+        if (session->ss_sid == sid)
+        {
+            if (ref)
+            {
+                *ref = session;
+                queue_unlock(sessions);
+                return 0;
+            }
+            session_unlock(session);
+            queue_unlock(sessions);
+            return 0;
+        }
+        session_unlock(session);
+    }
+    queue_unlock(sessions);
+    return -ESRCH;
+}
+
+int sessions_find_pgroup(pid_t pgid, PGROUP *ref)
+{
+    PGROUP pgroup = NULL;
+    SESSION session = NULL;
+
+    queue_lock(sessions);
+    forlinked(node, sessions->head, node->next)
+    {
+        session = node->data;
+        session_lock(session);
+        
+        if (session_lookup(session, pgid, &pgroup) == 0)
+        {
+            if (ref)
+            {
+                *ref = pgroup;
+                session_unlock(session);
+                queue_unlock(sessions);
+                return 0;
+            }
+
+            pgroup_unlock(pgroup);
+            session_unlock(session);
+            queue_unlock(sessions);
+            return 0;
+        }
+
+        session_unlock(session);
+    }
+    queue_unlock(sessions);
+    return -ESRCH;
+}
+
+int session_end(SESSION session);
+int session_pgroup_remove(SESSION session);

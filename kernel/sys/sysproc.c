@@ -31,13 +31,12 @@ void exit(int status)
 
     if (proc == initproc)
         panic("init exiting\n");
-    
+
     proc_lock(proc);
     parent = proc->parent;
     session = proc->session;
 
     proc_lock(parent);
-
 
     if (thread_kill_all() == -ERFKILL)
     {
@@ -51,13 +50,9 @@ void exit(int status)
     queue_unlock(processes);
 
     if (session)
-    {
-        session_lock(session);
-        session_leave(session, proc);
-        session_unlock(session);
-    }
+        session_exit(session, proc, 1);
 
-    for (int fd =0; fd < NFILE; ++fd)
+    for (int fd = 0; fd < NFILE; ++fd)
         close(fd);
 
     klog(KLOG_WARN, "cancel pending signals\n");
@@ -85,17 +80,17 @@ void exit(int status)
     shm_unmap_addrspace(proc->mmap);
     shm_pgdir_unlock(proc->mmap);
     shm_unlock(proc->mmap);
-    
+
     proc->state = ZOMBIE;
     proc->exit = status;
 
     cond_broadcast(proc->wait);
-    
+
     spin_lock(parent->wait->guard);
     queue_lock(parent->wait->waiters);
     forlinked(node, parent->wait->waiters->head, node->next)
     {
-        //printk("TID: %d, %s(), thread: %p, queue: %p\n", thread_self(), __func__, node->data, ((thread_t *)node->data)->t_queues);
+        // printk("TID: %d, %s(), thread: %p, queue: %p\n", thread_self(), __func__, node->data, ((thread_t *)node->data)->t_queues);
     }
     queue_unlock(parent->wait->waiters);
     spin_unlock(parent->wait->guard);
@@ -103,9 +98,9 @@ void exit(int status)
     cond_broadcast(parent->wait);
 
     printk("[\e[0;11m%d\e[0m:\e[0;012m%d\e[0m:\e[0;02m%d\e[0m]: "
-        "\e[0;04mexit(\e[0;017m%d\e[0m)\e[0m\n",
-        parent->pid, proc->pid, thread_self(), status);
-    
+           "\e[0;04mexit(\e[0;017m%d\e[0m)\e[0m\n",
+           parent->pid, proc->pid, thread_self(), status);
+
     proc_unlock(parent);
     proc_unlock(proc);
 
@@ -215,7 +210,7 @@ pid_t wait(int *staloc)
     pid_t pid = 0;
     proc_t *child = NULL;
     atomic_t haskids;
-    
+
     for (;;)
     {
         atomic_clear(&haskids);
@@ -231,7 +226,7 @@ pid_t wait(int *staloc)
             if (child->state == ZOMBIE)
             {
                 queue_remove(proc->children, child);
-                
+
                 *staloc = child->exit;
                 pid = child->pid;
 
@@ -249,7 +244,7 @@ pid_t wait(int *staloc)
         }
 
         queue_unlock(proc->children);
-        
+
         if (atomic_read(&proc->flags) & PROC_KILLED)
         {
             proc_unlock(proc);
@@ -322,6 +317,8 @@ int execve(char *path, char *argp[], char *envp[])
     current_lock();
     proc->name = path;
     current->t_state = T_READY;
+
+    atomic_or(&proc->flags, PROC_EXECED);
 
     swtch(&ctx, cpu->context);
     panic("\e[014;0mexecve-1\e[0m\n");
@@ -427,58 +424,17 @@ error:
 int setpgrp(void)
 {
     int err = 0;
-    pid_t pgid = 0;
-    PGROUP pgroup = NULL;
-    SESSION session = NULL;
-
-    proc_lock(proc);
-    pgid = proc->pid;
-    pgroup = proc->pgroup;
-    session = proc->session;
-
-    if (session)
-    {
-        session_lock(session);
-        if (issession_leader(session, proc))
-        {
-            session_unlock(session);
-            goto done;
-        }
-
-        if ((err = session_leave(session, proc)))
-        {
-            session_unlock(session);
-            proc_unlock(proc);
-            goto error;
-        }
-
-        if ((err = session_create_pgroup(session, proc, &pgroup)))
-        {
-            session_unlock(session);
-            proc_unlock(proc);
-            goto error;
-        }
-
-        session_unlock(session);
-        goto done;
-    }
-    else
-    {
-        if ((err = session_create(proc, &session)))
-        {
-            proc_unlock(proc);
-            goto error;
-        }
-        goto done;
-    }
-
-done:
-    proc_unlock(proc);
-    return pgid;
-
+    if ((err = setpgid(0, 0)))
+        goto error;
+    return getpid();
 error:
     klog(KLOG_FAIL, "failed to set pgroup\n");
     return err;
+}
+
+pid_t getpgrp(void)
+{
+    return getpgid(0);
 }
 
 pid_t getpgid(pid_t pid)
@@ -501,9 +457,7 @@ pid_t getpgid(pid_t pid)
 
     proc_lock(proc);
 
-    if (proc->pgroup == NULL || proc->session == NULL
-        || p->session == NULL || p->pgroup == NULL
-        || (p->session != proc->session))
+    if (proc->pgroup == NULL || proc->session == NULL || p->session == NULL || p->pgroup == NULL || (p->session != proc->session))
     {
         proc_unlock(proc);
         proc_unlock(p);
@@ -530,6 +484,296 @@ done:
     return pgid;
 }
 
-pid_t setsid(void);
-pid_t getsid(pid_t pid);
-int setpgid(pid_t pid, pid_t pgid);
+int setpgid(pid_t pid, pid_t pgid)
+{
+    int err = 0;
+    PGROUP pgroup = NULL;
+    proc_t *leader = NULL;
+    SESSION session = NULL;
+    proc_t *process = NULL;
+
+    (void)leader;
+    (void)pgroup;
+    (void)session;
+
+    if ((pid < 0) || (pgid < 0))
+        return -EINVAL;
+
+    if (pid == 0) // imply calling process
+    {
+        proc_lock(proc);
+        process = proc;
+        pid = proc->pid;
+    }
+    else if ((err = proc_get(pid, &process)))
+        goto error;
+
+    if (pgid == 0)
+        pgid = process->pid;
+
+    if (process->parent == proc)
+    {
+        proc_lock(proc);
+        session_lock(proc->session);
+
+        if ((process->session == NULL) || (proc->session == NULL) || (process->session != proc->session))
+        {
+            session_unlock(proc->session);
+            proc_unlock(proc);
+            proc_unlock(process);
+            err = -EPERM;
+            goto error;
+        }
+
+        if (proc_has_execed(process))
+        {
+            session_unlock(proc->session);
+            proc_unlock(proc);
+            proc_unlock(process);
+            err = -EACCES;
+            goto error;
+        }
+
+        if (issession_leader(proc->session, process))
+        {
+            session_unlock(proc->session);
+            proc_unlock(proc);
+            proc_unlock(process);
+            err = -EPERM;
+            goto error;
+        }
+
+        if (pid == pgid)
+        {
+            if ((err = session_pgroup_join(proc->session, pgid, process)) == -ENOENT)
+            {
+                if ((err = session_exit(proc->session, process, 0)))
+                {
+                    session_unlock(proc->session);
+                    proc_unlock(proc);
+                    proc_unlock(process);
+                    goto error;
+                }
+
+                if ((err = session_create_pgroup(proc->session, process, &pgroup)))
+                {
+                    session_unlock(proc->session);
+                    proc_unlock(proc);
+                    proc_unlock(process);
+                    goto error;
+                }
+
+                session_unlock(proc->session);
+                proc_unlock(proc);
+                proc_unlock(process);
+                goto done;
+            }
+            else if (err == 0)
+            {
+                session_unlock(proc->session);
+                proc_unlock(proc);
+                proc_unlock(process);
+                goto done;
+            }
+            else
+            {
+                session_unlock(proc->session);
+                proc_unlock(proc);
+                proc_unlock(process);
+                goto error;
+            }
+        }
+
+        if ((err = session_pgroup_join(proc->session, pgid, process)) == 0)
+        {
+            session_unlock(proc->session);
+            proc_unlock(proc);
+            proc_unlock(process);
+            goto done;
+        }
+
+        if (err == -ENOENT)
+            err = -EPERM;
+
+        /**
+         * The value of the pgid argument is valid
+         * but does not match the process ID of the process indicated by the pid argument
+         * and there is no process with a process group ID that matches
+         * the value of the pgid argument in the same session as the calling process.
+         */
+        session_unlock(proc->session);
+        proc_unlock(proc);
+        proc_unlock(process);
+        goto error;
+    }
+    else if (process == proc)
+    {
+        if (proc->session)
+        {
+            session = proc->session;
+            session_lock(session);
+
+            if (pid == pgid)
+            {
+                if ((err = session_pgroup_join(session, pgid, proc)) == -ENOENT)
+                {
+                    if ((err = session_exit(session, proc, 0)))
+                    {
+                        session_unlock(session);
+                        proc_unlock(proc);
+                        goto error;
+                    }
+
+                    if ((err = session_create_pgroup(session, proc, &pgroup)))
+                    {
+                        session_unlock(session);
+                        proc_unlock(proc);
+                        goto error;
+                    }
+
+                    session_unlock(session);
+                    proc_unlock(proc);
+                    goto done;
+                }
+                else if (err == 0)
+                {
+                    session_unlock(session);
+                    proc_unlock(proc);
+                    goto done;
+                }
+                else
+                {
+                    session_unlock(session);
+                    proc_unlock(proc);
+                    goto error;
+                }
+            }
+            else
+            {
+                if ((err = session_pgroup_join(session, pgid, proc)) == 0)
+                {
+                    session_unlock(session);
+                    proc_unlock(proc);
+                    goto done;
+                }
+
+                if (err == -ENOENT)
+                    err = -EPERM;
+
+                /**
+                 * The value of the pgid argument is valid
+                 * but does not match the process ID of the process indicated by the pid argument
+                 * and there is no process with a process group ID that matches
+                 * the value of the pgid argument in the same session as the calling process.
+                 */
+                session_unlock(session);
+                proc_unlock(proc);
+                goto error;
+            }
+        }
+        else
+        {
+            if (pid == pgid)
+            {
+                if ((err = session_create(proc, &session)))
+                {
+                    proc_unlock(proc);
+                    goto error;
+                }
+                proc_unlock(proc);
+                goto done;
+            }
+            err = -EPERM;
+            proc_unlock(proc);
+            goto error;
+        }
+    }
+    else
+    {
+        proc_unlock(process);
+        err = -EPERM;
+        goto error;
+    }
+
+done:
+    return 0;
+
+error:
+    klog(KLOG_FAIL, "failed to set process pgroup ID, error=%d\n", err);
+    return err;
+}
+
+pid_t setsid(void)
+{
+    int err = 0;
+    pid_t sid = 0;
+
+    proc_lock(proc);
+    sid = proc->pid;
+
+    if (sessions_find_pgroup(proc->pid, NULL) == 0)
+    {
+        proc_unlock(proc);
+        return -EPERM;
+    }
+
+    if (proc->session == NULL)
+        goto create;
+
+    if ((err = session_exit(proc->session, proc, 1)))
+    {
+        proc_unlock(proc);
+        return err;
+    }
+
+create:
+    if ((err = session_create(proc, &proc->session)))
+    {
+        proc_unlock(proc);
+        return err;
+    }
+
+    proc_unlock(proc);
+    return sid;
+}
+
+pid_t getsid(pid_t pid)
+{
+    int err = 0;
+    pid_t sid = 0;
+    proc_t *process = NULL;
+
+    if ((proc->session == NULL))
+        return -EPERM;
+
+    if (pid == 0)
+    {
+        process = proc;
+        proc_lock(proc);
+    }
+    else if ((err = proc_get(pid, &process)))
+        goto error;
+
+    if (proc != process)
+        proc_lock(proc);
+
+    if ((process->session == NULL) || (proc->session != process->session))
+    {
+        proc_unlock(process);
+        if (proc != process)
+            proc_unlock(proc);
+        return -EPERM;
+    }
+    
+    session_lock(process->session);
+    sid = process->session->ss_sid;
+    session_unlock(process->session);
+
+    proc_unlock(process);
+    if (proc != process)
+        proc_unlock(proc);
+
+    return sid;
+error:
+    return err;
+}

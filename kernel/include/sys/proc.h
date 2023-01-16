@@ -70,6 +70,10 @@ extern queue_t *processes;
         spin_unlock(p->lock); \
     }
 
+int proc_has_execed(proc_t *);
+int proc_iskilled(proc_t *);
+int proc_isorphan(proc_t *);
+
 int proc_get(pid_t, proc_t **);
 void proc_free(proc_t *);
 int proc_init(const char *);

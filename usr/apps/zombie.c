@@ -11,6 +11,6 @@ main(void)
   close(2);
   
   if(fork() == 0)
-    sleep(5);  // Let child exit before parent.
+    sleep(10);  // Let child exit before parent.
   exit(0);
 }

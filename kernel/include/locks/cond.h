@@ -20,5 +20,6 @@ int cond_wait(cond_t *);
 
 void cond_signal(cond_t *);
 void cond_broadcast(cond_t *);
+void cond_remove(cond_t *cond, thread_t *thread);
 
 #endif // LOCKS_COND_H

@@ -29,7 +29,7 @@ int thread_wake(thread_t *thread)
 {
     cond_t *cond = NULL;
     mutex_t *mutex = NULL;
-    int locked = 0;
+
     thread_assert(thread);
     thread_assert_lock(thread);
     assert(thread->sleep.queue, "sleeping thread has no queue");
@@ -38,45 +38,11 @@ int thread_wake(thread_t *thread)
     {
     case CONDITION:
         cond = thread->sleep.data;
-        if (spin_holding(cond->guard) == 0)
-        {
-            spin_lock(cond->guard);
-            locked = 1;
-        }
-
-        assert(cond->waiters == thread->sleep.queue, "sleep queues don't match");
-        
-        queue_remove(cond->waiters, thread);
-        queue_lock(thread->t_queues);
-        queue_remove(thread->t_queues, cond->waiters);
-        queue_unlock(thread->t_queues);
-
-        atomic_decr(&cond->count);
-
-        if (spin_holding(cond->guard)  && locked)
-            spin_unlock(cond->guard);
-
+        cond_remove(cond, thread);
         break;
     case MUTEX:
         mutex =  thread->sleep.data;
-        if (spin_holding(mutex->guard) == 0)
-        {
-            spin_lock(mutex->guard);
-            locked = 1;
-        }
-
-        assert(mutex->waiters == thread->sleep.queue, "sleep queues don't match");
-        
-        queue_remove(mutex->waiters, thread);
-        queue_lock(thread->t_queues);
-        queue_remove(thread->t_queues, mutex->waiters);
-        queue_unlock(thread->t_queues);
-
-        atomic_decr(&mutex->lock);
-
-        if (spin_holding(mutex->guard)  && locked)
-            spin_unlock(mutex->guard);
-
+        mutex_remove(mutex, thread);
         break;
     default:
         panic("sleeping thread has no sleep struct type\n");

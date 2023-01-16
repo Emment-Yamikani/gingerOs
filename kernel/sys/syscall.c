@@ -11,62 +11,64 @@
 #include <mm/vmm.h>
 #include <sys/sysproc.h>
 
-static uintptr_t (*syscall[])(void) =
-    {
-        /*File Management*/
+static uintptr_t (*syscall[])(void) = {
+    /*File Management*/
 
-        [SYS_KPUTC](void *) sys_kputc,
-        [SYS_OPEN](void *) sys_open,
-        [SYS_READ](void *) sys_read,
-        [SYS_WRITE](void *) sys_write,
-        [SYS_LSEEK](void *) sys_lseek,
-        [SYS_CLOSE](void *) sys_close,
-        [SYS_GETCWD](void *) sys_getcwd,
-        [SYS_CHDIR](void *) sys_chdir,
-        [SYS_PIPE](void *) sys_pipe,
-        [SYS_DUP](void *) sys_dup,
-        [SYS_DUP2](void *) sys_dup2,
-        [SYS_FSTAT](void *) sys_fstat,
-        [SYS_STAT](void *) sys_stat,
-        [SYS_IOCTL](void *) sys_ioctl,
-        [SYS_CREAT](void *) sys_creat,
+    [SYS_KPUTC](void *) sys_kputc,
+    [SYS_OPEN](void *) sys_open,
+    [SYS_READ](void *) sys_read,
+    [SYS_WRITE](void *) sys_write,
+    [SYS_LSEEK](void *) sys_lseek,
+    [SYS_CLOSE](void *) sys_close,
+    [SYS_GETCWD](void *) sys_getcwd,
+    [SYS_CHDIR](void *) sys_chdir,
+    [SYS_PIPE](void *) sys_pipe,
+    [SYS_DUP](void *) sys_dup,
+    [SYS_DUP2](void *) sys_dup2,
+    [SYS_FSTAT](void *) sys_fstat,
+    [SYS_STAT](void *) sys_stat,
+    [SYS_IOCTL](void *) sys_ioctl,
+    [SYS_CREAT](void *) sys_creat,
 
-        /*Process management*/
+    /*Process management*/
 
-        [SYS_GETPID](void *) sys_getpid,
-        [SYS_SLEEP](void *) sys_sleep,
-        [SYS_EXIT](void *) sys_exit,
-        [SYS_FORK](void *) sys_fork,
-        [SYS_WAIT](void *) sys_wait,
-        [SYS_EXECVE](void *) sys_execve,
-        [SYS_EXECV](void *) sys_execv,
-        [SYS_SBRK](void *) sys_sbrk,
+    [SYS_GETPID](void *) sys_getpid,
+    [SYS_SLEEP](void *) sys_sleep,
+    [SYS_EXIT](void *) sys_exit,
+    [SYS_FORK](void *) sys_fork,
+    [SYS_WAIT](void *) sys_wait,
+    [SYS_EXECVE](void *) sys_execve,
+    [SYS_EXECV](void *) sys_execv,
+    [SYS_SBRK](void *) sys_sbrk,
 
+    /*Memory Management*/
 
-        /*Memory Management*/
+    [SYS_GETPAGESIZE](void *) sys_getpagesize,
 
-        [SYS_GETPAGESIZE](void *) sys_getpagesize,
+    /*Thread management*/
 
-        /*Thread management*/
+    [SYS_THREAD_YIELD](void *) sys_thread_yield,
+    [SYS_THREAD_CREATE](void *) sys_thread_create,
+    [SYS_THREAD_SELF](void *) sys_thread_self,
+    [SYS_THREAD_JOIN](void *) sys_thread_join,
+    [SYS_THREAD_EXIT](void *) sys_thread_exit,
 
-        [SYS_THREAD_YIELD](void *) sys_thread_yield,
-        [SYS_THREAD_CREATE](void *) sys_thread_create,
-        [SYS_THREAD_SELF](void *) sys_thread_self,
-        [SYS_THREAD_JOIN](void *) sys_thread_join,
-        [SYS_THREAD_EXIT](void *) sys_thread_exit,
+    /*Protection*/
 
-        /*Protection*/
+    [SYS_GETUID](void *) sys_getuid,
+    [SYS_SETUID](void *) sys_setuid,
+    [SYS_GETGID](void *) sys_getgid,
+    [SYS_SETGID](void *) sys_setgid,
+    
+    /*Process relationships*/
 
-        [SYS_GETUID](void *) sys_getuid,
-        [SYS_SETUID](void *) sys_setuid,
-        [SYS_GETGID](void *) sys_getgid,
-        [SYS_SETGID](void *) sys_setgid,
-        
-        /*Process relationships*/
-
-        [SYS_GETPPID](void *) sys_getppid,
-        [SYS_SETPGRP](void *) sys_setpgrp,
-        [SYS_GETPGID](void *) sys_getpgid,
+    [SYS_GETPPID](void *) sys_getppid,
+    [SYS_SETPGID](void *) sys_setpgid,
+    [SYS_SETPGRP](void *) sys_setpgrp,
+    [SYS_GETPGID](void *) sys_getpgid,
+    [SYS_SETSID] (void *) sys_setsid,
+    [SYS_GETSID] (void *) sys_getsid,
+    [SYS_GETPGRP](void *) sys_getpgrp,
 };
 
 static int sys_syscall_ni(trapframe_t *tf)
@@ -462,4 +464,29 @@ pid_t sys_getpgid(void)
     pid_t pid = 0;
     assert(!argint(0, &pid), "err fetching pid");
     return getpgid(pid);
+}
+
+pid_t sys_setpgid(void)
+{
+    pid_t pid = 0, pgid = 0;
+    assert(!argint(0, &pid), "err fetching pid");
+    assert(!argint(1, &pgid), "err fetching pgid");
+    return setpgid(pid, pgid);
+}
+
+pid_t sys_setsid(void)
+{
+    return setsid();
+}
+
+pid_t sys_getsid(void)
+{
+    pid_t pid = 0;
+    assert(!argint(0, &pid), "err fetching pid");
+    return getsid(pid);
+}
+
+pid_t sys_getpgrp(void)
+{
+    return getpgrp();
 }
