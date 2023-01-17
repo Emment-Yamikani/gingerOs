@@ -144,8 +144,8 @@ extern void sys_thread_exit(void);
 
 /*Signals*/
 
-extern void (*sys_signal(int sig, void (*handler)(int)))(int);
-extern int sys_kill(pid_t pid, int sig);
+extern void (*sys_signal(void))(int);
+extern int sys_kill(void);
 extern int sys_pause(void);
 
 /*Pseudo terminals*/

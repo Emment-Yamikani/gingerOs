@@ -490,3 +490,17 @@ pid_t sys_getpgrp(void)
 {
     return getpgrp();
 }
+
+/*Signal*/
+
+void (*sys_signal(void))(int)
+{
+    pid_t pid = 0;
+    void (*handler)(int);
+    assert(!argint(0, &pid), "err fetching pid");
+    assert(!argptr(0, (void **)&pid, sizeof handler), "err fetching handler");
+    return signal(pid, handler);
+}
+
+int sys_kill(void);
+int sys_pause(void);

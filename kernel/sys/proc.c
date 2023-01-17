@@ -283,8 +283,7 @@ void proc_free(proc_t *proc)
 
     if (proc->signals)
     {
-        queue_lock(proc->signals);
-        queue_free(proc->signals);
+        
     }
 
     if (proc->children)

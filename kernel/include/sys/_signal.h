@@ -2,6 +2,10 @@
 #define _SIGNAL_H
 
 #include <sys/system.h>
+#include <locks/cond.h>
+#include <lime/assert.h>
+#include <sys/session.h>
+#include <locks/spinlock.h>
 
 /* Signal numbers */
 #define	SIGHUP	1	/* hangup */
@@ -46,20 +50,45 @@
 #define SIG_ERR ((uintptr_t) -1) /* Error return */
 
 typedef unsigned long sigset_t;
-struct sigaction {
+typedef struct sigaction {
     uintptr_t sa_handler;
     sigset_t  sa_mask;
     int       sa_flags;
-};
+} sigaction_t;
+
+typedef struct signals
+{
+    sigaction_t sig_action[32];
+    cond_t *sig_wait;
+    queue_t *sig_queue;
+    spinlock_t *sig_lock;
+} *SIGNAL;
+
+#define signals_assert(s) assert(s, "no signals");
+
+#define signals_assert_lock(s) {signals_assert(s); spin_assert_lock(s);}
+
+#define signals_lock(s) {signals_assert(s); spin_lock(s->sig_lock);}
+
+#define signals_unlock(s) {signals_assert(s); spin_unlock(s->sig_lock);}
+
+#define signals_lock_queue(s) {signals_assert_lock(s); queue_lock(s->sig_queue);}
+
+#define signals_unlock_queue(s) {signals_assert_lock(s); queue_unlock(s->sig_queue);}
+
+#define signals_wait(s) {signals_assert_lock(s); cond_wait(s->sig_wait);}
+
+#define signals_signal(s) {signals_assert_lock(s); cond_broadcast(s->sig_wait);}
 
 
 struct proc;
-struct pgroup;
 
 extern int sig_default_action[];
 
-int signal_send(int pid, int sig);
-int signal_proc_send(struct proc *proc, int signal);
-int signal_pgrp_send(struct pgroup *pg, int signal);
+void signals_free(SIGNAL);
+int signals_alloc(char *, SIGNAL *);
+int signal_send(int, int);
+int signal_proc_send(struct proc *, int);
+int signal_pgrp_send(PGROUP pg, int signal);
 
 #endif /* ! _SIGNAL_H */

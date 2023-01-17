@@ -35,7 +35,10 @@ int main(int argc, char *argv[])
 
 
     loop:
-    if ((pid = fork()) > 0)
+    if ((pid = fork()) < 0)
+        panic("failed to fork a child\n");
+    else
+    if (pid > 0)
     {
         haschild:
         pid = wait(&staloc);
@@ -43,8 +46,6 @@ int main(int argc, char *argv[])
             goto loop;
         goto haschild;
     }
-    else if (pid < 0)
-        panic("failed to fork a child\n");
     else{
         setsid();
         execv(argp[0], argp);

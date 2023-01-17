@@ -1,21 +1,23 @@
 #pragma once
 
-#include <ds/queue.h>
-#include <lib/stdint.h>
-#include <lib/types.h>
-#include <locks/cond.h>
-#include <locks/spinlock.h>
 #include <mm/shm.h>
-#include <locks/atomic.h>
 #include <fs/fs.h>
+#include <ds/queue.h>
+#include <lib/types.h>
+#include <lib/stdint.h>
+#include <locks/cond.h>
+#include <sys/_signal.h>
+#include <locks/atomic.h>
+#include <locks/spinlock.h>
 
 typedef struct tgroup tgroup_t;
 struct session;
 struct pgroup;
 
-#define PROC_KILLED 1
-#define PROC_EXECED 2
-#define PROC_ORPHANED 4
+#define PROC_KILLED     0x01
+#define PROC_EXECED     0x02
+#define PROC_ORPHANED   0x04
+#define PROC_REAP       0x08
 
 typedef struct proc
 {
@@ -28,12 +30,13 @@ typedef struct proc
     atomic_t flags;
     pid_t *killer;
     uintptr_t exit;
+
     enum
     {
         EMBRYO,
         SLEEPING,
         RUNNING,
-        ZOMBIE
+        ZOMBIE,
     } state;
 
     thread_t *tmain;
@@ -41,8 +44,9 @@ typedef struct proc
 
     cond_t *wait;
 
+    struct signals *signals;
+
     queue_t *children;
-    queue_t *signals;
 
     struct pgroup *pgroup;
     struct session *session;
