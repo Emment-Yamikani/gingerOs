@@ -48,6 +48,7 @@ int arch_kthread_init(x86_thread_t *thread, void *(*entry)(void *), void *arg)
     ctx->eip = __cast_to_type(ctx->eip)arch_thread_start;
     ctx->ebp = __cast_to_type(*kstack)(thread->kstack + KSTACKSIZE);
     thread->context = ctx;
+    thread->tf = tf;
     return 0;
 }
 
@@ -138,7 +139,7 @@ int arch_uthread_create(x86_thread_t *thread, void *(*entry)(void *), void *arg)
         goto error;
 
     *--ustack = (uint32_t)arg;
-    *--ustack = (uint32_t)0xC0DEC0FE;
+    *--ustack = (uint32_t)0xC0DC0FFE; // dummy return address for user-threads
 
     *--kstack = (uint32_t)NULL;
     *--kstack = (uint32_t)arch_thread_stop;

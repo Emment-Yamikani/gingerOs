@@ -12,6 +12,7 @@ $(schedobjs)\
 $(threadsobjs)\
 $(sysdir)/proc.o\
 $(sysdir)/session.o\
+$(sysdir)/signal.o\
 $(sysdir)/sleep.o\
 $(sysdir)/sysproc.o\
 $(sysdir)/sysprot.o\

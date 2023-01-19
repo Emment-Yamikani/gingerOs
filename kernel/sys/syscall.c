@@ -69,6 +69,12 @@ static uintptr_t (*syscall[])(void) = {
     [SYS_SETSID] (void *) sys_setsid,
     [SYS_GETSID] (void *) sys_getsid,
     [SYS_GETPGRP](void *) sys_getpgrp,
+
+    /*Signals*/
+
+    [SYS_PAUSE] (void *)sys_pause,
+    [SYS_SIGNAL](void *)sys_signal,
+    [SYS_KILL] (void *)sys_kill,
 };
 
 static int sys_syscall_ni(trapframe_t *tf)
@@ -493,14 +499,28 @@ pid_t sys_getpgrp(void)
 
 /*Signal*/
 
+#include <sys/_signal.h>
+
 void (*sys_signal(void))(int)
 {
     pid_t pid = 0;
     void (*handler)(int);
     assert(!argint(0, &pid), "err fetching pid");
-    assert(!argptr(0, (void **)&pid, sizeof handler), "err fetching handler");
+    assert(!argptr(1, (void **)&handler, sizeof handler), "err fetching handler");
     return signal(pid, handler);
 }
 
-int sys_kill(void);
-int sys_pause(void);
+int sys_pause(void)
+{
+    return pause();
+}
+
+
+int sys_kill(void)
+{
+    pid_t pid = 0;
+    int sig = 0;
+    assert(!argint(0, &pid), "err fetching pid");
+    assert(!argint(1, &sig), "err fetching sig");
+    return kill(pid, sig);
+}

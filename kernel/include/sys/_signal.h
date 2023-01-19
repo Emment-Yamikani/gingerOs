@@ -4,8 +4,9 @@
 #include <sys/system.h>
 #include <locks/cond.h>
 #include <lime/assert.h>
-#include <sys/session.h>
 #include <locks/spinlock.h>
+
+#define NSIG 32
 
 /* Signal numbers */
 #define	SIGHUP	1	/* hangup */
@@ -58,6 +59,7 @@ typedef struct sigaction {
 
 typedef struct signals
 {
+    atomic_t nsig_handled;
     sigaction_t sig_action[32];
     cond_t *sig_wait;
     queue_t *sig_queue;
@@ -66,7 +68,7 @@ typedef struct signals
 
 #define signals_assert(s) assert(s, "no signals");
 
-#define signals_assert_lock(s) {signals_assert(s); spin_assert_lock(s);}
+#define signals_assert_lock(s) {signals_assert(s); spin_assert_lock(s->sig_lock);}
 
 #define signals_lock(s) {signals_assert(s); spin_lock(s->sig_lock);}
 
@@ -76,12 +78,11 @@ typedef struct signals
 
 #define signals_unlock_queue(s) {signals_assert_lock(s); queue_unlock(s->sig_queue);}
 
-#define signals_wait(s) {signals_assert_lock(s); cond_wait(s->sig_wait);}
-
-#define signals_signal(s) {signals_assert_lock(s); cond_broadcast(s->sig_wait);}
-
-
 struct proc;
+struct pgroup;
+
+#define proc_signals(p) (p->signals) 
+
 
 extern int sig_default_action[];
 
@@ -89,6 +90,10 @@ void signals_free(SIGNAL);
 int signals_alloc(char *, SIGNAL *);
 int signal_send(int, int);
 int signal_proc_send(struct proc *, int);
-int signal_pgrp_send(PGROUP pg, int signal);
+int signal_pgrp_send(struct pgroup *pg, int signal, ssize_t *);
+
+void (*signal(int sig, void (*handler)(int)))(int);
+int kill(pid_t pid, int sig);
+int pause(void);
 
 #endif /* ! _SIGNAL_H */

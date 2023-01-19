@@ -63,6 +63,9 @@ typedef struct tgroup
     atomic_t nthreads; // number of active thread(both running and sleeping)
 } tgroup_t;
 
+#define THREAD_USER 0x01
+#define THREAD_HANDLING_SIGNAL 0x02
+
 typedef struct thread
 {
     tid_t t_tid;           /*thread ID*/
@@ -71,6 +74,7 @@ typedef struct thread
     tstate_t t_state;      /*thread state*/
     uintptr_t t_exit;      /*thread exit code*/
     atomic_t t_killed;     /*thread killed by other*/
+    atomic_t t_flags; /*thread flags*/
     proc_t *owner;
 
     spinlock_t *t_lock;        /*thread lock*/

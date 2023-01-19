@@ -12,6 +12,7 @@
 #include <arch/chipset/chipset.h>
 #include <sys/_syscall.h>
 #include <locks/mutex.h>
+#include <arch/sys/signal.h>
 
 void rtc_intr(void);
 void kbd_intr(void);
@@ -33,7 +34,6 @@ void trap(trapframe_t *tf)
     {
         current_assert();
         current->t_tarch->tf = tf;
-        
         //printk("syscall ");
         syscall_stub(tf);
         //printk(" sysret\n");

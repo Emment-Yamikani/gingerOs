@@ -43,6 +43,8 @@ typedef struct queue
 
 void *dequeue(queue_t *);
 
+void *queue_get(queue_t *);
+
 void queue_free(queue_t *);
 
 void queue_flush(queue_t *);

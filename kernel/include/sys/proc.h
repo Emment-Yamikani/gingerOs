@@ -63,15 +63,17 @@ extern queue_t *processes;
         proc_assert(p);            \
         spin_assert_lock(p->lock); \
     }
-#define proc_lock(p)        \
-    {                       \
-        proc_assert(p);     \
-        spin_lock(p->lock); \
+#define proc_lock(p)              \
+    {                             \
+        proc_assert(p);           \
+        spin_lock(p->lock);       \
+        if (LIME_DEBUG) printk("%s:%d locked(%d)\n", __FILE__, __LINE__, p->pid); \
     }
 #define proc_unlock(p)        \
     {                         \
         proc_assert(p);       \
         spin_unlock(p->lock); \
+        if (LIME_DEBUG) printk("%s:%d unlocked(%d)\n", __FILE__, __LINE__, p->pid); \
     }
 
 int proc_has_execed(proc_t *);

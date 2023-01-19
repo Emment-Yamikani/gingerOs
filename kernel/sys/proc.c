@@ -26,7 +26,7 @@ int proc_alloc(const char *name, proc_t **ref)
     char *str = NULL;
     shm_t *mmap = NULL;
     proc_t *proc = NULL;
-    queue_t *sigs = NULL;
+    SIGNAL sigs = NULL;
     thread_t *tmain = NULL;
     tgroup_t *tgroup = NULL;
     cond_t *procwait = NULL;
@@ -41,15 +41,14 @@ int proc_alloc(const char *name, proc_t **ref)
     if ((err = shm_alloc(&mmap)))
         goto error;
 
-    if ((str = combine_strings(name, "-signal")) == NULL)
+    if ((str = combine_strings(name, "-signals")) == NULL)
     {
         err = -ENOMEM;
         goto error;
     }
-    if ((err = queue_new(str, &sigs)))
+    if ((err = signals_alloc(str, &sigs)))
         goto error;
     kfree(str);
-    queue_lock(sigs);
 
     if ((str = combine_strings(name, "-children")) == NULL)
     {
@@ -137,7 +136,6 @@ int proc_alloc(const char *name, proc_t **ref)
     }
     queue_unlock(processes);
 
-    queue_unlock(sigs);
     queue_unlock(children);
 
     *ref = proc;
@@ -149,7 +147,7 @@ error:
     if (mmap)
         shm_free(mmap);
     if (sigs)
-        queue_free(sigs);
+        signals_free(sigs);
     if (tmain)
         thread_free(tmain);
     if (children)
@@ -241,6 +239,8 @@ int proc_copy(proc_t *dst, proc_t *src)
     if (!(path = strdup(src->ftable->uio.u_cwd)))
     {
         err = -ENOMEM;
+        file_table_unlock(dst->ftable);
+        file_table_unlock(src->ftable);
         goto error;
     }
 
@@ -261,7 +261,7 @@ int proc_copy(proc_t *dst, proc_t *src)
             pgroup_unlock(src->pgroup);
             goto error;
         }
-        
+
         dst->session = src->session;
         pgroup_unlock(src->pgroup);
     }
@@ -282,9 +282,7 @@ void proc_free(proc_t *proc)
         shm_free(proc->mmap);
 
     if (proc->signals)
-    {
-        
-    }
+        signals_free(proc->signals);
 
     if (proc->children)
     {
@@ -294,16 +292,16 @@ void proc_free(proc_t *proc)
 
     if (proc->tgroup)
         tgroup_free(proc->tgroup);
-    
+
     if (proc->wait)
         cond_free(proc->wait);
-    
+
     if (proc->ftable)
         f_free_table(proc->ftable);
-    
+
     if (proc->lock)
         spinlock_free(proc->lock);
-    
+
     if (proc)
         kfree(proc);
 }
@@ -313,7 +311,7 @@ int proc_get(pid_t pid, proc_t **ref)
     proc_t *p = NULL;
     if (pid <= 0)
         return -EINVAL;
-    
+
     assert(ref, "no ref to proc");
 
     queue_lock(processes);

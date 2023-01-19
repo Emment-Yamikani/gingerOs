@@ -41,6 +41,7 @@
 #define NELEM(x) ((int)(sizeof(x) / sizeof(x[0])))
 #endif // NELEM__ARRAY
 
+#define LIME_DEBUG 0
 
 /*Misc*/
 

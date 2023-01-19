@@ -2,6 +2,7 @@
 #include <arch/i386/32bit.h>
 #include <bits/errno.h>
 #include <arch/system.h>
+#include <lib/types.h>
 #include <mm/pmm.h>
 #include <mm/vmm.h>
 #include <arch/i386/paging.h>

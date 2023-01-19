@@ -12,6 +12,7 @@
 #include <sys/thread.h>
 #include <arch/sys/proc.h>
 #include <arch/i386/paging.h>
+#include <arch/sys/signal.h>
 
 int sched_init(void)
 {
@@ -79,7 +80,7 @@ void sched(void)
     current_assert_lock();
     swtch(&current->t_tarch->context, cpu->context);
     current_assert_lock();
-    
+
     cpu->intena = intena;
     cpu->ncli = ncli;
     popcli();
@@ -129,20 +130,21 @@ __noreturn void schedule(void)
         mmap = NULL;
         proc = NULL;
         current = NULL;
-        
+
         oldpgdir = 0;
         cpu->ncli = 0;
         cpu->intena = 0;
 
         sti();
-        if (!(thread = sched_next())) continue;
-        
+        if (!(thread = sched_next()))
+            continue;
+
         cli();
         current = thread;
 
         mmap = current->mmap;
         proc = current->owner;
-        
+
         if (mmap && current)
         {
             shm_lock(mmap);
@@ -156,7 +158,7 @@ __noreturn void schedule(void)
         current_assert_lock();
         swtch(&cpu->context, current->t_tarch->context);
         current_assert_lock();
-        
+
         paging_switch(oldpgdir);
 
         switch (current->t_state)

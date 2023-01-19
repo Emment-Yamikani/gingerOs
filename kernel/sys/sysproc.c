@@ -26,6 +26,7 @@ void exit(int status)
     proc_t *child = NULL;
     proc_t *parent = NULL;
     SESSION session = NULL;
+    queue_node_t *next = NULL;
 
     proc_assert(proc);
 
@@ -60,8 +61,9 @@ void exit(int status)
     queue_lock(initproc->children);
     queue_lock(proc->children);
 
-    forlinked(node, proc->children->head, node->next)
+    forlinked(node, proc->children->head, next)
     {
+        next = node->next;
         child = node->data;
         proc_lock(child);
 
@@ -85,21 +87,11 @@ void exit(int status)
     proc->exit = status;
 
     cond_broadcast(proc->wait);
-
-    spin_lock(parent->wait->guard);
-    queue_lock(parent->wait->waiters);
-    forlinked(node, parent->wait->waiters->head, node->next)
-    {
-        // printk("TID: %d, %s(), thread: %p, queue: %p\n", thread_self(), __func__, node->data, ((thread_t *)node->data)->t_queues);
-    }
-    queue_unlock(parent->wait->waiters);
-    spin_unlock(parent->wait->guard);
-
     cond_broadcast(parent->wait);
 
-    printk("[\e[0;11m%d\e[0m:\e[0;012m%d\e[0m:\e[0;02m%d\e[0m]: "
+    printk("[\e[0;11m%d\e[0m:\e[0;012m%d\e[0m:\e[0;02m%d\e[0m]: '%s' "
            "\e[0;04mexit(\e[0;017m%d\e[0m)\e[0m\n",
-           parent->pid, proc->pid, thread_self(), status);
+           parent->pid, proc->pid, thread_self(),  proc->name, status);
 
     proc_unlock(parent);
     proc_unlock(proc);
@@ -210,6 +202,7 @@ pid_t wait(int *staloc)
     pid_t pid = 0;
     proc_t *child = NULL;
     atomic_t haskids;
+    queue_node_t *next = NULL;
 
     for (;;)
     {
@@ -218,9 +211,10 @@ pid_t wait(int *staloc)
         proc_lock(proc);
         queue_lock(proc->children);
 
-        forlinked(node, proc->children->head, node->next)
+        forlinked(node, proc->children->head, next)
         {
             atomic_incr(&haskids);
+            next = node->next;
             child = node->data;
             proc_lock(child);
             if (child->state == ZOMBIE)
@@ -232,7 +226,11 @@ pid_t wait(int *staloc)
 
                 assert(child->tgroup, "No tgroup");
                 while (atomic_read(&child->tgroup->nthreads))
+                {
+                    proc_unlock(child);
                     CPU_RELAX();
+                    proc_lock(child);
+                }
 
                 proc_unlock(child);
                 proc_free(child);

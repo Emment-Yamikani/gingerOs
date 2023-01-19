@@ -41,7 +41,12 @@ typedef struct pgroup
 #define pgroup_decr(pgroup) {pgroup_assert(pgroup); atomic_decr(&pgroup->pg_refs);}
 
 /*determine whether is session leader*/
-static inline int ispgroup_leader(PGROUP pgroup, proc_t *p) {pgroup_assert_lock(pgroup); proc_assert(p); return pgroup->pg_leader == p;}
+static inline int ispgroup_leader(PGROUP pgroup, proc_t *p)
+{
+    pgroup_assert_lock(pgroup);
+    proc_assert(p);
+    return pgroup->pg_leader == p;
+}
 
 int pgroup_free(PGROUP);
 int pgroup_leave(PGROUP);

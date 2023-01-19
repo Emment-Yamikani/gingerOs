@@ -45,6 +45,15 @@ void *dequeue(queue_t *q)
     return data;
 }
 
+void *queue_get(queue_t *q)
+{
+    void *data = NULL;
+    queue_lock(q);
+    data = dequeue(q);
+    queue_unlock(q);
+    return data;
+}
+
 queue_node_t *enqueue(queue_t *q, void *data)
 {
     queue_node_t *node = NULL;
