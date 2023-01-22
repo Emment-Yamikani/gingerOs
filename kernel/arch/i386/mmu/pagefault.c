@@ -11,6 +11,7 @@
 #include <arch/system.h>
 #include <arch/context.h>
 #include <mm/shm.h>
+#include <arch/sys/signal.h>
 #include <sys/proc.h>
 #include <arch/i386/traps.h>
 

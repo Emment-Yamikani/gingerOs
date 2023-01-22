@@ -9,6 +9,7 @@ typedef struct x86_thread
 {
     void *tf;           /*task's trapframe*/
     context_t *context; /*for context switching*/
+    trapframe_t savedtf;
     uintptr_t kstack;   /*task's kernel stack*/
     vmr_t *ustack;      /*task's allocated user stack, 0 for kernel tasks*/
     void *private;

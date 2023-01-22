@@ -506,6 +506,7 @@ int session_pgroup_join(SESSION session, pid_t pgid, proc_t *process)
     if (pgid < 0) return -EINVAL;
 
     proc_assert_lock(proc);
+    proc_assert_lock(process);
     session_assert_lock(session);
 
     if ((err = session_lookup(session, pgid, &pgroup)))

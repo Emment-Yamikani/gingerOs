@@ -22,6 +22,7 @@ tid_t thread_self(void)
 void thread_exit(uintptr_t exit_code)
 {
     current_assert();
+    //printk("TID(%d) exiting [%p]\n", current->t_tid, return_address(0));
     arch_thread_exit(exit_code);
 }
 
@@ -141,10 +142,16 @@ int thread_wait(thread_t *thread, void **retval)
     return 0;
 }
 
+int thread_ishandling_signal(thread_t *thread)
+{
+    return (atomic_read(&thread->t_flags) & THREAD_HANDLING_SIGNAL);
+}
+
 int thread_kill_all(void)
 {
     tgroup_t *tgrp = NULL;
     thread_t *thread = NULL;
+    queue_node_t *next = NULL;
 
     current_assert();
     tgrp = current->t_group;
@@ -155,14 +162,16 @@ int thread_kill_all(void)
         return -ERFKILL;
 
     queue_lock(tgrp->queue);
-    forlinked(node, tgrp->queue->head, node->next)
+    forlinked(node, tgrp->queue->head, next)
     {
         thread = node->data;
+        next = node->next;
         if (thread == current)
             continue;
         thread_lock(thread);
         thread_kill_n(thread);
         queue_unlock(tgrp->queue);
+        //printk("waiting for TID: %d, kill: %d\n", thread->t_tid, thread_iskilled(thread));
         thread_wait(thread, NULL);
         queue_lock(tgrp->queue);
     }

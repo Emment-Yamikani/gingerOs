@@ -76,11 +76,15 @@ void sched(void)
     pushcli();
     int ncli = cpu->ncli;
     int intena = cpu->intena;
-
+    
+    //printk("%s:%d: %s() tid(%d), ncli: %d, intena: %d [%p]\n", __FILE__, __LINE__, __func__, current->t_tid, cpu->ncli, cpu->intena, return_address(0));
+    
     current_assert_lock();
     swtch(&current->t_tarch->context, cpu->context);
     current_assert_lock();
-
+    
+    //printk("%s:%d: %s() tid(%d), ncli: %d, intena: %d [%p]\n", __FILE__, __LINE__, __func__, current->t_tid, cpu->ncli, cpu->intena, return_address(0));
+    
     cpu->intena = intena;
     cpu->ncli = ncli;
     popcli();
@@ -140,6 +144,18 @@ __noreturn void schedule(void)
             continue;
 
         cli();
+
+        //printk("TID: %d kill: %d\n", thread->t_tid, thread_iskilled(thread));
+        if (thread_iskilled(thread))
+        {
+            //printk("TID: %d kill: %d\n", thread->t_tid, thread_iskilled(thread));
+            thread->t_state = T_ZOMBIE;
+            thread->t_exit = -ERFKILL;
+            sched_zombie(thread);
+            thread_unlock(thread);
+            continue;
+        }
+
         current = thread;
 
         mmap = current->mmap;
@@ -153,6 +169,7 @@ __noreturn void schedule(void)
             spin_unlock(mmap->pgdir_lock);
             shm_unlock(mmap);
             thread_setkstack(current->t_tarch);
+            //printk("%s:%d:: ncli: %d, intena: %d\n", __FILE__, __LINE__, cpu->ncli, cpu->intena);
         }
 
         current_assert_lock();

@@ -253,6 +253,23 @@ int proc_copy(proc_t *dst, proc_t *src)
     file_table_unlock(dst->ftable);
     file_table_unlock(src->ftable);
 
+    signals_lock(src->signals);
+    signals_lock(dst->signals);
+    
+    signals_lock_queue(src->signals);
+    signals_lock_queue(dst->signals);
+
+    queue_node_t *sigcpy = NULL;
+
+    forlinked()
+    
+
+    signals_unlock(dst->signals);
+    signals_unlock_queue(src->signals);
+
+    signals_unlock(dst->signals);
+    signals_unlock_queue(src->signals);
+
     if (src->pgroup)
     {
         pgroup_lock(src->pgroup);

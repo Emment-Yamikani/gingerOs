@@ -33,18 +33,18 @@ void exit(int status)
     if (proc == initproc)
         panic("init exiting\n");
 
+    if (thread_kill_all() == -ERFKILL)
+    {
+        thread_exit(status);
+    }
+
     proc_lock(proc);
     parent = proc->parent;
     session = proc->session;
 
     proc_lock(parent);
 
-    if (thread_kill_all() == -ERFKILL)
-    {
-        proc_unlock(parent);
-        proc_unlock(proc);
-        thread_exit(status);
-    }
+    printk("EXIT_SYSCALL\n");
 
     queue_lock(processes);
     queue_remove(processes, proc);

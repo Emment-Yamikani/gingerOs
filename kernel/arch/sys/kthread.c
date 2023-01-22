@@ -12,6 +12,7 @@
 void arch_thread_start(void)
 {
     //printk("thread(%d) starting...\n", thread_self());
+    //printk("\e[0;13mTID(%d) running [%p]\e[0m\n", current->t_tid, return_address(0));
     current_unlock();
 }
 
@@ -47,8 +48,9 @@ int arch_kthread_init(x86_thread_t *thread, void *(*entry)(void *), void *arg)
     ctx = __cast_to_type(ctx)((uint32_t)kstack - sizeof *ctx);
     ctx->eip = __cast_to_type(ctx->eip)arch_thread_start;
     ctx->ebp = __cast_to_type(*kstack)(thread->kstack + KSTACKSIZE);
-    thread->context = ctx;
+    
     thread->tf = tf;
+    thread->context = ctx;
     return 0;
 }
 
@@ -148,7 +150,7 @@ int arch_uthread_create(x86_thread_t *thread, void *(*entry)(void *), void *arg)
     tf->ss = (SEG_UDATA << 3) | DPL_USER;
     tf->esp = (uint32_t)ustack;
     tf->ebp = (uint32_t)ustack;
-    tf->eflags = FL_IF;
+    tf->eflags = FL_IF | 2;
     tf->cs = (SEG_UCODE << 3) | DPL_USER;
     tf->eip = (uint32_t)entry;
 

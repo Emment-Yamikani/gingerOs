@@ -66,6 +66,7 @@ typedef struct tgroup
 #define THREAD_USER 0x01
 #define THREAD_HANDLING_SIGNAL 0x02
 
+
 typedef struct thread
 {
     tid_t t_tid;           /*thread ID*/
@@ -101,9 +102,11 @@ typedef struct thread
 } thread_t;
 
 #define thread_assert(t) assert(t, "no thread");
-#define thread_lock(t) spin_lock(t->t_lock)
-#define thread_unlock(t) spin_unlock(t->t_lock)
-#define thread_assert_lock(t) spin_assert_lock(t->t_lock)
+#define thread_lock(t) {thread_assert(t); spin_lock(t->t_lock); if (LIME_DEBUG) printk("%s:%d:: TID(%d) locked [%p]\n", __FILE__, __LINE__, t->t_tid, return_address(0));}
+#define thread_unlock(t) {thread_assert(t); spin_unlock(t->t_lock); if (LIME_DEBUG) printk("%s:%d:: TID(%d) unlocked [%p]\n", __FILE__, __LINE__, t->t_tid, return_address(0));}
+#define thread_assert_lock(t) {thread_assert(t); spin_assert_lock(t->t_lock);}
+
+#define thread_iskilled(t) (atomic_read(&t->t_killed))
 
 #define current_assert() assert(current, "no current thread");
 #define current_lock() thread_lock(current)
@@ -118,6 +121,9 @@ void tgroup_free(tgroup_t *);
 int tgroup_new(tid_t, tgroup_t **);
 thread_t *thread_dequeue(queue_t *);
 int thread_enqueue(queue_t *, thread_t *, queue_node_t **node);
+
+int thread_ishandling_signal(thread_t *thread);
+
 
 void thread_yield(void);
 tid_t thread_self(void);

@@ -3,9 +3,8 @@
 
 #include <sys/_signal.h>
 
-int arch_handle_signal(int sig);
-void arch_return_signal(void);
 
-void handle_signals(void);
+int arch_handle_signal(int sig, trapframe_t *);
+void arch_return_signal(trapframe_t *);
 
 #endif //_ARCH_SIGNAL_H

@@ -48,6 +48,7 @@ void arch_thread_free(x86_thread_t *tarch)
 
 void arch_thread_exit(uintptr_t exit_code)
 {
+    //printk("TID(%d) exiting [%p]\n", current->t_tid, return_address(0));
     current_lock();
     current->t_state = T_ZOMBIE;
     current->t_exit = exit_code;

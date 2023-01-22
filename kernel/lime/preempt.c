@@ -16,6 +16,8 @@ void popcli(void)
 {
     assert(!(read_eflags() & FL_IF), "popcli interruptable");
     assert(!(--cpu->ncli < 0), "popcli underflow");
-    if (!cpu->ncli && cpu->intena)
+    if (!cpu->ncli && cpu->intena){
+        cpu->intena = 0;
         sti();
+    }
 }

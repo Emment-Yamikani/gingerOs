@@ -3,6 +3,7 @@ global _kstart
 global _ustart
 global read_tsc
 global read_esp
+global read_ebp
 global read_eax
 global read_cr2
 global read_cr3
@@ -62,6 +63,10 @@ read_eflags:
 
 read_esp:
     mov eax, esp
+    ret
+
+read_ebp:
+    mov eax, ebp
     ret
 
 _xchg_:

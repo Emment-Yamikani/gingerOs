@@ -7,6 +7,7 @@
 #include <bits/errno.h>
 #include <mm/kalloc.h>
 #include <sys/thread.h>
+#include <sys/sysproc.h>
 
 int sig_default_action[] = {
     [SIGABRT] = SIGACT_ABORT,
@@ -101,6 +102,24 @@ error:
 }
 
 int signal_send(int pid, int sig);
+
+int signals_pending(struct proc *p)
+{
+    ssize_t has = 0;
+    proc_assert_lock(p);
+    signals_assert_lock(proc_signals(p));
+    signals_lock_queue(proc_signals(p));
+    has = queue_count(proc_signals(p)->sig_queue);
+    signals_unlock_queue(proc_signals(p));
+    return has;
+}
+
+int signals_next(struct proc *p)
+{
+    proc_assert_lock(p);
+    signals_assert_lock(proc_signals(p));
+    return (int)queue_get(proc_signals(p)->sig_queue);
+}
 
 int signal_proc_send(struct proc *process, int sig)
 {
@@ -376,27 +395,29 @@ int kill(pid_t pid, int sig)
     }
     else if (pid > 0) // send a signal to pid
     {
-        proc_lock(proc);
-        if (pid == proc->pid)
-            process = proc;
-        else if ((err = proc_get(pid, &process)))
+        printk("kill(%d, %d)\n", pid, sig);
+        if (pid == getpid())
         {
-            proc_unlock(proc);
-            return err;
+            process = proc;
         }
+        else if ((err = proc_get(pid, &process)))
+            return err;
+            
+        if (proc != process)
+            proc_lock(proc);
 
         if ((err = signal_proc_send(process, sig)))
         {
             if (process != proc)
-                proc_unlock(process);
-            proc_unlock(proc);
+                proc_unlock(proc);
+            proc_unlock(process);
             return err;
         }
 
         count = 1;
         if (process != proc)
-            proc_unlock(process);
-        proc_unlock(proc);
+            proc_unlock(proc);
+        proc_unlock(process);
     }
     else // send signal to pgroup
     {

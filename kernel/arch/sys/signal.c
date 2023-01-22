@@ -8,53 +8,65 @@
 #include <sys/sched.h>
 #include <arch/system.h>
 #include <sys/system.h>
+#include <sys/sysproc.h>
 #include <mm/shm.h>
+#include <mm/kalloc.h>
+#include <arch/i386/paging.h>
+#include <lib/string.h>
 
 void arch_thread_stop(void);
 void arch_thread_start(void);
 
-void handle_signals(void)
+int signals_cancel(SIGNAL signals, int sig)
 {
-    /**
-     * Handle any pending signal
-     */
-
-    current_lock();
-
-    if (proc)
-    {
-        int sig = 0;
-        proc_lock(proc);
-        signals_lock(proc->signals);
-
-        while ((sig = (int)queue_get(proc_signals(proc)->sig_queue)))
-            arch_handle_signal(sig);
-
-        signals_unlock(proc->signals);
-        proc_unlock(proc);
-    }
-
-    current_unlock();
+    signals_assert_lock(signals);
+    if (signal_isvalid(sig) == 0)
+        return -EINVAL;
+    signals->sig_action[sig].sa_handler = SIG_DFL;
+    return 0;
 }
 
-int arch_handle_signal(int sig)
+void (*signals_get_handler(SIGNAL signals, int sig))(int)
 {
-    uintptr_t handler = 0;
+    void (*handler)(int) = NULL;
+    signals_assert_lock(signals);
+    if (signal_isvalid(sig) == 0)
+        return (void *)SIG_ERR;
+    handler = __cast_to_type(handler) signals->sig_action[sig].sa_handler;
+    // revert to default action
+    if (signals_cancel(proc_signals(proc), sig))
+        return (void *)SIG_ERR;
+   return handler;
+}
 
-    if ((sig < 0) || (sig >= NSIG))
-        return -EINVAL;
+int handle_signals(trapframe_t *tf)
+{
+    int err = 0, sig = 0;
 
+    proc_lock(proc);
+    signals_lock(proc_signals(proc));
 
-    current_assert();
-    proc_assert_lock(proc);
-    signals_assert_lock(proc->signals);
+    if (signals_pending(proc) && (thread_ishandling_signal(current) == 0))
+    {
+        sig = signals_next(proc);
+        arch_handle_signal(sig, tf);
+    }
 
-    handler = proc_signals(proc)->sig_action[sig].sa_handler;
+    signals_unlock(proc_signals(proc));
+    proc_unlock(proc);
+    return err;
+}
+
+int arch_handle_signal(int sig, trapframe_t *tf)
+{
+    x86_thread_t *thread = NULL;
+    uintptr_t *ustack = NULL, handler = 0;
+    
+
+    handler = (uintptr_t)signals_get_handler(proc_signals(proc), sig);
 
     if (handler == SIG_DFL)
-        handler = sig_default_action[sig];
-
-    sig_default_action[sig] = SIG_DFL; // revert to default action
+        handler = (uintptr_t)sig_default_action[sig];
 
     switch (handler)
     {
@@ -70,77 +82,54 @@ int arch_handle_signal(int sig)
     case SIGACT_ABORT:
         __fallthrough;
     case SIGACT_TERMINATE:
+        signals_unlock(proc_signals(proc));
+        proc_unlock(proc);
+        exit(sig);
         panic("Default signal action is to terminate\n");
         break;
     }
 
+    current_lock();
+    thread = current->t_tarch;
+    thread->savedtf = *tf;
     atomic_or(&current->t_flags, THREAD_HANDLING_SIGNAL);
 
-    x86_thread_t *thread = current->t_tarch;
-    uintptr_t *kstack = NULL, *ustack = NULL;
-    trapframe_t *saved_tf = current->t_tarch->tf, *tf = NULL;
-    context_t *saved_ctx = thread->context, *cpu_ctx = cpu->context, *ctx = NULL;
+    ustack = (uintptr_t *)tf->esp;
+    memset(tf, 0, sizeof *tf);
 
-    kstack = (uintptr_t *)(thread->context - 1);
-
-    *--kstack = (uint32_t)NULL;
-    *--kstack = (uint32_t)arch_thread_stop;
-    tf = (trapframe_t *)((uint32_t)kstack - sizeof *tf);
-
-    ustack = (uintptr_t *)(saved_tf->esp);
     *--ustack = sig;
-    *--ustack = 0xC000F002;
+    *--ustack = 0xDEADDEAD; // push dummy return pointer
 
     tf->ss = (SEG_UDATA << 3) | DPL_USER;
-    tf->esp = (uintptr_t)ustack; // miss the old stack frame by (minus 8) ???
-    tf->ebp = (uintptr_t)ustack; // miss the old stack frame by (minus 8) ???
-    tf->eflags = FL_IF;
-    tf->cs = (SEG_UCODE << 3) | DPL_USER;
-    tf->eip = (uint32_t)handler;
+    tf->ebp = (uint32_t)ustack;
+    tf->esp = (uint32_t)ustack;
+    tf->eflags = FL_IF | 2;
 
+    tf->cs = (SEG_UCODE << 3) | DPL_USER;
+    tf->eip = handler;
     tf->gs = (SEG_UDATA << 3) | DPL_USER;
     tf->fs = (SEG_UDATA << 3) | DPL_USER;
     tf->es = (SEG_UDATA << 3) | DPL_USER;
     tf->ds = (SEG_UDATA << 3) | DPL_USER;
+    tf->temp_esp = thread->savedtf.temp_esp;
+    tf->esi = thread->savedtf.esi;
+    tf->edi = thread->savedtf.edi;
 
-    kstack = (uint32_t *)tf;
-    *--kstack = (uint32_t)trapret;
-    ctx = (context_t *)((uint32_t)kstack - sizeof *ctx);
-    ctx->eip = (uint32_t)arch_thread_start;
-    ctx->ebp = (uintptr_t)(thread->context - 1);
-
-    thread->tf = tf;
-    thread->context = ctx;
-    
-    printk("handler: %d\n", sig);
-    set_tss((uintptr_t)(thread->context - 1), (SEG_KDATA << 3));
-
-    signals_unlock(proc->signals);
-    proc_unlock(proc);
-
-    swtch(&cpu->context, thread->context);
-    
-    current_assert_lock();
-
-    proc_lock(proc);
-    signals_lock(proc->signals);
-
-    cpu->context = cpu_ctx;
-    thread->tf = saved_tf;
-    thread->context = saved_ctx;
-
-    atomic_and(&current->t_flags, ~THREAD_HANDLING_SIGNAL);
-
-    printk("handler is done\n");
-
+    current_unlock();
     return 0;
 }
 
-void arch_return_signal(void)
+void arch_return_signal(trapframe_t *tf)
 {
+    x86_thread_t *thread = NULL;
     current_lock();
-    if ((atomic_read(&current->t_flags) & THREAD_HANDLING_SIGNAL) == 0)
+    if (trapframe_isuser(tf) == 0)
+        panic("page fault: thread(%d)\n", current->t_tid);
+    if (thread_ishandling_signal(current) == 0)
         panic("thread not handling any signal\n");
     
-    swtch(&current->t_tarch->context, cpu->context);
+    thread = current->t_tarch;
+    atomic_and(&current->t_flags, ~THREAD_HANDLING_SIGNAL);
+    *tf = thread->savedtf;
+    current_unlock();
 }

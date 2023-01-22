@@ -6,6 +6,7 @@
 #include <lime/assert.h>
 #include <locks/spinlock.h>
 
+
 #define NSIG 32
 
 /* Signal numbers */
@@ -95,5 +96,19 @@ int signal_pgrp_send(struct pgroup *pg, int signal, ssize_t *);
 void (*signal(int sig, void (*handler)(int)))(int);
 int kill(pid_t pid, int sig);
 int pause(void);
+
+int has_pending_signal();
+
+static inline int signal_isvalid(int sig)
+{
+    return !((sig < 1) || (sig >= NSIG));
+}
+
+int handle_signals(trapframe_t *ustack);
+int signals_pending(struct proc *);
+int signals_next(struct proc *p);
+
+int signals_cancel(SIGNAL, int);
+void (*signals_get_handler(SIGNAL, int))(int);
 
 #endif /* ! _SIGNAL_H */
