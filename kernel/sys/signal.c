@@ -141,7 +141,7 @@ int signal_proc_send(struct proc *process, int sig)
 init:
     if ((process == initproc))
     {
-        uintptr_t handler = proc_signals(initproc)->sig_action[sig].sa_handler;
+        uintptr_t handler = proc_signals(initproc)->sig_action[sig - 1].sa_handler;
         if ((handler == SIG_DFL) || (handler == SIG_IGN) || (handler == SIG_ERR)){
             file_table_unlock(proc->ftable);
             return -EPERM;
@@ -233,9 +233,9 @@ void (*signal(int sig, void (*handler)(int)))(int)
     proc_lock(proc);
     signals_lock(proc->signals);
 
-    old_handler = __cast_to_type(handler) proc_signals(proc)->sig_action[sig].sa_handler;
+    old_handler = __cast_to_type(handler) proc_signals(proc)->sig_action[sig - 1].sa_handler;
 
-    proc_signals(proc)->sig_action[sig].sa_handler = (uintptr_t) handler;
+    proc_signals(proc)->sig_action[sig - 1].sa_handler = (uintptr_t) handler;
 
     signals_unlock(proc->signals);
     proc_unlock(proc);
@@ -299,21 +299,11 @@ int kill(pid_t pid, int sig)
 
             if ((process == initproc))
             {
-                uintptr_t handler = proc_signals(initproc)->sig_action[sig].sa_handler;
-                if ((handler == SIG_DFL) || (handler == SIG_IGN) || (handler == SIG_ERR))
-                {
-                    file_table_unlock(proc->ftable);
-                    if (process != proc)
-                        proc_unlock(process);
-                    proc_unlock(proc);
-                    return -EPERM;
-                }
-
                 file_table_unlock(proc->ftable);
                 if (process != proc)
                     proc_unlock(process);
                 proc_unlock(proc);
-                return 0;
+                return -EPERM;
             }
 
             if (proc != process)

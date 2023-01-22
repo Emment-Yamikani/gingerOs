@@ -22,7 +22,7 @@ int signals_cancel(SIGNAL signals, int sig)
     signals_assert_lock(signals);
     if (signal_isvalid(sig) == 0)
         return -EINVAL;
-    signals->sig_action[sig].sa_handler = SIG_DFL;
+    signals->sig_action[sig - 1].sa_handler = SIG_DFL;
     return 0;
 }
 
@@ -32,7 +32,7 @@ void (*signals_get_handler(SIGNAL signals, int sig))(int)
     signals_assert_lock(signals);
     if (signal_isvalid(sig) == 0)
         return (void *)SIG_ERR;
-    handler = __cast_to_type(handler) signals->sig_action[sig].sa_handler;
+    handler = __cast_to_type(handler) signals->sig_action[sig - 1].sa_handler;
     // revert to default action
     if (signals_cancel(proc_signals(proc), sig))
         return (void *)SIG_ERR;
@@ -66,7 +66,7 @@ int arch_handle_signal(int sig, trapframe_t *tf)
     handler = (uintptr_t)signals_get_handler(proc_signals(proc), sig);
 
     if (handler == SIG_DFL)
-        handler = (uintptr_t)sig_default_action[sig];
+        handler = (uintptr_t)sig_default_action[sig - 1];
 
     switch (handler)
     {

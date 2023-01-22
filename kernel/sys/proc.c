@@ -253,22 +253,16 @@ int proc_copy(proc_t *dst, proc_t *src)
     file_table_unlock(dst->ftable);
     file_table_unlock(src->ftable);
 
+
+    /*copy signal despositions*/
     signals_lock(src->signals);
     signals_lock(dst->signals);
-    
-    signals_lock_queue(src->signals);
-    signals_lock_queue(dst->signals);
 
-    queue_node_t *sigcpy = NULL;
-
-    forlinked()
-    
+    for (int sig = 0; sig < NSIG; ++sig)
+        dst->signals->sig_action[sig] = src->signals->sig_action[sig];
 
     signals_unlock(dst->signals);
-    signals_unlock_queue(src->signals);
-
-    signals_unlock(dst->signals);
-    signals_unlock_queue(src->signals);
+    signals_unlock(src->signals);
 
     if (src->pgroup)
     {
