@@ -12,7 +12,7 @@ int getstr(char *buf, int nbuf)
 int parsestr(char *s)
 {
     char buf[512];
-    char *argv[] = {"sh", NULL};
+    char *argv[] = {"shell", NULL};
     memset(buf, 0, sizeof buf);
 
     if (!strcmp(s, "guest"))

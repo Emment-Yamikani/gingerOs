@@ -47,7 +47,7 @@ size_t posix_file_write(struct file *file, void *buf, size_t size)
 			/* Wake up all sleeping readers if a `read_queue' is attached */
 			if (file->f_inode->i_readers){
 				printk("[%d:%d] posix signaling readers\n", proc->pid, current->t_tid);
-				cond_signal(file->f_inode->i_readers);
+				cond_broadcast(file->f_inode->i_readers);
 			}
 
 			/* Return written bytes count */
@@ -85,7 +85,7 @@ size_t posix_file_write(struct file *file, void *buf, size_t size)
 
 		/* Wake up all sleeping readers if a `read_queue' is attached */
 		if (file->f_inode->i_readers)
-			cond_signal(file->f_inode->i_readers);
+			cond_broadcast(file->f_inode->i_readers);
 
 		return retval;
 	}

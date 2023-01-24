@@ -67,8 +67,8 @@ void trap(trapframe_t *tf)
             arch_return_signal(tf);
         else
             paging_pagefault(tf);
-        popcli();
         lapic_eoi();
+        popcli();
         break;
     case T_TLB_SHOOTDOWN: // TLB shootdown
         paging_tbl_shootdown();
@@ -98,9 +98,6 @@ void trap(trapframe_t *tf)
 
     if (proc == NULL)
         return;
-
-    if (spin_holding(proc->lock))
-        panic("%s:%d: thread(%d): holding proc (kill: %d)\n", __FILE__, __LINE__, thread_self(), thread_iskilled(current));
 
     pushcli();
     if (trapframe_isuser(tf))

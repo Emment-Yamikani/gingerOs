@@ -67,6 +67,7 @@ extern "C"
     extern int ptsname_r(int fd, char *buf, long buflen);
     extern char *ptsname(int fd);
     extern int isatty(int fd);
+    extern int unlockpt(int fd);
 
 #ifdef __cplusplus
 }

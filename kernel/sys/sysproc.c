@@ -42,6 +42,8 @@ void exit(int status)
     parent = proc->parent;
     session = proc->session;
 
+    signals_cancel(proc);
+
     proc_lock(parent);
 
     printk("EXIT_SYSCALL\n");
@@ -56,7 +58,6 @@ void exit(int status)
     for (int fd = 0; fd < NFILE; ++fd)
         close(fd);
 
-    klog(KLOG_WARN, "cancel pending signals\n");
 
     queue_lock(initproc->children);
     queue_lock(proc->children);
@@ -272,6 +273,8 @@ int execve(char *path, char *argp[], char *envp[])
 {
     int err = 0;
     char ***argp_envp = NULL;
+    
+    cli();
 
     if (!(path = strdup(path)))
     {
@@ -309,7 +312,6 @@ int execve(char *path, char *argp[], char *envp[])
 
     arch_exec_free_cpy(argp_envp);
 
-    cli();
     context_t *ctx = NULL;
 
     current_lock();
@@ -317,6 +319,10 @@ int execve(char *path, char *argp[], char *envp[])
     current->t_state = T_READY;
 
     atomic_or(&proc->flags, PROC_EXECED);
+    
+    proc_lock(proc);
+    signals_cancel(proc);
+    proc_unlock(proc);
 
     swtch(&ctx, cpu->context);
     panic("\e[014;0mexecve-1\e[0m\n");

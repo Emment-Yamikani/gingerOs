@@ -165,7 +165,6 @@ size_t write(int fd, void *buf, size_t sz)
     }
     file_table_unlock(table);
     retval = fwrite(file, buf, sz);
-
     return retval;
 }
 

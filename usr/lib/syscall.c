@@ -43,41 +43,38 @@
 /* Memory management */
 
 #define SYS_SBRK	        28 //* sbrk
+#define SYS_BRK             29
+#define SYS_GETPAGESIZE     30 //* get kernel page size (currently not dynamic)
+#define SYS_MMAN            31
 
 /* Signals */
 
-#define SYS_KILL            29 //* send signal
-#define SYS_SIGNAL          30 //* set signal handler
-#define SYS_PAUSE           31 //* wait for a signal
+#define SYS_KILL            32 //* send signal
+#define SYS_SIGNAL          33 //* set signal handler
+#define SYS_PAUSE           34 //* wait for a signal
 
-/* Thread management */
+#define SYS_THREAD_CREATE   35 //* create a thread
+#define SYS_THREAD_SELF     36 //* get thread ID
+#define SYS_THREAD_JOIN     37 //* wait for thread TID to terminate
+#define SYS_THREAD_EXIT     38 //* terminate thread
+#define SYS_THREAD_YIELD    39 //* create a thread
 
-#define SYS_THREAD_CREATE   32 //* create a thread
-#define SYS_THREAD_SELF     33 //* get thread ID
-#define SYS_THREAD_JOIN     34 //* wait for thread TID to terminate
-#define SYS_THREAD_EXIT     35 //* terminate thread
-#define SYS_THREAD_YIELD    36 //* create a thread
-
-#define SYS_GETPGRP         37 //* get process group ID
-#define SYS_SETPGRP         38 //* set process group ID
-#define SYS_SETSID          39 //* set session ID
-#define SYS_GETSID          40 //* get session ID
-#define SYS_GETPGID         41 //* get process group ID of process PID
-#define SYS_SETPGID         42 //* set process group ID of process PID
+#define SYS_GETPGRP         40 //* get process group ID
+#define SYS_SETPGRP         41 //* set process group ID
+#define SYS_SETSID          42 //* set session ID
+#define SYS_GETSID          43 //* get session ID
+#define SYS_GETPGID         44 //* get process group ID of process PID
+#define SYS_SETPGID         45 //* set process group ID of process PID
 
 /* Terminals & Pseudo-terminals */
 
-#define SYS_OPENPT          43 //* open pseudo-terminal
-#define SYS_GRANTPT         44 //* grant pseudo-terminal permissions
-#define SYS_PTSNAME         45 //* get pseudo-terminal name
-#define SYS_PTSNAME_R       46 //* get pseudo-terminal name
-#define SYS_ISATTY          47 //* isatty?
+#define SYS_OPENPT          46 //* open pseudo-terminal
+#define SYS_GRANTPT         47 //* grant pseudo-terminal permissions
+#define SYS_PTSNAME_R       48 //* get pseudo-terminal name
+#define SYS_ISATTY          49 //* isatty?
+#define SYS_UNLOCKPT        50 //* unlock a pty pair
 
-#define SYS_GETPAGESIZE     48 //* get kernel page size (currently not dynamic)
-#define SYS_MMAN            49
-
-#define SYS_BRK             50
-
+/*
 #define SYSCALL5(ret, v, arg1, arg2, arg3, arg4, arg5) \
 	asm volatile("int $0x80;":"=a"(ret):"a"(v), "b"(arg1), "c"(arg2), "d"(arg3), "S"(arg4), "D"(arg5));
 #define SYSCALL4(ret, v, arg1, arg2, arg3, arg4) \
@@ -90,6 +87,7 @@
 	asm volatile("int $0x80;":"=a"(ret):"a"(v), "b"(arg1));
 #define SYSCALL0(ret, v) \
 	asm volatile("int $0x80;":"=a"(ret):"a"(v));
+*/
 
 #include <sys/stat.h>
 #include <types.h>
@@ -141,8 +139,9 @@ extern int sys_pause(void);
 extern int sys_openpt(int flags);
 extern int sys_grantpt(int fd);
 extern int sys_ptsname_r(int fd, char *buf, long buflen);
-extern char *sys_ptsname(int fd, char *buf, long buflen);
+extern char *sys_ptsname(int fd);
 extern int sys_isatty(int fd);
+extern int sys_unlockpt(int fd);
 
 int getpid(void)
 {
@@ -398,10 +397,12 @@ int ptsname_r(int fd, char *buf, long buflen)
     return sys_ptsname_r(fd, buf, buflen);
 }
 
+#include <stddef.h>
+
 char *ptsname(int fd)
 {
-    static char buf[512];
-    return sys_ptsname(fd, buf, sizeof buf);
+    static char buf[256] = {0};
+    return ptsname_r(fd, buf, sizeof buf) == 0 ? buf : NULL;
 }
 
 #include <bits/errno.h>
@@ -420,4 +421,9 @@ int isatty(int fd)
         break;
     }
     return ret;
+}
+
+int unlockpt(int fd)
+{
+    return sys_unlockpt(fd);
 }

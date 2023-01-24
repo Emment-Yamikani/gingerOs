@@ -10,6 +10,7 @@
 #include <sys/sleep.h>
 #include <mm/vmm.h>
 #include <sys/sysproc.h>
+#include <dev/pty.h>
 
 static uintptr_t (*syscall[])(void) = {
     /*File Management*/
@@ -75,6 +76,14 @@ static uintptr_t (*syscall[])(void) = {
     [SYS_PAUSE] (void *)sys_pause,
     [SYS_SIGNAL](void *)sys_signal,
     [SYS_KILL] (void *)sys_kill,
+
+    /*Pseudoterminals*/
+
+    [SYS_ISATTY] (void *)sys_isatty,
+    [SYS_GRANTPT](void *)sys_grantpt,
+    [SYS_OPENPT] (void *)sys_openpt,
+    [SYS_UNLOCKPT](void *)sys_unlockpt,
+    [SYS_PTSNAME_R](void *)sys_ptsname_r,
 };
 
 static int sys_syscall_ni(trapframe_t *tf)
@@ -515,7 +524,6 @@ int sys_pause(void)
     return pause();
 }
 
-
 int sys_kill(void)
 {
     pid_t pid = 0;
@@ -523,4 +531,43 @@ int sys_kill(void)
     assert(!argint(0, &pid), "err fetching pid");
     assert(!argint(1, &sig), "err fetching sig");
     return kill(pid, sig);
+}
+
+int sys_isatty(void)
+{
+    int fd = 0;
+    assert(!argint(0, &fd), "err fetching fd");
+    return isatty(fd);
+}
+
+int sys_ptsname_r(void)
+{
+    int fd = 0;
+    char *buf = NULL;
+    size_t size = 0;
+    assert(!argint(0, &fd), "err fetching fd");
+    assert(!argptr(1, (void **)&buf, sizeof buf), "err fetching buf");
+    assert(!argint(2, (int *)&size), "err fetching size");
+    return ptsname_r(fd, buf, size);
+}
+
+int sys_grantpt(void)
+{
+    int fd = 0;
+    assert(!argint(0, &fd), "err fetching fd");
+    return grantpt(fd);
+}
+
+int sys_unlockpt(void)
+{
+    int fd = 0;
+    assert(!argint(0, &fd), "err fetching fd");
+    return unlockpt(fd);
+}
+
+int sys_openpt(void)
+{
+    int status = 0;
+    assert(!argint(0, &status), "err fetching status");
+    return openpt(status);
 }

@@ -219,8 +219,7 @@ int signal_pgrp_send(PGROUP pgroup, int sig, ssize_t *ref)
     return err;
 }
 
-void (*signal(int sig, void (*handler)(int)))(int)
-{
+void (*signal(int sig, void (*handler)(int)))(int){
     typeof(handler) old_handler = NULL;
 
     if ((sig < 1) || (sig >= NSIG))
@@ -385,7 +384,6 @@ int kill(pid_t pid, int sig)
     }
     else if (pid > 0) // send a signal to pid
     {
-        printk("kill(%d, %d)\n", pid, sig);
         if (pid == getpid())
         {
             process = proc;

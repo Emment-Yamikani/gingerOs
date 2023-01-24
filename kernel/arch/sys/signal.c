@@ -17,12 +17,35 @@
 void arch_thread_stop(void);
 void arch_thread_start(void);
 
-int signals_cancel(SIGNAL signals, int sig)
+int signal_cancel_desp(SIGNAL signals, int sig)
 {
     signals_assert_lock(signals);
     if (signal_isvalid(sig) == 0)
         return -EINVAL;
     signals->sig_action[sig - 1].sa_handler = SIG_DFL;
+    return 0;
+}
+
+int signals_cancel(struct proc *process)
+{
+    queue_node_t *next = NULL;
+    proc_assert_lock(process);
+    
+    signals_lock(process->signals);
+
+    signals_lock_queue(process->signals);
+    forlinked(node, proc_signals(process)->sig_queue->head, next)
+    {
+        next = node->next;
+        queue_remove_node(proc_signals(process)->sig_queue, node);
+    }
+    signals_unlock_queue(process->signals);
+
+    for (int sig = 0; sig < NSIG; ++sig)
+        proc_signals(process)->sig_action[sig].sa_handler = SIG_DFL;
+
+    signals_unlock(process->signals);
+
     return 0;
 }
 
@@ -34,7 +57,7 @@ void (*signals_get_handler(SIGNAL signals, int sig))(int)
         return (void *)SIG_ERR;
     handler = __cast_to_type(handler) signals->sig_action[sig - 1].sa_handler;
     // revert to default action
-    if (signals_cancel(proc_signals(proc), sig))
+    if (signal_cancel_desp(proc_signals(proc), sig))
         return (void *)SIG_ERR;
    return handler;
 }

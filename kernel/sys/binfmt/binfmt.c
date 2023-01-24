@@ -34,8 +34,29 @@ int binfmt_load(const char *fn, proc_t *proc, proc_t **ref)
     uio = current->t_file_table->uio;
     file_table_unlock(current->t_file_table);
 
-    if ((err = vfs_open(fn, &uio, O_RDONLY, &image)))
+    if ((err = vfs_open(fn, &uio, O_RDONLY | O_EXEC, &image)))
         goto error;
+
+    switch (image->i_type)
+    {
+    case FS_BLKDEV:
+        err = -ENOEXEC;
+        goto error;
+    case FS_CHRDEV:
+        err = -ENOEXEC;
+        goto error;
+    case FS_PIPE:
+        err = -ENOEXEC;
+        goto error;
+    case FS_INV:
+        err = -ENOEXEC;
+        goto error;
+    case FS_DIR:
+        err = -EISDIR;
+        goto error;
+    case FS_RGL:
+        break;
+    }
 
     if (new)
     {
@@ -68,11 +89,17 @@ int binfmt_load(const char *fn, proc_t *proc, proc_t **ref)
 
     for (int i =0; i < NELEM(binfmt); ++i)
     {
-        if ((err = binfmt[i].check(image)))
+        if ((err = binfmt[i].check(image))){
+            paging_switch(oldpgdir);
+            shm_unlock(proc->mmap);
             goto error;
+        }
         
-        if ((err = binfmt[i].load(image, proc)))
+        if ((err = binfmt[i].load(image, proc))){
+            paging_switch(oldpgdir);
+            shm_unlock(proc->mmap);
             goto error;
+        }
     }
 
     paging_switch(oldpgdir);

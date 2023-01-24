@@ -51,47 +51,44 @@
 ;-------------------------------------------------------------------
 
 %define SYS_SBRK	        28 ;sbrk
+%define SYS_BRK             29
+%define SYS_GETPAGESIZE     30 ;get kernel page size (currently not dynamic)
+%define SYS_MMAN            31
 
 ;-------------------------------------------------------------------
 ;---------------------------Signals---------------------------------
 ;-------------------------------------------------------------------
 
-%define SYS_KILL            29 ;send signal
-%define SYS_SIGNAL          30 ;set signal handler
-%define SYS_PAUSE           31 ;wait for a signal
+%define SYS_KILL            32 ;send signal
+%define SYS_SIGNAL          33 ;set signal handler
+%define SYS_PAUSE           34 ;wait for a signal
 
 ;-------------------------------------------------------------------
 ;---------------------------Thread management-----------------------
 ;-------------------------------------------------------------------
 
-%define SYS_THREAD_CREATE   32 ;create a thread
-%define SYS_THREAD_SELF     33 ;get thread ID
-%define SYS_THREAD_JOIN     34 ;wait for thread TID to terminate
-%define SYS_THREAD_EXIT     35 ;terminate thread
-%define SYS_THREAD_YIELD    36 ;create a thread
+%define SYS_THREAD_CREATE   35 ;create a thread
+%define SYS_THREAD_SELF     36 ;get thread ID
+%define SYS_THREAD_JOIN     37 ;wait for thread TID to terminate
+%define SYS_THREAD_EXIT     38 ;terminate thread
+%define SYS_THREAD_YIELD    39 ;create a thread
 
-%define SYS_GETPGRP         37 ;get process group ID
-%define SYS_SETPGRP         38 ;set process group ID
-%define SYS_SETSID          39 ;set session ID
-%define SYS_GETSID          40 ;get session ID
-%define SYS_GETPGID         41 ;get process group ID of process PID
-%define SYS_SETPGID         42 ;set process group ID of process PID
+%define SYS_GETPGRP         40 ;get process group ID
+%define SYS_SETPGRP         41 ;set process group ID
+%define SYS_SETSID          42 ;set session ID
+%define SYS_GETSID          43 ;get session ID
+%define SYS_GETPGID         44 ;get process group ID of process PID
+%define SYS_SETPGID         45 ;set process group ID of process PID
 
 ;--------------------------------------------------------------------
 ;--------------Terminals & Pseudo-terminals--------------------------
 ;--------------------------------------------------------------------
 
-%define SYS_OPENPT          43 ;open pseudo-terminal
-%define SYS_GRANTPT         44 ;grant pseudo-terminal permissions
-%define SYS_PTSNAME         45 ;get pseudo-terminal name
-%define SYS_PTSNAME_R       46 ;get pseudo-terminal name
-%define SYS_ISATTY          47 ;isatty?
-
-%define SYS_GETPAGESIZE     48 ;get kernel page size (currently not dynamic)
-%define SYS_MMAN            49
-
-%define SYS_BRK             50
-
+%define SYS_OPENPT          46 ;open pseudo-terminal
+%define SYS_GRANTPT         47 ;grant pseudo-terminal permissions
+%define SYS_PTSNAME_R       48 ;get pseudo-terminal name
+%define SYS_ISATTY          49 ;isatty?
+%define SYS_UNLOCKPT        50 ;unlock a pty pair
 
 %macro STUB 2
 global sys_%2
@@ -130,7 +127,12 @@ STUB SYS_GETCWD, getcwd
 STUB SYS_DUP, dup
 STUB SYS_DUP2, dup2
 STUB SYS_IOCTL, ioctl
+
 STUB SYS_SBRK, sbrk
+STUB SYS_GETPAGESIZE, getpagesize
+STUB SYS_MMAN, mman
+STUB SYS_BRK, brk
+
 STUB SYS_KILL, kill
 STUB SYS_SIGNAL, signal
 STUB SYS_PAUSE, pause
@@ -147,11 +149,9 @@ STUB SYS_SETSID, setsid
 STUB SYS_GETSID, getsid
 STUB SYS_GETPGID, getpgid
 STUB SYS_SETPGID, setpgid
+
 STUB SYS_OPENPT, openpt
 STUB SYS_GRANTPT, grantpt
-STUB SYS_PTSNAME, ptsname
 STUB SYS_PTSNAME_R, ptsname_r
 STUB SYS_ISATTY, isatty
-STUB SYS_GETPAGESIZE, getpagesize
-STUB SYS_MMAN, mman
-STUB SYS_BRK, brk
+STUB SYS_UNLOCKPT, unlockpt

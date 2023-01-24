@@ -14,7 +14,9 @@ typedef struct pipe
     ringbuf_t *ringbuf; /*pipe circular buffer*/
 } pipe_t;
 
+
 #define PIPESZ  512 /*max allowed buffer size*/
 
 int pipefs_init(void);
 int pipefs_pipe(file_t *f0, file_t *f1);
+int pipefs_pipe_raw(inode_t **read, inode_t **write);

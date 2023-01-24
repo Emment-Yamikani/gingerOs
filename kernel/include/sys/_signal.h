@@ -91,7 +91,7 @@ void signals_free(SIGNAL);
 int signals_alloc(char *, SIGNAL *);
 int signal_send(int, int);
 int signal_proc_send(struct proc *, int);
-int signal_pgrp_send(struct pgroup *pg, int signal, ssize_t *);
+int signal_pgrp_send(struct pgroup *pg, int signal, ssize_t *count);
 
 void (*signal(int sig, void (*handler)(int)))(int);
 int kill(pid_t pid, int sig);
@@ -108,7 +108,7 @@ int handle_signals(trapframe_t *ustack);
 int signals_pending(struct proc *);
 int signals_next(struct proc *p);
 
-int signals_cancel(SIGNAL, int);
+int signals_cancel(struct proc *);
 void (*signals_get_handler(SIGNAL, int))(int);
 
 #endif /* ! _SIGNAL_H */

@@ -9,6 +9,8 @@
 #define DEV_KBD     0
 #define DEV_UART    4
 #define DEV_CONS    5
+#define DEV_PTMX    6
+#define DEV_PTS     136
 #define DEV_HPET    10
 #define DEV_FB0     29
 #define DEV_RTC0    249

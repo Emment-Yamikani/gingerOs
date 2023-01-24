@@ -79,7 +79,6 @@ int launch(char **args)
     int statloc = 0;
     if (args == NULL)
         return -1;
-    printf("lauch %s: %d\n", args[0] ? args[0] : "(null)", statloc);
 
     if (pid = fork())
         pid = wait(&statloc);
@@ -150,8 +149,6 @@ int main(int argc, char *argv[], char *envp[])
     int err = 0;
     char *cmdline = NULL;
     char **args = NULL;
-
-    printf("\nshell running\n");
 
     while ((cmdline = read_line()))
     {

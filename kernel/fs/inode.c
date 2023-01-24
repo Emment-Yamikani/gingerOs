@@ -51,20 +51,6 @@ error:
     return err;
 }
 
-void ilock(inode_t *ip)
-{
-    if (!ip)
-        panic("ilock(), called @ 0x%p, no inode to lock\n", return_address(0));
-    spin_lock(ip->i_lock);
-}
-
-void iunlock(inode_t *ip)
-{
-    if (!ip)
-        panic("iunlock(), called @ 0x%p, no inode to unlock\n", return_address(0));
-    spin_unlock(ip->i_lock);
-}
-
 int iincrement(inode_t *inode)
 {
     if (!inode)

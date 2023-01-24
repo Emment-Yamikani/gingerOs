@@ -191,11 +191,13 @@ int ialloc(inode_t **);
 /*release an inode*/
 int irelease(inode_t *);
 
+#define iassert(ip) assert(ip, "no inode")
+
 /*lock inode*/
-void ilock(inode_t *inode);
+#define ilock(ip) { iassert(ip); spin_lock(ip->i_lock);}
 
 /*unlock inode*/
-void iunlock(inode_t *inode);
+#define iunlock(ip) { iassert(ip); spin_unlock(ip->i_lock);}
 
 int iincrement(inode_t *inode);
 

@@ -16,4 +16,5 @@ $(sysdir)/signal.o\
 $(sysdir)/sleep.o\
 $(sysdir)/sysproc.o\
 $(sysdir)/sysprot.o\
-$(sysdir)/syscall.o
+$(sysdir)/syscall.o\
+$(sysdir)/syspty.o

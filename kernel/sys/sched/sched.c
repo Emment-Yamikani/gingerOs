@@ -145,10 +145,8 @@ __noreturn void schedule(void)
 
         cli();
 
-        //printk("TID: %d kill: %d\n", thread->t_tid, thread_iskilled(thread));
         if (thread_iskilled(thread))
         {
-            //printk("TID: %d kill: %d\n", thread->t_tid, thread_iskilled(thread));
             thread->t_state = T_ZOMBIE;
             thread->t_exit = -ERFKILL;
             sched_zombie(thread);
@@ -169,7 +167,6 @@ __noreturn void schedule(void)
             spin_unlock(mmap->pgdir_lock);
             shm_unlock(mmap);
             thread_setkstack(current->t_tarch);
-            //printk("%s:%d:: ncli: %d, intena: %d\n", __FILE__, __LINE__, cpu->ncli, cpu->intena);
         }
 
         current_assert_lock();
