@@ -184,6 +184,7 @@ int fb_cook_wallpaper(struct fbterm_ctx *ctx, char *path)
     return 0;
 }
 
+
 int fbterm_init(struct fbterm_ctx *ctx)
 {
     memset(ctx, 0, sizeof(struct fbterm_ctx));
