@@ -1,5 +1,8 @@
 # gingerOs
 Minimal Unix-like hobby OS
+
+<img alt="gingerOs-Screenshot" src="https://github.com/emment-yamikani/gingerOs/gingerOs-Screenshot.png">
+
 #
 
 ## Architecture
