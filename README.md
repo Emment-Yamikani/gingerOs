@@ -22,7 +22,8 @@ x86-32bit
 -Code not fully tested, still a long way away from being a proper Operating System.
 
 ## REQUIREMENTS FOR BUILDING
--Latest GNU GCC cross compiler.
+-Latest GNU GCC cross compiler
+
 -Latest Nasm
 #
 
