@@ -38,9 +38,23 @@ int ptmx_close(struct devid *dd __unused)
     return -EINVAL;
 }
 
-int ptmx_ioctl(struct devid *dd __unused, int req __unused, void *argp __unused)
+int ptmx_ioctl(struct devid *dd, int req, void *argp)
 {
-    return -EINVAL;
+    spin_lock(ptylk);
+    PTY pty = ptytable[dd->dev_minor];
+    spin_unlock(ptylk);
+
+    switch (req)
+    {
+    case TIOCGPTN:
+        *(int *)argp = pty->id;
+        return 0;
+    case TIOCSPTLCK:
+        *(int *)argp = 0; /* FIXME */
+        return 0;
+    }
+
+    return tty_ioctl(pty->tty, req, argp);
 }
 
 static size_t ptmx_read(struct devid *dd, off_t offset __unused, void *buf, size_t size)

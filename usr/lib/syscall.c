@@ -192,7 +192,7 @@ int getpagesize(void)
 
 int lseek(int fd, long off, int whence)
 {
-    return lseek(fd, off, whence);
+    return sys_lseek(fd, off, whence);
 }
 
 int write(int fd, void *buf, unsigned int size)

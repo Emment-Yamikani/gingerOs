@@ -75,11 +75,6 @@ int ptm_new(PTY pty)
     inode->i_size = 1;
     inode->i_rdev = _DEV_T(DEV_PTMX, pty->id);
 
-    cond_free(inode->i_readers);
-    cond_free(inode->i_writers);
-    inode->i_readers = NULL;
-    inode->i_writers = NULL;
-
     pty->master = inode;
 
     return 0;
@@ -106,11 +101,6 @@ int pts_new(PTY pty)
     inode->i_rdev = _DEV_T(DEV_PTS, pty->id % NELEM(ptytable));
     inode->i_type = FS_CHRDEV;
     inode->i_size = 1;
-    
-    cond_free(inode->i_readers);
-    cond_free(inode->i_writers);
-    inode->i_readers = NULL;
-    inode->i_writers = NULL;
 
     pty->slave = inode;
 
@@ -293,7 +283,26 @@ int pts_close(struct devid *dd __unused)
 
 int pts_ioctl(struct devid *dd __unused, int req __unused, void *argp __unused)
 {
-    return -EINVAL;
+    spin_lock(ptylk);
+    PTY pty = ptytable[dd->dev_minor];
+    if (pty->slave_unlocked == 0)
+    {
+        spin_unlock(ptylk);
+        return -EINVAL;
+    }
+    spin_unlock(ptylk);
+
+    switch (req)
+    {
+    case TIOCGPTN:
+        *(int *)argp = pty->id;
+        return 0;
+    case TIOCSPTLCK:
+        *(int *)argp = 0; /* FIXME */
+        return 0;
+    }
+
+    return tty_ioctl(pty->tty, req, argp);
 }
 
 static size_t pts_read(struct devid *dd, off_t offset __unused, void *buf, size_t size)

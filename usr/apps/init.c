@@ -40,6 +40,12 @@ int main(int argc, char *argv[])
     else
     if (pid > 0)
     {
+        if (fork() == 0)
+        {
+            char *fb[] = {"/fbdev", "art.jpg", NULL};
+            execv(fb[0], fb);
+            panic("failed to set wallpaper\n");
+        }
         haschild:
         pid = wait(&staloc);
         if (pid < 0)

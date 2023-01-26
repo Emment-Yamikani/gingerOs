@@ -43,6 +43,44 @@ static int get_modules(multiboot_info_t *info)
     return 0;
 }
 
+int framebuffer_process_info(multiboot_info_t *info)
+{
+    if (CHECK_FLG(info->flags, 12) == 0)
+        return -ENOENT;
+
+    bootinfo.framebuffer.framebuffer_addr = info->framebuffer_addr;
+    bootinfo.framebuffer.framebuffer_type = info->framebuffer_type;
+    bootinfo.framebuffer.framebuffer_bpp = info->framebuffer_bpp;
+    bootinfo.framebuffer.framebuffer_height = info->framebuffer_height;
+    bootinfo.framebuffer.framebuffer_pitch = info->framebuffer_pitch;
+    bootinfo.framebuffer.framebuffer_width = info->framebuffer_width;
+
+    if (info->framebuffer_type == 1){
+        bootinfo.framebuffer.red = (struct fb_bitfield){
+            .offset = info->framebuffer_red_field_position,
+            .length = info->framebuffer_red_mask_size,
+        };
+
+        bootinfo.framebuffer.blue = (struct fb_bitfield){
+            .offset = info->framebuffer_blue_field_position,
+            .length = info->framebuffer_blue_mask_size,
+        };
+
+        bootinfo.framebuffer.green = (struct fb_bitfield){
+            .offset = info->framebuffer_green_field_position,
+            .length = info->framebuffer_green_mask_size,
+        };
+
+        bootinfo.framebuffer.resv = (struct fb_bitfield){0};
+
+    }
+    else if (info->framebuffer_type == 0){
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 int process_multiboot_info(multiboot_uint32_t flags, multiboot_info_t *info)
 {
     int err = 0;
@@ -53,6 +91,8 @@ int process_multiboot_info(multiboot_uint32_t flags, multiboot_info_t *info)
     if ((err = get_mmap(info)))
         return err;
     if ((err = get_modules(info)))
+        return err;
+    if ((err = framebuffer_process_info(info))) 
         return err;
     return 0;
 }

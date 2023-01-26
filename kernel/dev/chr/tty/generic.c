@@ -42,7 +42,11 @@ long tty_master_write(struct tty *tty, size_t size, void *buf)
             }
             else if (*c == tty->tios.c_cc[VINTR])
             {
+                proc_lock(proc);
+                pgroup_lock(proc->pgroup);
                 signal_pgrp_send(tty->fg, SIGINT, NULL);
+                proc_unlock(proc);
+                pgroup_unlock(proc->pgroup);
                 char cc[] = {'^', *c + '@', '\n'};
                 tty_slave_write(tty, 3, cc);
                 goto skip_echo;
@@ -127,7 +131,7 @@ int tty_ioctl(struct tty *tty, int request, void *argp)
         memcpy(&tty->ws, argp, sizeof(struct winsize));
         break;
     default:
-        return -1;
+        return -EINVAL;
     }
     return 0;
 }
@@ -174,7 +178,6 @@ int tty_new(proc_t *proc, size_t buf_size, ttyio master, ttyio slave, void *p, s
 {
     struct tty *tty = NULL;
 
-
     if (!(tty = kmalloc(sizeof(struct tty))))
         return -ENOMEM;
     memset(tty, 0, sizeof(struct tty));
@@ -185,19 +188,21 @@ int tty_new(proc_t *proc, size_t buf_size, ttyio master, ttyio slave, void *p, s
     tty->pos = 0;
 
     /* Defaults */
-    
+
     tty->tios.c_iflag = ICRNL | IXON;
     tty->tios.c_oflag = OPOST | ONLCR;
     tty->tios.c_lflag = ISIG | ICANON | ECHO | ECHOE | ECHOK;
-    
-    //pty->tios.c_cc[VEOL]   = ;
-    //pty->tios.c_cc[VERASE] = ;
 
-    tty->tios.c_cc[VINTR] = 0x03;  /* ^C */
-    tty->tios.c_cc[VKILL] = 0x15;  /* ^U */
-    tty->tios.c_cc[VQUIT] = 0x1C;  /* ^\ */
-    tty->tios.c_cc[VSTART] = 0x11; /* ^Q */
-    tty->tios.c_cc[VSUSP] = 0x1A;  /* ^Z */
+    tty->tios.c_cc[VMIN] = 1;
+    tty->tios.c_cc[VTIME] = 0;
+    tty->tios.c_cc[VEOF] = CTRL('D');
+    tty->tios.c_cc[VEOL] = CTRL('L');
+    tty->tios.c_cc[VINTR] = CTRL('C'); /* ^C */
+    tty->tios.c_cc[VKILL] = CTRL('U'); /* ^U */
+    tty->tios.c_cc[VSUSP] = CTRL('Z'); /* ^Z */
+    tty->tios.c_cc[VERASE] = CTRL('H');
+    tty->tios.c_cc[VSTART] = CTRL('Q'); /* ^Q */
+    tty->tios.c_cc[VQUIT] = CTRL('\\'); /* ^\ */
 
     tty->ws.ws_row = 24;
     tty->ws.ws_col = 80;

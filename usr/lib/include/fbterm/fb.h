@@ -4,77 +4,44 @@
 #include <stdint.h>
 #include <fbterm/fbterm.h>
 
-/* Framebuffer API */
+#define FBIOGET_FIX_INFO 0x0000
+#define FBIOGET_VAR_INFO 0x0001
 
-#define FBIOGET_VSCREENINFO	0x4600
-#define FBIOPUT_VSCREENINFO	0x4601
-#define FBIOGET_FSCREENINFO	0x4602
-
-struct fb_fix_screeninfo {
-	char id[16];			/* identification string eg "TT Builtin" */
-	unsigned long smem_start;	/* Start of frame buffer mem */
-					/* (physical address) */
-	uint32_t smem_len;			/* Length of frame buffer mem */
-	uint32_t type;			/* see FB_TYPE_*		*/
-	uint32_t type_aux;			/* Interleave for interleaved Planes */
-	uint32_t visual;			/* see FB_VISUAL_*		*/
-	uint16_t xpanstep;			/* zero if no hardware panning  */
-	uint16_t ypanstep;			/* zero if no hardware panning  */
-	uint16_t ywrapstep;		/* zero if no hardware ywrap    */
-	uint32_t line_length;		/* length of a line in bytes    */
-	unsigned long mmio_start;	/* Start of Memory Mapped I/O   */
-					/* (physical address) */
-	uint32_t mmio_len;			/* Length of Memory Mapped I/O  */
-	uint32_t accel;			/* Indicate to driver which	*/
-					/*  specific chip/card we have	*/
-	uint16_t capabilities;		/* see FB_CAP_*			*/
-	uint16_t reserved[2];		/* Reserved for future compatibility */
+struct fb_bitfield
+{
+    uint32_t offset;    // position in pixel
+    uint32_t length;    // length of bitfield
+    uint32_t msb_right; // true if most significant byte is right
 };
 
-struct fb_bitfield {
-    uint32_t offset;    /* beginning of bitfield    */
-    uint32_t length;    /* length of bitfield       */
-    uint32_t msb_right; /* != 0 : Most significant bit is right */
-};
+typedef struct fb_fixinfo
+{
+    char id[64];        // indentification
+    int accel;          // type of acceleration card in use
+    uint32_t type;      // type of framebuffer
+    uint32_t caps;      // capabilities
+    size_t memsz;       // total memory size of framebuffer
+    uintptr_t addr;     // physical address of framebuffer
+    size_t line_length; // bytes per line
+} fb_fixinfo_t;
 
-struct fb_var_screeninfo {
-    uint32_t xres;          /* visible resolution       */
-    uint32_t yres;
-    uint32_t xres_virtual;  /* virtual resolution       */
-    uint32_t yres_virtual;
-    uint32_t xoffset;       /* offset from virtual to visible */
-    uint32_t yoffset;       /* resolution           */
+typedef struct fb_varinfo
+{
+    size_t bpp;          // bits per pixel
+    size_t width;        // pixels per row
+    size_t height;       // pixels per column
+    uint32_t vmode;      // video mode
+    uint32_t pitch;      // pitch
+    uint32_t grayscale;  // greyscaling
+    uint32_t colorspace; // colorspace (e.g, RBGA, e.t.c)
 
-    uint32_t bits_per_pixel;    /* guess what           */
-    uint32_t grayscale;     /* 0 = color, 1 = grayscale, >1 = FOURCC          */
-    struct fb_bitfield red;     /* bitfield in fb mem if true color, */
-    struct fb_bitfield green;   /* else only length is significant */
+    /* bitfield if true color */
+
+    struct fb_bitfield red;
     struct fb_bitfield blue;
-    struct fb_bitfield transp;  /* transparency         */
-
-    uint32_t nonstd;            /* != 0 Non standard pixel format */
-
-    uint32_t activate;          /* see FB_ACTIVATE_*        */
-
-    uint32_t height;            /* height of picture in mm    */
-    uint32_t width;         /* width of picture in mm     */
-
-    uint32_t accel_flags;       /* (OBSOLETE) see fb_info.flags */
-
-    /* Timing: All values in pixclocks, except pixclock (of course) */
-    uint32_t pixclock;          /* pixel clock in ps (pico seconds) */
-    uint32_t left_margin;       /* time from sync to picture    */
-    uint32_t right_margin;      /* time from picture to sync    */
-    uint32_t upper_margin;      /* time from sync to picture    */
-    uint32_t lower_margin;
-    uint32_t hsync_len;     /* length of horizontal sync    */
-    uint32_t vsync_len;     /* length of vertical sync  */
-    uint32_t sync;          /* see FB_SYNC_*        */
-    uint32_t vmode;         /* see FB_VMODE_*       */
-    uint32_t rotate;            /* angle we rotate counter clockwise */
-    uint32_t colorspace;        /* colorspace for FOURCC-based modes */
-    uint32_t reserved[4];       /* Reserved for future compatibility */
-};
+    struct fb_bitfield green;
+    struct fb_bitfield transp;
+} fb_varinfo_t;
 
 void fb_put_pixel(struct fbterm_ctx *ctx, int x, int y, uint32_t fg, uint32_t bg);
 void fb_clear(struct fbterm_ctx *ctx);

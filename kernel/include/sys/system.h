@@ -1,5 +1,10 @@
 #pragma once
 
+// C('A') == Control-A
+#define CTRL(x) (x - '@')
+
+#define CHECK_FLG(flags, bit) (flags & (1 << bit))
+
 /*Memory*/
 
 //page size(4k)

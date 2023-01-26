@@ -1,0 +1,2 @@
+fbobjs=\
+$(fbdir)/fb.o

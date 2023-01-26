@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
     char *pts = NULL;
     tid_t tid[10] = {0};
     pid_t pid = 0, pgid = 0;
-    
+
     ptmx = open("/dev/ptmx", O_RDWR);
 
     if (ptmx < 0) panic("failed to open ptmx\n");
@@ -35,23 +35,24 @@ int main(int argc, char *argv[])
     if ((err = thread_create(&tid[0], keyboard_thread, NULL)))
         panic("thread_create(): failed with error: %d\n", err);
 
-    if ((pid = fork()) == 0){
-        
+    if ((pid = fork()) == 0)
+    {
         if ((pty = open(pts, O_RDWR)) < 0)
             panic("open(): failed with error: %d\n", pty);
-        
+
         dup2(pty, 0);
         dup2(pty, 1);
         dup2(pty, 2);
         close(pty);
         close(ptmx);
-
-        printf("Hello pseudo-terminals: :)\n");
+        
         char *argp[] = {"/mnt/ramfs/login", NULL};
         execv(argp[0], argp);
+
         kill(getppid(), SIGINT);
         panic("failed to exec login");
     }
+
     thread_join(tid[0], &ret);
     thread_join(tid[1], &ret);
     return 0;

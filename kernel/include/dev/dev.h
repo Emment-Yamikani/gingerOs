@@ -6,20 +6,20 @@
 #include <lib/stdint.h>
 #include <fs/fs.h>
 
-#define DEV_KBD     0
-#define DEV_UART    4
-#define DEV_CONS    5
-#define DEV_PTMX    6
-#define DEV_PTS     136
-#define DEV_HPET    10
-#define DEV_FB0     29
-#define DEV_RTC0    249
+#define DEV_KBD 0
+#define DEV_UART 4
+#define DEV_CONS 5
+#define DEV_PTMX 6
+#define DEV_PTS 136
+#define DEV_HPET 10
+#define DEV_FBDEV 29
+#define DEV_RTC0 249
 
 #define DEV_RAMDISK 0
 
 struct devid
 {
-    int     dev_type;
+    int dev_type;
     uint8_t dev_minor;
     uint8_t dev_major;
 };
@@ -44,21 +44,19 @@ typedef struct dev
     struct fops fops;
 } dev_t;
 
-#define DEV(d, T)     \
-dev_t d##dev =              \
-{                           \
-    .dev_name = #d,       \
-    .dev_probe = d##_probe, \
-    .dev_mount = d##_mount, \
-    .devid = T,             \
-    .devops =               \
-    {                       \
-        .open = d##_open,   \
-        .close = d##_close, \
-        .read = d##_read,   \
-        .write = d##_write, \
-        .ioctl = d##_ioctl  \
-    }                       \
+#define DEV(d, T)                   \
+    dev_t d##dev = {                \
+        .dev_name = #d,             \
+        .dev_probe = d##_probe,     \
+        .dev_mount = d##_mount,     \
+        .devid = T,                 \
+        .devops = {                 \
+            .open = d##_open,   \
+            .close = d##_close, \
+            .read = d##_read,   \
+            .write = d##_write, \
+            .ioctl = d##_ioctl, \
+        },                      \
 }
 
 #define _DEV_T(major, minor) ((devid_t)(((minor & 0xff) << 8) | (major & 0xff)))
@@ -77,8 +75,6 @@ int kdev_ioctl(struct devid *dd, int request, void *argp);
 size_t kdev_lseek(struct devid *dd, off_t offset, int whence);
 size_t kdev_read(struct devid *dd, off_t offset, void *buf, size_t sz);
 size_t kdev_write(struct devid *dd, off_t offset, void *buf, size_t sz);
-
-
 
 size_t kdev_feof(struct devid *dd, file_t *file);
 int kdev_fstat(struct devid *, file_t *file, struct stat *buf);

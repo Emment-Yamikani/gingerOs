@@ -47,7 +47,7 @@ typedef struct
     int cols, rows;
     uint8_t *backbuff;
     uint8_t *textbuff;
-} ctx_t;
+} gctx_t;
 
 typedef struct _gfx_ctx_
 {

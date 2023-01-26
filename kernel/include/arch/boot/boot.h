@@ -4,7 +4,7 @@
 #include <lib/stdint.h>
 #include <lib/stddef.h>
 #include <lib/types.h>
-
+#include <dev/fb.h>
 
 typedef struct bootinfo
 {
@@ -27,6 +27,20 @@ typedef struct bootinfo
         size_t     size;
         char        *cmdline;
     }mods[32];
+
+    struct{
+        uint8_t  framebuffer_type;
+        uintptr_t framebuffer_addr;
+        uint32_t framebuffer_pitch;
+        uint32_t framebuffer_width;
+        uint32_t framebuffer_height;
+        uint32_t framebuffer_bpp;
+
+        struct fb_bitfield red;
+        struct fb_bitfield blue;
+        struct fb_bitfield green;
+        struct fb_bitfield resv;
+    }framebuffer;
 
     multiboot_info_t mbi; // save data
 }bootinfo_t;

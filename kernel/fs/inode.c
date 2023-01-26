@@ -10,7 +10,7 @@ int ialloc(inode_t **ref)
     int err =0;
     inode_t *ip = NULL;
     spinlock_t *lock = NULL;
-    cond_t *reader_wait = NULL, *writer_wait = NULL;
+    //cond_t *reader_wait = NULL, *writer_wait = NULL;
 
     if (!ref)
         return -EINVAL;
@@ -24,17 +24,22 @@ int ialloc(inode_t **ref)
     if ((err = spinlock_init(NULL, "inode", &lock)))
         goto error;
 
+    /*
     if ((err = cond_init(NULL, "inode-reader", &reader_wait)))
         goto error;
     if ((err = cond_init(NULL, "inode-writer", &writer_wait)))
         goto error;
-    
+    */
+
     memset(ip, 0, sizeof *ip);
 
     ip->i_refs = 1;
     ip->i_lock = lock;
+   
+    /*
     ip->i_readers = reader_wait;
     ip->i_writers = writer_wait;
+    */
 
     *ref = ip;
     return 0;
@@ -43,10 +48,12 @@ error:
         kfree(ip);
     if (lock)
         spinlock_free(lock);
+    /*
     if (reader_wait)
         cond_free(reader_wait);
     if (writer_wait)
         cond_free(writer_wait);
+    */
     printk("ialloc(): called @ 0x%p, error=%d\n", return_address(0), err);
     return err;
 }

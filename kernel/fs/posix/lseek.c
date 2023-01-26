@@ -10,7 +10,6 @@ off_t posix_file_lseek(struct file *file, off_t offset, int whence)
 {
     size_t pos = 0;
     struct inode *inode = NULL;
-    
 
     flock(file);
 
@@ -27,7 +26,6 @@ off_t posix_file_lseek(struct file *file, off_t offset, int whence)
             break;
     }
     pos = file->f_pos;
-
     funlock(file);
     return pos;
 }

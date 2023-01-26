@@ -104,18 +104,10 @@ int pipefs_pipe_raw(inode_t **read, inode_t **write)
     iread->i_mask = 0444;
     iread->i_priv = pipe;
     iread->ifs = &pipefs;
-    cond_free(iread->i_readers);
-    iread->i_readers = NULL;
-    cond_free(iread->i_writers);
-    iread->i_writers = NULL;
 
     iwrite->i_mask = 0222;
     iwrite->i_priv = pipe;
     iwrite->ifs = &pipefs;
-    cond_free(iwrite->i_readers);
-    iwrite->i_readers = NULL;
-    cond_free(iwrite->i_writers);
-    iwrite->i_writers = NULL;
 
     pipe->ropen = 1;
     pipe->wopen = 1;
