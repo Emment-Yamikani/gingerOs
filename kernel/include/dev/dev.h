@@ -12,6 +12,7 @@
 #define DEV_PTMX 6
 #define DEV_PTS 136
 #define DEV_HPET 10
+#define DEV_MOUSE 11
 #define DEV_FBDEV 29
 #define DEV_RTC0 249
 
@@ -41,6 +42,7 @@ typedef struct dev
     int (*dev_probe)();
     int (*dev_mount)();
     devops_t devops;
+    inode_t *dev_inode;
     struct fops fops;
 } dev_t;
 

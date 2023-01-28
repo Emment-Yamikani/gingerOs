@@ -434,6 +434,7 @@ int chdir(char *fn)
     int err = 0;
     char *dir = NULL;
     inode_t *inode = NULL;
+
     file_table_lock(current->t_file_table);
     uio_t uio = current->t_file_table->uio;
 
@@ -442,19 +443,33 @@ int chdir(char *fn)
         file_table_unlock(current->t_file_table);
         return err;
     }
+
     if ((err = iperm(inode, &uio, O_RDONLY | O_EXCL)))
     {
         file_table_unlock(current->t_file_table);
         return err;
     }
+
+    ilock(inode);
+
+    if (inode->i_type != FS_DIR)
+    {
+        iunlock(inode);
+        file_table_unlock(current->t_file_table);
+        return -ENOTDIR;
+    }
+
     if (!(dir = strdup(fn)))
     {
+        iunlock(inode);
         file_table_unlock(current->t_file_table);
         return -ENOMEM;
     }
+
     if (uio.u_cwd)
         kfree(uio.u_cwd);
     current->t_file_table->uio.u_cwd = dir;
+    iunlock(inode);
     file_table_unlock(current->t_file_table);
     return 0;
 }

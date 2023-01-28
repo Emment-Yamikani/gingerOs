@@ -162,7 +162,12 @@ int kbd0_probe()
 
 int kbd0_mount(void)
 {
-    return devfs_mount("kbd0", 0444, *_DEVID(FS_CHRDEV, _DEV_T(DEV_KBD, 0)));
+    dev_attr_t attr = {
+        .devid = *_DEVID(FS_CHRDEV, _DEV_T(DEV_KBD, 0)),
+        .size = 1,
+        .mask = 0444,
+    };
+    return devfs_mount("kbd0", attr);
 }
 
 int kbd0_open(struct devid *dd __unused, int mode __unused, ...)

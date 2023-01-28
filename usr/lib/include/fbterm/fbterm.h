@@ -5,19 +5,21 @@
 #include <fbterm/tinyfont.h>
 #include <fbterm/vterm.h>
 
-struct fbterm_ctx {
-    unsigned rows;      /* Number of rows */
-    unsigned cols;      /* Number of cols */
+struct fbterm_ctx
+{
+    unsigned rows; /* Number of rows */
+    unsigned cols; /* Number of cols */
 
-    unsigned cr, cc;    /* Cursor position */
+    unsigned cr, cc; /* Cursor position */
 
-    char *wallpaper;    /* Wallpaper buffer */
-    char *textbuf;      /* Rendered text buffer */
-    char *backbuf;      /* Back buffer for terminal */
-    struct font *font;  /* Font used */
+    char *wallpaper;   /* Wallpaper buffer */
+    char *textbuf;     /* Rendered text buffer */
+    char *backbuf;     /* Back buffer for terminal */
+    struct font *font; /* Font used */
 
-    unsigned char op;   /* Opacity 0-255 */
+    unsigned char op; /* Opacity 0-255 */
 
+    uint32_t txt_fg;
     VTerm *vt;
     VTermScreen *screen;
 };

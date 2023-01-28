@@ -106,7 +106,12 @@ void uart_init()
 
 int uart_mount()
 {
-    return devfs_mount("uart", 0220, *_DEVID(FS_CHRDEV, _DEV_T(DEV_UART, 0)));
+    dev_attr_t attr = {
+        .devid = *_DEVID(FS_CHRDEV, _DEV_T(DEV_UART, 0)),
+        .size = 1,
+        .mask = 0220,
+    };
+    return devfs_mount("uart", attr);
 }
 
 size_t uart_write(struct devid *dd __unused, off_t off __unused, void *buf, size_t sz)

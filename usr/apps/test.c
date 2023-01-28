@@ -46,11 +46,11 @@ int main(int argc, char *argv[])
         close(pty);
         close(ptmx);
         
-        char *argp[] = {"/mnt/ramfs/login", NULL};
+        char *argp[] = {"/mnt/ramfs/fbdev", "gsd.jpg", NULL};
         execv(argp[0], argp);
 
         kill(getppid(), SIGINT);
-        panic("failed to exec login");
+        panic("failed to exec fbdev");
     }
 
     thread_join(tid[0], &ret);

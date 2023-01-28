@@ -42,6 +42,8 @@
 #define forlinked(elem, list, iter) \
     for (typeof(list) elem = list; elem; elem = iter)
 
+#define TYPE(x) typedef struct x
+
 #ifndef NELEM
 #define NELEM(x) ((int)(sizeof(x) / sizeof(x[0])))
 #endif // NELEM__ARRAY

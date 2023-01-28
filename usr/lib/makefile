@@ -62,6 +62,7 @@ string/str.o \
 string/memmove.o \
 string/strncpy.o \
 string/strxfrm.o \
+tinyfont/tinyfont.o \
 
 HOSTEDOBJS=\
 $(ARCH_HOSTEDOBJS) \

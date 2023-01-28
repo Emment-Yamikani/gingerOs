@@ -144,6 +144,7 @@ void lapic_send_ipi_to_all_not_self(int ipi)
 
 void lapic_timerintr(void)
 {
-    if (((atomic_incr(&cpu->timer_ticks) % 1) == 0) && current)
+    atomic_incr(&cpu->timer_ticks);
+    if (current)
         atomic_decr(&current->t_sched_attr.t_timeslice);
 }

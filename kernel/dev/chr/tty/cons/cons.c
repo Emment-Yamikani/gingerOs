@@ -164,7 +164,12 @@ int cons_probe()
 
 int cons_mount()
 {
-    return devfs_mount("console", 0220, *_DEVID(FS_CHRDEV, _DEV_T(DEV_CONS, 0)));
+    dev_attr_t attr = {
+        .devid = *_DEVID(FS_CHRDEV, _DEV_T(DEV_CONS, 0)),
+        .size = 1,
+        .mask = 0220,
+    };
+    return devfs_mount("console", attr);
 }
 
 size_t cons_read(struct devid *dd __unused, off_t off __unused, void *buf __unused, size_t sz __unused)
@@ -172,8 +177,8 @@ size_t cons_read(struct devid *dd __unused, off_t off __unused, void *buf __unus
     return 0;
 }
 
-size_t console_write(struct devid *dd __unused, off_t off __unused, void *buf, size_t sz)
-{//no out of order console writing
+static size_t console_write(struct devid *dd __unused, off_t off __unused, void *buf, size_t sz)
+{//no out of order cons writing
     if (use_earlycon)
         sz = cons_write(buf, sz);
     else
@@ -198,7 +203,7 @@ int cons_close(struct devid *dd __unused)
 
 #include <printk.h>
 
-int console_init(void)
+static int console_init(void)
 {
     pos = earlycons_fini();
     cons_setcolor(CGA_BLACK, CGA_WHITE);

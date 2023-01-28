@@ -25,7 +25,12 @@ int ptmx_probe()
 
 int ptmx_mount(void)
 {
-    return devfs_mount("ptmx", 0666, *_DEVID(FS_CHRDEV, _DEV_T(DEV_PTMX, 2)));
+    dev_attr_t attr = {
+        .devid = *_DEVID(FS_CHRDEV, _DEV_T(DEV_PTMX, 0)),
+        .size = 1,
+        .mask = 0666,
+    };
+    return devfs_mount("ptmx", attr);
 }
 
 int ptmx_open(struct devid *dd __unused, int mode __unused, ...)

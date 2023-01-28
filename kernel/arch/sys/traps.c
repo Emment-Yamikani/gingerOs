@@ -17,27 +17,26 @@
 #include <mm/kalloc.h>
 #include <locks/spinlock.h>
 #include <sys/proc.h>
+#include <sys/sysproc.h>
 
 void rtc_intr(void);
 void kbd_intr(void);
 
 spinlock_t *biglock = SPINLOCK_NEW("biglock");
 
+void ps2mouse_handler(void);
 void paging_pagefault(trapframe_t *tf);
 void paging_tbl_shootdown();
 
 void trap(trapframe_t *tf)
 {
-    if (current)
-    {
-        if (thread_iskilled(current))
-        {
+    if (current){
+        if (thread_iskilled(current)){
             thread_exit(-ERFKILL);
         }
     }
 
-    switch (tf->ino)
-    {
+    switch (tf->ino){
     case T_SYSCALL: // syscall
         current_assert();
         current->t_tarch->tf = tf;
@@ -45,9 +44,9 @@ void trap(trapframe_t *tf)
         syscall_stub(tf);
         // printk(" sysret\n");
 
-        if (atomic_read(&current->t_killed) &&
-            (0 == thread_ishandling_signal(current)))
+        if (thread_iskilled(current)){
             thread_exit(-ERFKILL);
+        }
         break;
     case T_LOCAL_TIMER: // Local APIC timer
         lapic_timerintr();
@@ -61,10 +60,18 @@ void trap(trapframe_t *tf)
         rtc_intr();
         lapic_eoi();
         break;
+    case T_PS2MOUSE: // PS/2 mouse
+        ps2mouse_handler();
+        lapic_eoi();
+        break;
     case T_PGFAULT: // Pagefault
         pushcli();
-        if ((read_cr2() == 0xDEADDEAD) && (thread_ishandling_signal(current)))
-            arch_return_signal(tf);
+        if ((tf->eip == 0xDEADDEAD) && trapframe_isuser(tf)) {
+            if ((thread_ishandling_signal(current)))
+                arch_return_signal(tf);
+            else
+                exit(tf->eax);
+        }
         else
             paging_pagefault(tf);
         lapic_eoi();
@@ -81,18 +88,14 @@ void trap(trapframe_t *tf)
     if (current == NULL)
         return;
 
-    if (thread_iskilled(current))
-    {
+    if (thread_iskilled(current)){
         thread_exit(-ERFKILL);
     }
 
-    if ((atomic_read(&current->t_sched_attr.t_timeslice) <= 0) && (0 == thread_ishandling_signal(current)))
-    {
+    if (atomic_read(&current->t_sched_attr.t_timeslice))
         sched_yield();
-    }
 
-    if (thread_iskilled(current))
-    {
+    if (thread_iskilled(current)){
         thread_exit(-ERFKILL);
     }
 

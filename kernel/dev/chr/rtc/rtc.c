@@ -98,7 +98,12 @@ int rtc0_probe(void)
 
 int rtc0_mount(void)
 {
-    return devfs_mount("rtc0", 0444, *_DEVID(FS_CHRDEV, _DEV_T(DEV_RTC0, 0)));
+    dev_attr_t attr = {
+        .devid = *_DEVID(FS_CHRDEV, _DEV_T(DEV_RTC0, 0)),
+        .size = sizeof rtc_secs,
+        .mask = 0444,
+    };
+    return devfs_mount("rtc0", attr);
 }
 
 int rtc0_open(struct devid *dd __unused, int oflags __unused, ...)

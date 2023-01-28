@@ -87,7 +87,12 @@ int fbdev_probe()
 
 int fbdev_mount(void)
 {
-    return devfs_mount("fbdev", 0444, *_DEVID(FS_CHRDEV, _DEV_T(DEV_FBDEV, 0)));
+    dev_attr_t attr = {
+        .devid = *_DEVID(FS_CHRDEV, _DEV_T(DEV_FBDEV, 0)),
+        .size = fix_info.memsz,
+        .mask = 0666,
+    };
+    return devfs_mount("fbdev", attr);
 }
 
 int fbdev_open(struct devid *dd __unused, int mode __unused, ...)
@@ -142,7 +147,6 @@ size_t fbdev_read(struct devid *dd __unused, off_t offset __unused, void *buf __
 
     spin_lock(fb->lock);
     size = MIN(sz, fb->fixinfo->memsz - offset);
-
     size = (size_t)(memcpy(buf, (void *)(fb->fixinfo->addr + offset), size) - buf);
     spin_unlock(fb->lock);
     return size;
@@ -157,9 +161,7 @@ size_t fbdev_write(struct devid *dd __unused, off_t offset __unused, void *buf _
 
     if (buf == NULL)
         return 0;
-
     framebuffer_t *fb = &framebuffer[dd->dev_minor];
-
     spin_lock(fb->lock);
     size = MIN(sz, fb->fixinfo->memsz - offset);
     size = (size_t)(memcpy((void *)(fb->fixinfo->addr + offset), buf, size) - (fb->fixinfo->addr + offset));
@@ -169,7 +171,10 @@ size_t fbdev_write(struct devid *dd __unused, off_t offset __unused, void *buf _
 
 int fbdev_init(void)
 {
-    return kdev_register(&fbdev, DEV_FBDEV, FS_CHRDEV);
+    if (bootinfo.framebuffer.framebuffer_type == 1)
+        return kdev_register(&fbdev, DEV_FBDEV, FS_CHRDEV);
+    else
+        return 0;
 }
 
 static struct dev fbdev = {

@@ -52,27 +52,31 @@ int devfs_creat(inode_t *ip __unused, dentry_t *dentry __unused, int mode __unus
     return -EINVAL;
 }
 
-int devfs_mount(const char *name, int mask, struct devid dd)
+int devfs_mount(const char *name, dev_attr_t attr)
 {
     int err=0;
-    inode_t *dev = NULL;
+    dev_t *dev = NULL;
+    inode_t *idev = NULL;
     
     if (!name)
         return -EINVAL;
 
-    if (!(kdev_get(&dd)))
+    if (!(dev = kdev_get(&attr.devid)))
     {
         err = -ENXIO;
         goto error;
     }
 
-    if ((err = ialloc(&dev)))
+    if ((err = ialloc(&idev)))
         return err;
 
-    dev->i_mask = mask;
-    dev->i_type = dd.dev_type;
-    dev->i_rdev = _DEV_T(dd.dev_major, dd.dev_minor);
-    if ((err = vfs_mount("/dev", name, dev)))
+    idev->i_mask = attr.mask;
+    idev->i_type = attr.devid.dev_type;
+    idev->i_rdev = _DEV_T(attr.devid.dev_major, attr.devid.dev_minor);
+    idev->i_size = attr.size;
+    dev->dev_inode = idev;
+
+    if ((err = vfs_mount("/dev", name, idev)))
         goto error;
 
     printk("dev: \e[0;012m'%s'\e[0m mounted successfully...\n", name);

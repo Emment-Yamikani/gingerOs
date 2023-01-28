@@ -21,7 +21,6 @@
 #define CGA_WHITE           15
 
 
-int console_init(void);
 int cons_dev_init(void);
 
 size_t cons_write(const char *buf, size_t n);

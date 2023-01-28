@@ -21,7 +21,7 @@ mboot:
     dd 0            ;/* mode_type */
     dd 800          ;/* mowidth */
     dd 600          ;/* moheight */
-    dd 32           ;/* modepth */
+    dd 24           ;/* modepth */
 
 section .text
 align 4

@@ -64,10 +64,10 @@ int arch_uthread_execve(uintptr_t *ustack, const char **__argp, const char **__e
      * @brief exec() starts running a program image as main(int argc, char *argv[]);
      *
      */
-    *--stack_top = (uint32_t)0xC0DEC0FE; // push dummy return address
     *--stack_top = (uint32_t)envp;       // push poiter environment variables
     *--stack_top = (uint32_t)argp;       // push poiter argument variables
     *--stack_top = (uint32_t)argc;       // push argc
+    *--stack_top = (uint32_t)0xDEADDEAD; // push dummy return address
 
     *ustack = (uintptr_t)stack_top;
     return 0;

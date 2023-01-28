@@ -47,7 +47,7 @@ memcpyd(void *restrict dstptr, const void *restrict srcptr, unsigned int size)
     const unsigned int *src = (const unsigned int *)srcptr;
     unsigned int i;
     for (i = 0; i < size; i++)
-        dst[i] = src[i];
+        *dst++ = *src++;
     return (void *)&dst[i];
 }
 

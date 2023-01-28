@@ -141,7 +141,7 @@ int arch_uthread_create(x86_thread_t *thread, void *(*entry)(void *), void *arg)
         goto error;
 
     *--ustack = (uint32_t)arg;
-    *--ustack = (uint32_t)0xC0DC0FFE; // dummy return address for user-threads
+    *--ustack = (uint32_t)0xDEADDEAD; // dummy return address for user-threads
 
     *--kstack = (uint32_t)NULL;
     *--kstack = (uint32_t)arch_thread_stop;

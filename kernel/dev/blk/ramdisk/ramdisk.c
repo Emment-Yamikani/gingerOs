@@ -51,7 +51,12 @@ int ramdisk_probe(void)
 
 int ramdisk_mount()
 {
-    return devfs_mount("ramdisk", 0444, *_DEVID(FS_BLKDEV, _DEV_T(DEV_RAMDISK, 0)));
+    dev_attr_t attr ={
+        .devid = *_DEVID(FS_BLKDEV, _DEV_T(DEV_RAMDISK, 0)),
+        .size = ramdisk_size,
+        .mask = 0444,
+    };
+    return devfs_mount("ramdisk", attr);
 }
 
 size_t ramdisk_read(struct devid *dd __unused, off_t off, void *buf, size_t sz)

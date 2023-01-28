@@ -14,7 +14,6 @@
 void *kthread_main(void *arg)
 {
     (void)arg;
-
     klog(KLOG_OK, "\e[0;011m\'kernel main thread\'\e[0m running\n");
 
     proc_init("/init");

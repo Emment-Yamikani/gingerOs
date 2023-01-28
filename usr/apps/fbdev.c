@@ -31,8 +31,12 @@ typedef struct ctx
 
 int fbx_render(ctx_t *ctx)
 {
+    printf("fbx_rendering\n");
     lseek(fbx_fd, 0, SEEK_SET);
+    printf("rendering: %d bytes\n", yres * line_length);
     write(fbx_fd, ctx->backbuff, yres * line_length);
+    lseek(fbx_fd, 0, SEEK_SET);
+    printf("fbx_renderer done\n");
     return 0;
 }
 
@@ -228,6 +232,7 @@ int fbx_redraw(ctx_t *ctx)
     // draw all object in z-order
     // draw mouse cursor
     fbx_render(ctx); // render ther final image
+    printf("fbx_redraw returning\n");
 }
 
 int fbx_init(char *path)
@@ -442,15 +447,10 @@ int font_cols(struct font *font)
 
 int main(int argc, char *argv[])
 {
-    close(0);
-    close(1);
-    close(2);
+    int ret = 0;
 
     if (argc > 1)
         wallpaper_path = argv[1];
-
-    kbd_fd = open("/dev/kbd0", O_RDWR);
-    dup2((uart_fd = open("/dev/uart", O_WRONLY)), 2);
 
     if (fbx_init("/dev/fbdev") < 0)
     {
@@ -465,11 +465,18 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+
     font = *ctx.font;
     vterm_init(&ctx);
     *ctx.font = font;
     
-
     fbx_redraw(&ctx);
+
+    close(font_fd);
+    close(fbx_fd);
+
+    char *img[] = {"/font", NULL};
+    execv(img[0], img);
+
     return 0;
 }

@@ -9,12 +9,13 @@ include $(kbddir)/kbd.mk
 include $(ttydir)/tty.mk
 include $(rtcdir)/rtc.mk
 include $(fbdir)/fb.mk
+include $(ps2mousedir)/ps2mouse.mk
 
 #include $(hpetdir)/hpet.mk
-#include $(ps2mousedir)/ps2mouse.mk
 
 chrobjs=\
 $(fbobjs)\
 $(kbdobjs)\
 $(ttyobjs)\
+$(ps2mouseobjs)\
 $(rtcobjs)

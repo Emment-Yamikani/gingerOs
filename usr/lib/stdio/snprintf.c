@@ -165,3 +165,5 @@ int snprintf(char *s, size_t n, char *fmt, ...)
 	va_end(args);
 	return ret;
 }
+
+int sprintf
