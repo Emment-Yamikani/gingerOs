@@ -4,11 +4,15 @@
 #include <lib/stddef.h>
 #include <lib/stdint.h>
 #include <sys/_stat.h>
+#include <lib/types.h>
+#include <bits/dirent.h>
 
 int pipe(int []);
 int open(const char *fn, int oflags, ...);
 size_t read(int fd, void *buf, size_t sz);
 size_t write(int fd, void *buf, size_t sz);
+
+int readdir(int fd, struct dirent *dirent);
 
 /* seek */
 off_t lseek(int fd, off_t offset, int whence);

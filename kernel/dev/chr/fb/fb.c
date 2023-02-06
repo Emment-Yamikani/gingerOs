@@ -105,7 +105,7 @@ int fbdev_close(struct devid *dd __unused)
     return -EINVAL;
 }
 
-int fbdev_ioctl(struct devid *dd __unused, int req __unused, void *argp __unused)
+int fbdev_ioctl(struct devid *dd, int req, void *argp)
 {
     if (argp == NULL)
         return -EINVAL;
@@ -133,7 +133,7 @@ int fbdev_ioctl(struct devid *dd __unused, int req __unused, void *argp __unused
     return 0;
 }
 
-size_t fbdev_read(struct devid *dd __unused, off_t offset __unused, void *buf __unused, size_t sz __unused)
+size_t fbdev_read(struct devid *dd, off_t offset, void *buf, size_t sz)
 {
     size_t size = 0;
 
@@ -152,7 +152,7 @@ size_t fbdev_read(struct devid *dd __unused, off_t offset __unused, void *buf __
     return size;
 }
 
-size_t fbdev_write(struct devid *dd __unused, off_t offset __unused, void *buf __unused, size_t sz __unused)
+size_t fbdev_write(struct devid *dd, off_t offset, void *buf, size_t sz)
 {
     size_t size = 0;
 

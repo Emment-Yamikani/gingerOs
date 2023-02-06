@@ -1,0 +1,2 @@
+tmpfsobjs=\
+$(tmpfsdir)/tmpfs.o

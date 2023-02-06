@@ -1,0 +1,11 @@
+1. 
+    a. Fixed "chdir()" syscall to set proper path if '.' or '..' is passed as new working directory.
+    b. Added error cheching to prevent "chdir-ing" to a non-directory vfs object.
+2. Added generic vfs mountat function,
+   to enable easier "mount()" syscall implementation.
+3. Added error checking to "iwrite()" and "iread()" as well as "iioctl()" generic functions
+   to return -ENOTDIR when called on a directory.
+4. Removed inode readers and writers queues so as
+   to allow for binding of queues when need be.
+5. Added "readdir()" syscall.
+7. Added "tmpfs", but still working on file handling.

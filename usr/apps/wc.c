@@ -25,8 +25,7 @@ void wc(int fd, char *name)
             }
         }
     }
-    if (n < 0)
-        panic("wc: read error\n");
+    
     dprintf(1, "%d %d %d %s\n", l, w, c, name);
 }
 

@@ -13,7 +13,6 @@
 
 #include <fs/fs.h>
 
-#include <bits/fcntl.h>
 #include <bits/errno.h>
 #include <bits/dirent.h>
 
@@ -27,7 +26,7 @@
  * @dirent  Buffer to write to.
  */
 
-long posix_file_readdir(struct file *file, struct dirent *dirent)
+int posix_file_readdir(struct file *file, struct dirent *dirent)
 {
     if (file->f_flags & O_WRONLY) /* File is not opened for reading */
         return -EBADFD;
@@ -35,7 +34,7 @@ long posix_file_readdir(struct file *file, struct dirent *dirent)
     int retval = ireaddir(file->f_inode, file->f_pos, dirent);
 
     /* Update file offset */
-    file->f_pos += retval;
+    file->f_pos ++;
         
     /* Return read bytes count */
     return retval;

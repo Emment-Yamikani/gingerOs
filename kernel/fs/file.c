@@ -89,6 +89,21 @@ int fcan_write(struct file *file, size_t size)
     return file->f_inode->ifs->fsuper->fops->can_write(file, size);
 }
 
+int freaddir(file_t *file, struct dirent *dirent){
+    if (!file || !file->f_inode)
+        return -EINVAL;
+
+    if (ISDEV(file->f_inode))
+        return -ENOTDIR;
+
+    CHK_FPTR(file);
+
+    if (!file->f_inode->ifs->fsuper->fops->readdir)
+        return -ENOSYS;
+
+    return file->f_inode->ifs->fsuper->fops->readdir(file, dirent);
+}
+
 size_t feof(struct file *file)
 {
     if (!file || !file->f_inode)

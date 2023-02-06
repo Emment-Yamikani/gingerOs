@@ -30,6 +30,7 @@ static uintptr_t (*syscall[])(void) = {
     [SYS_STAT](void *) sys_stat,
     [SYS_IOCTL](void *) sys_ioctl,
     [SYS_CREAT](void *) sys_creat,
+    [SYS_READDIR](void *)sys_readdir,
 
     /*Process management*/
 
@@ -247,6 +248,14 @@ int sys_close(void)
     int fd = 0;
     assert(!argint(0, &fd), "err fetching fd");
     return close(fd);
+}
+
+int sys_readdir(void){
+    int fd = 0;
+    struct dirent *dirent = NULL;
+    assert(!argint(0, (int *)&fd), "err fetching fd");
+    assert(!argptr(1, (void **)&dirent, sizeof(char *)), "err fetching dirent");
+    return readdir(fd, dirent);
 }
 
 char *sys_getcwd(void)

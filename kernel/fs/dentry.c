@@ -91,6 +91,27 @@ static int dentry_free(dentry_t *dentry)
     return 0;
 }
 
+int dentry_contains(dentry_t *parent, dentry_t *child)
+{
+    dentry_t *next_child = NULL;
+
+    if (parent == NULL || child == NULL)
+        return -EINVAL;
+    
+    forlinked(node, parent->d_children, next_child)
+    {
+        dlock(node);
+        next_child = node->d_next;
+        if (node == child)
+        {
+            dunlock(node);
+            return 1;
+        }
+        dunlock(node);
+    }
+    return -ENOENT;
+}
+
 void dlock(dentry_t *dentry)
 {
     if (!dentry)

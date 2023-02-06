@@ -6,6 +6,8 @@
 
 #define SYS_KPUTC           0 //* put a character to the kernel's terminal
 
+
+
 /* Process management */
 
 #define SYS_EXECVE          1 //* execve
@@ -76,8 +78,22 @@
 #define SYS_ISATTY          49 //* isatty?
 #define SYS_UNLOCKPT        50 //* unlock a pty pair
 
+/*System configurations*/
+
+#define SYS_SYSCONF         51
+
+/*Directory manipulation*/
+
+#define SYS_READDIR         52
+#define SYS_REWINDDIR       53
+#define SYS_SEEKDIR         54
+#define SYS_SCANDIR         55
+#define SYS_TELLDIR         56
+#define SYS_CLOSEDIR        57
+
 #include <lib/types.h>
 #include <sys/_stat.h>
+#include <bits/dirent.h>
 
 extern int sys_kputc(void);
 
@@ -90,6 +106,7 @@ extern int sys_write(void);
 extern int sys_close(void);
 extern char *sys_getcwd(void);
 extern int sys_chdir(void);
+extern int sys_readdir(void);
 extern int sys_pipe(void);
 extern int sys_dup(void);
 extern int sys_dup2(void);

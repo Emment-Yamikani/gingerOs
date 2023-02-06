@@ -31,7 +31,7 @@ int dentry_open(dentry_t *);
 int dentry_close(dentry_t *);
 int dentry_dup(dentry_t *);
 inode_t *dentry_iget(dentry_t *);
-
+int dentry_contains(dentry_t *parent, dentry_t *child);
 
 void dlock(dentry_t *dentry);
 void dunlock(dentry_t *dentry);

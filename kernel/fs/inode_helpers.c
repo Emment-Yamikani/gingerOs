@@ -52,7 +52,10 @@ size_t iread(inode_t *ip, off_t pos, void *buf, size_t sz)
         return -EINVAL;
     if (ISDEV(ip))
         return kdev_read(_INODE_DEV(ip), pos, buf, sz);
-    
+
+    if (INODE_ISDIR(ip))
+        return -EISDIR;
+
     CHK_IPTR(ip);
 
     if (!ip->ifs->fsuper->iops->read)
@@ -68,6 +71,9 @@ size_t iwrite(inode_t *ip, off_t pos, void *buf, size_t sz)
     if (ISDEV(ip))
         return kdev_write(_INODE_DEV(ip), pos, buf, sz);
     
+    if (INODE_ISDIR(ip))
+        return -EISDIR;
+
     CHK_IPTR(ip);
 
     if (!ip->ifs->fsuper->iops->write)
@@ -82,7 +88,10 @@ int iioctl(inode_t *ip, int req, void *argp)
         return -EINVAL;
     if (ISDEV(ip))
         return kdev_ioctl(_INODE_DEV(ip), req, argp);
-    
+
+    if (INODE_ISDIR(ip))
+        return -ENOTTY;
+
     CHK_IPTR(ip);
 
     if (!ip->ifs->fsuper->iops->ioctl)
@@ -91,19 +100,67 @@ int iioctl(inode_t *ip, int req, void *argp)
     return ip->ifs->fsuper->iops->ioctl(ip, req, argp);
 }
 
-int ifind(inode_t *dir, dentry_t *dentry, inode_t **ref)
+int ifind(inode_t *dir, const char *name, inode_t **ref)
 {
-    if (!dir || !dentry || !ref)
+    if (!dir || !name || !ref)
         return -EINVAL;
-    if (ISDEV(dir) || dir->i_type != FS_DIR)
-        return -ENOTDIR;
-    
+
     CHK_IPTR(dir);
-    
+
+    if (!INODE_ISDIR(dir))
+        return -ENOTDIR;
+
     if (!dir->ifs->fsuper->iops->find)
         return -ENOSYS;
 
-    return dir->ifs->fsuper->iops->find(dir, dentry, ref);
+    return dir->ifs->fsuper->iops->find(dir, name, ref);
+}
+
+int ibind(inode_t *dir, const char *name, inode_t *child)
+{
+    if (dir == NULL || name == NULL || child == NULL)
+        return -EINVAL;
+
+    CHK_IPTR(dir);
+
+    if (!INODE_ISDIR(dir))
+        return -ENOTDIR;
+
+    if (!dir->ifs->fsuper->iops->bind)
+        return -ENOSYS;
+
+    return dir->ifs->fsuper->iops->bind(dir, name, child);
+}
+
+int imount(inode_t *dir, const char *name, inode_t *child)
+{
+    if (dir == NULL || name == NULL || child == NULL)
+        return -EINVAL;
+
+    CHK_IPTR(dir);
+
+    if (!INODE_ISDIR(dir))
+        return -ENOTDIR;
+
+    if (!dir->ifs->fsuper->iops->mount)
+        return -ENOSYS;
+
+    return dir->ifs->fsuper->iops->mount(dir, name, child);
+}
+
+int ireaddir(inode_t *dir, off_t offset, struct dirent *dirent) {
+    if (!dir || !dirent)
+        return -EINVAL;
+
+    CHK_IPTR(dir);
+
+    if (!INODE_ISDIR(dir))
+        return -ENOTDIR;
+
+    if (!dir->ifs->fsuper->iops->readdir)
+        return -ENOSYS;
+
+    return dir->ifs->fsuper->iops->readdir(dir, offset, dirent);
 }
 
 /* check for file permission */

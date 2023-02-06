@@ -2,7 +2,7 @@
 #define FS_PATH_H 1
 
 #include <lib/types.h>
-
+#include <fs/mount.h>
 
 typedef struct mount
 {

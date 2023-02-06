@@ -8,7 +8,7 @@
 #include <fs/pipefs.h>
 #include <bits/errno.h>
 
-static int check_fd(int fd)
+int check_fd(int fd)
 {
     if ((fd < 0) || (fd >= NFILE))
         return -EBADF;
@@ -16,7 +16,7 @@ static int check_fd(int fd)
         return 0;
 }
 
-static int check_fildes(int fd, file_table_t *ft)
+int check_fildes(int fd, file_table_t *ft)
 {
     file_table_assert(ft);
     file_table_assert_lock(ft);
@@ -75,7 +75,7 @@ void file_free(file_t *file)
     kfree(file);
 }
 
-static file_t *fileget(struct file_table *table, int fd)
+file_t *fileget(struct file_table *table, int fd)
 {
     if (!table)
         return NULL;
@@ -117,7 +117,7 @@ int open(const char *fn, int oflags, ...)
 
     return fd;
 error:
-    printk("open(): called @ 0x%p, error=%d\n", return_address(0), err);
+    printk("open(%s): called @ 0x%p, error=%d\n", fn, return_address(0), err);
     return err;
 }
 
@@ -432,8 +432,12 @@ int close(int fd)
 int chdir(char *fn)
 {
     int err = 0;
+    char *cwd = NULL;
     char *dir = NULL;
+    char **tokens = NULL;
+    char *abs_path = NULL;
     inode_t *inode = NULL;
+    char *last_token = NULL;
 
     file_table_lock(current->t_file_table);
     uio_t uio = current->t_file_table->uio;
@@ -452,19 +456,63 @@ int chdir(char *fn)
 
     ilock(inode);
 
-    if (inode->i_type != FS_DIR)
+    if (INODE_ISDIR(inode) == 0)
     {
         iunlock(inode);
         file_table_unlock(current->t_file_table);
         return -ENOTDIR;
     }
 
-    if (!(dir = strdup(fn)))
+    if (!uio.u_cwd)
+        cwd = "/";
+    else
+        cwd = uio.u_cwd;
+
+    if ((err = vfs_parse_path((char *)fn, cwd, &abs_path)))
     {
+        iunlock(inode);
+        file_table_unlock(current->t_file_table);
+        return err;
+    }
+
+    if ((err = vfs_canonicalize_path(fn, cwd, &tokens)))
+    {
+        kfree(abs_path);
+        iunlock(inode);
+        file_table_unlock(current->t_file_table);
+        return err;
+    }
+
+    foreach(token, tokens) last_token = token;
+
+    if (last_token == NULL)
+    {
+        if (*fn == '/')
+            last_token = "/";
+        else
+            last_token = uio.u_cwd;
+
+        if ((dir = strdup(last_token)) == NULL)
+        {
+            tokens_free(tokens);
+            kfree(abs_path);
+            iunlock(inode);
+            file_table_unlock(current->t_file_table);
+            return -ENOMEM;
+        }
+    }
+    else
+    if ((dir = strdup(abs_path)) == NULL)
+    {
+        tokens_free(tokens);
+        kfree(abs_path);
         iunlock(inode);
         file_table_unlock(current->t_file_table);
         return -ENOMEM;
     }
+
+    tokens_free(tokens);
+    kfree(abs_path);
 
     if (uio.u_cwd)
         kfree(uio.u_cwd);

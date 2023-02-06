@@ -10,6 +10,7 @@
 #include <mm/vmm.h>
 #include <sys/sleep.h>
 #include <sys/proc.h>
+#include <fs/fs.h>
 
 void *kthread_main(void *arg)
 {

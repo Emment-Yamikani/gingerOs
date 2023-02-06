@@ -8,9 +8,9 @@
 #include <mm/kalloc.h>
 #include <printk.h>
 #include <fs/pipefs.h>
+#include <fs/tmpfs.h>
 
 static dentry_t *droot = NULL;
-
 static queue_t *fs_list = QUEUE_NEW("filesystem list");
 
 int vfs_init(void)
@@ -18,25 +18,31 @@ int vfs_init(void)
     int err = 0;
     inode_t *inode = NULL;
     printk("vfs initializing...\n");
-    
+
     if ((err = dentry_alloc("/", &droot)))
         goto error;
-    
+
+    if ((err = tmpfs_init()))
+        goto error;
+
     if ((err = devfs_init()))
         goto error;
 
     if ((err = ialloc(&inode)))
         goto error;
-    
+
     inode->i_mask = 0777;
     inode->i_type = FS_DIR;
 
     if ((err = vfs_mount("/", "mnt", inode)))
         goto error;
-    
+
+    if ((err = vfs_lookupfs("tmpfs", &inode->ifs)))
+        goto error;
+
     if ((err = ramfs_init()))
         goto error;
-    
+
     if ((err = pipefs_init()))
         goto error;
 
@@ -46,11 +52,16 @@ error:
     return err;
 }
 
+dentry_t *vfs_getroot_dentry(void)
+{
+    return droot;
+}
+
 int vfs_register(struct filesystem *fs)
 {
     int err = 0;
     queue_node_t *node = NULL;
-    
+
     assert(fs, "no filesystem pointer");
     assert(fs->fname, "filesystem descriptor has no name");
     assert(fs->fsuper, "filesystem descriptor has no superblock");
@@ -69,8 +80,8 @@ int vfs_register(struct filesystem *fs)
         if ((err = fs->load()))
             goto error;
 
-    if (fs->mount)
-        if ((err = fs->mount()))
+    if (fs->fsmount)
+        if ((err = fs->fsmount()))
             goto error;
 
     klog(KLOG_OK, "\'\e[0;012m%s\e[0m\' registered succefully\n", fs->fname);
@@ -78,6 +89,32 @@ int vfs_register(struct filesystem *fs)
 error:
     klog(KLOG_FAIL, "failed to register filesystem \'\e[0;015m%s\e[0m\', error=%d\n", fs->fname, err);
     return err;
+}
+
+int vfs_lookupfs(const char *type, struct filesystem **ref)
+{
+    queue_node_t *next = NULL;
+    struct filesystem *fs = NULL;
+
+    if (ref == NULL || type == NULL)
+        return -EINVAL;
+
+    queue_lock(fs_list);
+    forlinked(node, fs_list->head, next)
+    {
+        fs = node->data;
+        next = node->next;
+
+        if (!compare_strings(type, fs->fname))
+        {
+            *ref = fs;
+            queue_unlock(fs_list);
+            return 0;
+        }
+    }
+    queue_unlock(fs_list);
+
+    return -ENOENT;
 }
 
 static int vfs_path_syntax(char *path)
@@ -90,15 +127,13 @@ static int vfs_path_syntax(char *path)
 
     for (; *path; ++path)
     {
-        if ((*path < (char)' ') || (*path == (char)'\\') || (*path == (char)0x7f)
-            || (*path == (char)0x81) || (*path == (char)0x8D) || (*path == (char)0x9D)
-            || (*path == (char)0xA0) || (*path == (char)0xAD))
+        if ((*path < (char)' ') || (*path == (char)'\\') || (*path == (char)0x7f) || (*path == (char)0x81) || (*path == (char)0x8D) || (*path == (char)0x9D) || (*path == (char)0xA0) || (*path == (char)0xAD))
             return -ENOTNAM;
     }
     return 0;
 }
 
-static int vfs_canonicalize_path(char *fn, char *cwd, char ***ref)
+int vfs_canonicalize_path(char *fn, char *cwd, char ***ref)
 {
     int err = 0;
     char *path = NULL;
@@ -112,7 +147,7 @@ static int vfs_canonicalize_path(char *fn, char *cwd, char ***ref)
 
     if ((err = vfs_parse_path(fn, cwd, &path)))
         goto error;
-    
+
     if (!(tokens = canonicalize_path(path)))
     {
         err = -ENOMEM;
@@ -143,10 +178,10 @@ int vfs_mount_root(inode_t *root)
 
 int vfs_parse_path(char *path, char *cwd, char **ref)
 {
-    int err = 0, j =0, i = 0, tok_n =0;
+    int err = 0, j = 0, i = 0, tok_n = 0;
     size_t buflen = 0, cwdlen = 0, pathlen = 0;
     char *parsed_string = NULL, *tmp_cwd = NULL, **tokens = NULL, **tmp_path = NULL, *abs_path = NULL;
-    
+
     if (!ref)
     {
         err = -EINVAL;
@@ -158,7 +193,7 @@ int vfs_parse_path(char *path, char *cwd, char **ref)
 
     if (!cwd)
         cwd = "/";
-    
+
     if (*path == '/')
         cwd = "/";
 
@@ -184,7 +219,7 @@ int vfs_parse_path(char *path, char *cwd, char **ref)
     pathlen = strlen(path);
     buflen = cwdlen + pathlen + 2;
 
-    if (!(parsed_string = __cast_to_type(parsed_string)kmalloc(buflen)))
+    if (!(parsed_string = __cast_to_type(parsed_string) kmalloc(buflen)))
     {
         err = -ENOMEM;
         goto error;
@@ -192,9 +227,8 @@ int vfs_parse_path(char *path, char *cwd, char **ref)
 
     strncpy(parsed_string, cwd, cwdlen);
     parsed_string[cwdlen] = '/';
-    strncpy(parsed_string + cwdlen + 1, path, pathlen);    
+    strncpy(parsed_string + cwdlen + 1, path, pathlen);
     parsed_string[buflen - 1] = 0;
-
 
     if (!(tokens = canonicalize_path(parsed_string)))
     {
@@ -202,17 +236,17 @@ int vfs_parse_path(char *path, char *cwd, char **ref)
         goto error;
     }
 
-    foreach(token, tokens)
+    foreach (token, tokens)
         tok_n++;
 
-    if (!(tmp_path = __cast_to_type(tmp_path)kcalloc(tok_n + 1, sizeof (char *))))
+    if (!(tmp_path = __cast_to_type(tmp_path) kcalloc(tok_n + 1, sizeof(char *))))
     {
         err = -ENOMEM;
         goto error;
     }
 
     pathlen = 1;
-    foreach(token, tokens)
+    foreach (token, tokens)
     {
         if (!compare_strings(token, "."))
             continue;
@@ -234,7 +268,7 @@ int vfs_parse_path(char *path, char *cwd, char **ref)
 
     tmp_path[i] = NULL;
 
-    switch(pathlen)
+    switch (pathlen)
     {
     case 0:
         panic("vfs_parse_path(), caalled @ 0x%p, pathlen issue\n", return_address(0));
@@ -254,8 +288,8 @@ int vfs_parse_path(char *path, char *cwd, char **ref)
         }
         break;
     }
-    
-    foreach(token, tmp_path)
+
+    foreach (token, tmp_path)
     {
         abs_path[j++] = '/';
         size_t tok_len = strlen(token);
@@ -271,7 +305,7 @@ int vfs_parse_path(char *path, char *cwd, char **ref)
 
     if (!*abs_path)
         abs_path[j++] = '/';
-        
+
     abs_path[j] = '\0';
 
     *ref = abs_path;
@@ -300,12 +334,15 @@ error:
     return err;
 }
 
-int vfs_bind(dentry_t *parent, dentry_t *child)
+int vfs_dentry_bind(dentry_t *parent, dentry_t *child)
 {
     dentry_t *next = NULL;
     dentry_t *last = NULL;
 
     if (!parent || !child)
+        return -EINVAL;
+
+    if (!child->d_inode) // ensure child has an inode
         return -EINVAL;
 
     dlock(parent);
@@ -323,7 +360,7 @@ int vfs_bind(dentry_t *parent, dentry_t *child)
     {
         dlock(last);
         last->d_next = child;
-        child->d_prev= last;
+        child->d_prev = last;
         dunlock(last);
     }
     else
@@ -333,6 +370,7 @@ int vfs_bind(dentry_t *parent, dentry_t *child)
     }
     child->d_next = NULL;
     child->d_parent = parent;
+
     dunlock(child);
     dunlock(parent);
 
@@ -342,23 +380,105 @@ int vfs_bind(dentry_t *parent, dentry_t *child)
     return 0;
 }
 
+int vfs_dentry_unbind(dentry_t *parent, dentry_t *child)
+{
+    int err = 0;
+    if (parent == NULL || child == NULL)
+        return -EINVAL;
+
+    dlock(parent);
+    if ((err = dentry_contains(parent, child)) < 0)
+    {
+        dunlock(parent);
+        return err;
+    }
+
+    dlock(child);
+
+    if (child == parent->d_children)
+        parent->d_children = child->d_next;
+
+    if (child->d_prev)
+    {
+        dlock(child->d_prev);
+        child->d_prev->d_next = child->d_next;
+        dunlock(child->d_prev);
+    }
+
+    if (child->d_next)
+    {
+        dlock(child->d_next);
+        child->d_next->d_prev = child->d_prev;
+        dunlock(child->d_next);
+    }
+
+    child->d_parent = NULL;
+
+    dunlock(child);
+    dunlock(parent);
+
+    return 0;
+}
+
+int vfs_path_dentry(const char *fn, dentry_t **ref)
+{
+    int err = 0;
+    dentry_t *dentry = NULL;
+    path_t *mountpoint = NULL;
+    char **tokens = NULL, *abspath = NULL;
+
+    if (!compare_strings("/", fn))
+    {
+        dentry = vfs_getroot_dentry();
+        goto found;
+    }
+
+    if ((err = vfs_parse_path((char *)fn, "/", &abspath)))
+        goto error;
+
+    if ((tokens = canonicalize_path(abspath)) == NULL)
+    {
+        err = -ENOMEM;
+        goto error;
+    }
+
+    if ((err = vfs_get_mountpoint(tokens, &mountpoint)))
+        goto error;
+
+    dentry = mountpoint->dentry;
+found:
+    kfree(abspath);
+    kfree(mountpoint);
+    tokens_free(tokens);
+    *ref = dentry;
+    return 0;
+error:
+    if (abspath)
+        kfree(abspath);
+    if (mountpoint)
+        kfree(mountpoint);
+    if (tokens)
+        tokens_free(tokens);
+    return err;
+}
+
 int vfs_get_mountpoint(char **abs_path, path_t **ref)
 {
     path_t *path = NULL;
     char *last_entry = NULL;
-    int err = 0, tok_i =0, is_root = 1;
+    int err = 0, tok_i = 0, is_root = 1;
     dentry_t *children = NULL, *next = NULL, *dir = droot, *child = NULL;
 
     if (!abs_path || !ref)
         return -EINVAL;
 
-    foreach(token, abs_path)
+    foreach (token, abs_path)
     {
         last_entry = token;
         is_root = 0;
     }
-    
-    foreach(token, abs_path)
+
+    foreach (token, abs_path)
     {
         child = NULL;
         dlock(dir);
@@ -379,7 +499,7 @@ int vfs_get_mountpoint(char **abs_path, path_t **ref)
             next = node->d_next;
             dunlock(node);
         }
-        
+
         err = -ENOENT;
         break;
 
@@ -390,7 +510,7 @@ int vfs_get_mountpoint(char **abs_path, path_t **ref)
             dir = child;
     }
 
-    if (!(path = __cast_to_type(path)kmalloc(sizeof *path)))
+    if (!(path = __cast_to_type(path) kmalloc(sizeof *path)))
     {
         err = -ENOMEM;
         goto error;
@@ -401,88 +521,29 @@ int vfs_get_mountpoint(char **abs_path, path_t **ref)
     if (is_root)
         path->dentry = droot;
     path->mnt.root = dir;
-    path->tokens = abs_path + (tok_i -1);
+    path->tokens = abs_path + (tok_i - 1);
 
     *ref = path;
     if (err)
         goto error;
     return 0;
 error:
-    //printk("vfs_get_mountpoint(), called @ 0x%p, error=%d\n", return_address(0), err);
+    // printk("vfs_get_mountpoint(), called @ 0x%p, error=%d\n", return_address(0), err);
     return err;
 }
 
 int vfs_mount(const char *dir, const char *name, inode_t *ip)
 {
-    int err =0;
-    dentry_t *child = NULL, *parent = NULL;
-    path_t *mountpoint = NULL;
-    char **abs_path = NULL, *path = NULL;
-
-    if (!dir || !name || !ip)
-    {
-        err = -EINVAL;
-        goto error;
-    }
-    
-    if (!compare_strings(dir, "/"))
-    {
-        parent = droot;
-        goto found;
-    }
-
-    if ((err = vfs_parse_path((char *)dir, "/", &path)))
-        goto error;
-
-    if (!(abs_path = canonicalize_path(path)))
-    {
-        err = -ENOMEM;
-        goto error;
-    }
-
-    if ((err = vfs_get_mountpoint(abs_path, &mountpoint)))
-        goto error;
-
-    parent = mountpoint->dentry;
-    
-found:
-    if ((err = dentry_alloc((char *)name, &child)))
-        goto error;
-
-    //!TODO: increment ip->i_ref
-    child->d_inode = ip;
-    if ((err = iincrement(ip)))
-        goto error;
-
-    if ((err = vfs_bind(parent, child)))
-        goto error;
-
-    kfree(mountpoint);
-    tokens_free(abs_path);
-    kfree(path);
-
-    return 0;
-error:
-    if (child)
-        dentry_close(child);
-    if (mountpoint)
-        kfree(mountpoint);
-    if (abs_path)
-        tokens_free(abs_path);
-    if (path)
-        kfree(path);
-    printk("vfs_mount(), called @ 0x%p, error=%d\n", return_address(0), err);
-    return err;
+    return vfs_mountat(name, dir, NULL, MS_BIND, NULL, ip, NULL);
 }
 
 int vfs_lookup(const char *fn, uio_t *uio, int mode, inode_t **iref, dentry_t **dref)
 {
     int err = 0;
     path_t *path = NULL;
-    char **tokens = NULL, *cwd = NULL;
     dentry_t *dentry = NULL, *dir = NULL;
     inode_t *iparent = NULL, *ichild = NULL;
-
+    char **tokens = NULL, *cwd = NULL, *abs_path = NULL;
 
     if (!fn || (!dref && !iref))
     {
@@ -490,7 +551,6 @@ int vfs_lookup(const char *fn, uio_t *uio, int mode, inode_t **iref, dentry_t **
         goto error;
     }
 
-    
     if (!uio)
         cwd = "/";
     else if (!uio->u_cwd)
@@ -498,11 +558,14 @@ int vfs_lookup(const char *fn, uio_t *uio, int mode, inode_t **iref, dentry_t **
     else
         cwd = uio->u_cwd;
 
-    //printk("%s(%s): uio: 0x%p, mode: %x, iref: 0x%p, dref: 0x%p\n", __func__, fn, uio, mode, iref, dref);
+    if ((err = vfs_parse_path((char *)fn, cwd, &abs_path)))
+        goto error;
 
-    //printk("VFS ROOT: \e[017;0m%s\e[0m: %p\n", droot->d_name, droot->d_inode);
+    // printk("%s(%s): uio: 0x%p, mode: %x, iref: 0x%p, dref: 0x%p\n", __func__, fn, uio, mode, iref, dref);
 
-    if ((err = vfs_canonicalize_path((char *)fn, cwd, &tokens)))
+    // printk("VFS ROOT: \e[017;0m%s\e[0m: %p\n", droot->d_name, droot->d_inode);
+
+    if ((err = vfs_canonicalize_path((char *)abs_path, cwd, &tokens)))
         goto error;
 
     switch ((err = vfs_get_mountpoint(tokens, &path)))
@@ -510,44 +573,48 @@ int vfs_lookup(const char *fn, uio_t *uio, int mode, inode_t **iref, dentry_t **
     case 0:
         dentry = path->dentry;
         ichild = dentry->d_inode;
-        //printk("%s(): \'%s\' \e[0;12mfound\e[0m\n", __func__, dentry->d_name);
-        //dentry_dump(dentry);
+        // printk("%s(): \'%s\' \e[0;12mfound\e[0m\n", __func__, dentry->d_name);
+        // dentry_dump(dentry);
         if ((err = iperm(ichild, uio, mode)))
             goto error;
-        //printk("found THIS FILE\n");
+        // printk("found THIS FILE\n");
         goto found;
     case -ENOENT:
         dir = path->mnt.root;
         iparent = dir->d_inode;
-        //printk("\e[0;04mENOENT\e[0m: \e[0;11m");
-        //foreach(tok, path->tokens) printk("/%s", tok);
-        //printk("\e[0m\n");
+        // printk("\e[0;04mENOENT\e[0m: \e[0;11m");
+        // foreach(tok, path->tokens) printk("/%s", tok);
+        // printk("\e[0m\n");
         break;
     default:
-        //printk("\e[0;04mlookup error\e[0m");
+        // printk("\e[0;04mlookup error\e[0m");
         goto error;
     }
 
-    foreach(token, path->tokens)
+    foreach (token, path->tokens)
     {
         dentry = NULL;
         ichild = NULL;
         if ((err = dentry_alloc(token, &dentry)))
             goto error;
 
-        if ((err = ifind(iparent, dentry, &ichild)))
+        if ((err = ifind(iparent, token, &ichild)))
             goto error;
-        
-        if ((err = vfs_bind(dir, dentry)))
+
+        dentry->d_inode = ichild;
+
+        if ((err = vfs_dentry_bind(dir, dentry)))
             goto error;
+
         if ((err = iperm(ichild, uio, mode)))
-        dir = dentry;
+            dir = dentry;
         iparent = ichild;
     }
 
 found:
     kfree(path);
     tokens_free(tokens);
+    kfree(abs_path);
 
     if (iref)
     {
@@ -558,7 +625,7 @@ found:
     if (dref)
     {
         dentry_dup(dentry);
-        *dref =  dentry;
+        *dref = dentry;
     }
     return 0;
 error:
@@ -568,6 +635,8 @@ error:
         kfree(path);
     if (tokens)
         tokens_free(tokens);
+    if (abs_path)
+        kfree(abs_path);
     printk("%s(%s), called @ 0x%p, error=%d\n", __func__, fn, return_address(0), err);
     return err;
 }

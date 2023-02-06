@@ -12,6 +12,8 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/fcntl.h>
+#include <bits/dirent.h>
+#include <bits/errno.h>
 
 #include <gfx/gfx.h>
 #include <fbterm/fb.h>

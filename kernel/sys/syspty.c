@@ -8,26 +8,6 @@
 #include <arch/i386/cpu.h>
 #include <dev/dev.h>
 
-static int check_fildes(int fd, file_table_t *ft)
-{
-    file_table_assert(ft);
-    file_table_assert_lock(ft);
-
-    if ((fd < 0) || (fd >= NFILE) || !ft->file[fd])
-        return -EBADF;
-    else
-        return 0;
-}
-
-static file_t *fileget(struct file_table *table, int fd)
-{
-    if (!table)
-        return NULL;
-    if ((fd > NFILE) || (fd < 0))
-        return NULL;
-    return table->file[fd];
-}
-
 /*Pseudo terminals*/
 
 int isatty(int fd)

@@ -3,20 +3,31 @@
 
 #include <lib/stdint.h>
 #include <lib/stddef.h>
+#include <lib/types.h>
 
-#define MAXNAMELEN 256
+#define MAX_NAME_LEN 256
 
-struct dirent {
-    size_t d_ino;   // FIXME 
-    char d_name[MAXNAMELEN];
+
+struct dirent
+{
+    ino_t d_ino;             /* Inode number */
+    off_t d_off;             /* Not an offset; see below */
+    unsigned short d_reclen; /* Length of this record */
+    unsigned char d_type;    /* Type of file; not supported
+                                by all filesystem types */
+    char d_name[MAX_NAME_LEN];        /* Null-terminated filename */
 };
 
-typedef struct {
-    int fd;
+typedef struct 
+{
+    int fd; // open file descriptoy
+    int next;
 } DIR;
 
+DIR *fdopendir(int fd);
 DIR *opendir(const char *fn);
+int readdir(int fd, struct dirent *dirent);
 int closedir(DIR *dir);
-struct dirent *readdir(DIR *dir);
+
 
 #endif

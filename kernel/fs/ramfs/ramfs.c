@@ -7,6 +7,7 @@
 #include <mm/kalloc.h>
 #include <printk.h>
 #include <fs/posix.h>
+#include <sys/_stat.h>
 
 static iops_t ramfs_iops;
 static inode_t *iroot = NULL;
@@ -55,12 +56,12 @@ static int ramfs_creat(inode_t *ip __unused, dentry_t *dentry __unused, int mode
     return -EROFS;
 }
 
-static int ramfs_find(inode_t *dir, dentry_t *dentry, inode_t **ref)
+static int ramfs_find(inode_t *dir, const char *name, inode_t **ref)
 {
     int err =0;
     inode_t *ip = NULL;
 
-    if (!dir || !dentry || !ref)
+    if (!dir || !name || !ref)
         return -EINVAL;
     
     if (dir != iroot)
@@ -76,7 +77,7 @@ static int ramfs_find(inode_t *dir, dentry_t *dentry, inode_t **ref)
         case INITRD_INV:
             continue;
         case INITRD_FILE:
-            if (compare_strings(ramfs_super.inode[i].name, dentry->d_name))
+            if (compare_strings(ramfs_super.inode[i].name, name))
                 continue;
 
             if ((err = ramfs_ialloc(&ip)))
@@ -87,9 +88,8 @@ static int ramfs_find(inode_t *dir, dentry_t *dentry, inode_t **ref)
             ip->i_uid = ramfs_super.inode[i].uid;
             ip->i_size = ramfs_super.inode[i].size;
             ip->i_priv = &ramfs_super.inode[i];
-            ip->i_type = (int[])
-            {
-                [0] = FS_INV, [1] = FS_DIR, [2] = FS_RGL
+            ip->i_type = (int[]){
+                [0] = FS_INV, [1] = FS_DIR, [2] = FS_RGL,
             }[ramfs_super.inode[i].type];
             goto found;
         default:
@@ -102,7 +102,6 @@ static int ramfs_find(inode_t *dir, dentry_t *dentry, inode_t **ref)
     goto error;
 
 found:
-    dentry->d_inode = ip;
     *ref = ip;
     return 0;
 error:
@@ -151,6 +150,29 @@ static int ramfs_lseek(inode_t *ip __unused, off_t off __unused, int whence __un
     return -EINVAL;
 }
 
+static int ramfs_readdir(inode_t *dir, off_t offset, struct dirent *dirent){
+    if (iroot != dir)
+        return -EINVAL;
+
+    if (((int)offset < 0) || ((int)offset >= NELEM(ramfs_super.inode)))
+        return -ERANGE;
+
+    if (ramfs_super.inode[offset].type == INITRD_INV)
+        return -EINVAL;
+
+    safestrcpy(dirent->d_name, ramfs_super.inode[offset].name, strlen(ramfs_super.inode[offset].name) + 1);
+    dirent->d_ino = offset;
+    dirent->d_off = offset;
+    dirent->d_reclen = sizeof *dirent;
+    dirent->d_type = (int [])
+    {
+        [INITRD_INV] =  FS_INV,
+        [INITRD_DIR] = _IFDIR,
+        [INITRD_FILE]= _IFREG,
+    }[ramfs_super.inode[offset].type];
+
+    return 0;
+}
 
 static int ramfs_read_super()
 {
@@ -187,7 +209,7 @@ error:
     return err;
 }
 
-int ramfs_mount()
+int ramfs_fsmount()
 {
     int err = 0;
     if ((err = ialloc(&iroot)))
@@ -200,8 +222,9 @@ int ramfs_mount()
     ramfs_sb.s_iroot = iroot;
     ramfs_sb.s_count = 1;
 
-    if ((err = vfs_mount("mnt", "ramfs", iroot)))
+    if ((err = vfs_mount("/mnt", "ramfs", iroot)))
         goto error;
+
     if ((err = vfs_mount_root(iroot)))
         goto error;
 
@@ -232,12 +255,14 @@ static iops_t ramfs_iops ={
     .close = ramfs_close,
     .creat = ramfs_creat,
     .find = ramfs_find,
+    .bind = NULL,
     .ioctl = ramfs_ioctl,
     .lseek = ramfs_lseek,
     .open = ramfs_open,
     .read = ramfs_read,
     .sync = ramfs_sync,
-    .write = ramfs_write
+    .write = ramfs_write,
+    .readdir = ramfs_readdir,
 };
 
 static super_block_t ramfs_sb = {
@@ -253,5 +278,5 @@ static filesystem_t ramfs = {
     .flist_node = NULL,
     .fsuper = &ramfs_sb,
     .load = ramfs_load,
-    .mount = ramfs_mount,
+    .fsmount = ramfs_fsmount,
 };

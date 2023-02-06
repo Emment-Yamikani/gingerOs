@@ -90,6 +90,16 @@
 %define SYS_ISATTY          49 ;isatty?
 %define SYS_UNLOCKPT        50 ;unlock a pty pair
 
+;/*System configurations*/
+
+%define SYS_SYSCONF         51
+
+;/*Directory manipulation*/
+
+%define SYS_READDIR         52
+%define SYS_REWINDDIR       53
+%define SYS_SEEKDIR         54
+
 %macro STUB 2
 global sys_%2
 sys_%2:
@@ -155,3 +165,8 @@ STUB SYS_GRANTPT, grantpt
 STUB SYS_PTSNAME_R, ptsname_r
 STUB SYS_ISATTY, isatty
 STUB SYS_UNLOCKPT, unlockpt
+
+STUB SYS_SYSCONF, sysconf
+STUB SYS_READDIR, readdir
+STUB SYS_REWINDDIR, rewinddir
+STUB SYS_SEEKDIR, seekdir

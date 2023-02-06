@@ -10,6 +10,7 @@
 #include <fs/path.h>
 #include <sys/_stat.h>
 #include <sys/fcntl.h>
+#include <bits/dirent.h>
 
 typedef enum
 {
@@ -41,15 +42,19 @@ struct fops;
 
 typedef struct iops
 {
+    int (*bind)(inode_t *, const char *, inode_t *);
+    int (*mount)(inode_t *, const char *, inode_t *);
     int (*open)(inode_t *, int, ...);
     int (*creat)(inode_t *, dentry_t *, int);
-    int (*find)(inode_t *, dentry_t *, inode_t **);
+    int (*find)(inode_t *, const char *, inode_t **);
     int (*sync)(inode_t *);
     int (*close)(inode_t *);
     int (*ioctl)(inode_t *, int, void *);
     size_t (*read)(inode_t *, off_t, void *, size_t);
     size_t (*write)(inode_t *, off_t, void *, size_t);
     int (*lseek)(inode_t *, off_t, int);
+
+    int (*readdir)(inode_t *, off_t, struct dirent *);
 
 } iops_t;
 
@@ -62,13 +67,18 @@ typedef struct inode
     uid_t i_uid;        /*user(owner) ID*/
     gid_t i_gid;        /*group ID*/
     int i_refs;         /*reference count*/
+    int i_ino;          /*inode number*/
     itype_t i_type;     /*file type*/
+    dentry_t *i_dentry; /*this i-node's directory entry, maybe NULL*/
     spinlock_t *i_lock; /*per-inode lock*/
     cond_t *i_readers;    /*per-inode readers wait condition*/
     cond_t *i_writers;    /*per-inode writers wait condition*/
     void *i_priv;       /*private data*/
+    //iops_t *i_ops;
     struct filesystem *ifs; /*super block on which this inode resides*/
 } inode_t;
+
+#define INODE_ISDIR(ip) ((ip->i_type == FS_DIR))
 
 /*is inode pointing to a device*/
 #define ISDEV(inode) ((inode->i_type == FS_CHRDEV) || (inode->i_type == FS_BLKDEV))
@@ -106,6 +116,8 @@ struct fops
     size_t (*write)(file_t *, void *, size_t);
     int (*stat)(file_t *, struct stat *);
     
+    int (*readdir)(file_t *, struct dirent *);
+
     size_t (*eof)(file_t *);
     size_t (*can_read)(struct file *file, size_t size);
     size_t (*can_write)(struct file *file, size_t size);
@@ -132,13 +144,16 @@ typedef struct filesystem
 {
     char *fname;
     int (*load)();
-    int (*mount)();
+    int (*fsmount)();
+    int (*mount)(const char *, const char *, uintptr_t, const void *);
     int (*unmount)();
     queue_node_t *flist_node;
     struct super_block *fsuper;
 } filesystem_t;
 
+dentry_t *vfs_getroot_dentry(void);
 int vfs_register(struct filesystem *);
+int vfs_lookupfs(const char *, struct filesystem **);
 
 /*each task accesses a file through this file description*/
 typedef struct file
@@ -175,23 +190,37 @@ int f_alloc_table(struct file_table **rft);
         spin_unlock(table->lock); \
     }
 
+int check_fd(int fd);
+int check_fildes(int fd, file_table_t *ft);
+file_t *fileget(struct file_table *table, int fd);
+
 int f_alloc_table(struct file_table **rft);
 
 int vfs_init(void);
 
+int vfs_path_dentry(const char *fn, dentry_t **ref);
 int vfs_mount_root(inode_t *root);
 
-int vfs_bind(dentry_t *parent, dentry_t *child);
+int vfs_bind(dentry_t *parent, const char *name, dentry_t *child);
+int vfs_dentry_bind(dentry_t *parent, dentry_t *child);
+int vfs_dentry_unbind(dentry_t *parent, dentry_t *child);
 
 int vfs_get_mountpoint(char **abs_path, path_t **ref);
 
 int vfs_parse_path(char *path, char *cwd, char **ref);
+int vfs_canonicalize_path(char *fn, char *cwd, char ***ref);
 
 int vfs_mount(const char *dir, const char *name, inode_t *ip);
 
 int vfs_open(const char *fn, uio_t *uio, int mode, inode_t **iref);
 
 int vfs_lookup(const char *fn, uio_t *uio, int mode, inode_t **iref, dentry_t **dref);
+
+int vfs_mountat(const char *__src __unused,
+                const char *__target __unused,
+                const char *__type __unused,
+                uint32_t __mount_flags __unused,
+                const void *__data __unused, inode_t *__inode, uio_t *__uio __unused);
 
 /* inode helpers*/
 
@@ -211,15 +240,19 @@ int irelease(inode_t *);
 
 int iincrement(inode_t *inode);
 
+int ibind(inode_t *dir, const char *name, inode_t *child);
+int imount(inode_t *dir, const char *name, inode_t *child);
 int iclose(inode_t *);
 int iopen(inode_t *, int, ...);
 int iioctl(inode_t *, int, void *);
-int ifind(inode_t *, dentry_t *, inode_t **);
+int ifind(inode_t *dir, const char *name, inode_t **ref);
 size_t iread(inode_t *, off_t, void *, size_t);
 size_t iwrite(inode_t *, off_t, void *, size_t);
 int iperm(inode_t *, uio_t *, int);
 int isleek(inode_t *, off_t, int);
 int istat(inode_t *, struct stat *buf);
+
+int ireaddir(inode_t *, off_t, struct dirent *);
 
 /*** @brief file helpers*/
 
@@ -233,6 +266,7 @@ int fclose(file_t *);
 int fdup(file_t *);
 int fopen(file_t *, int, ...);
 int fread(file_t *, void *, size_t);
+int freaddir(file_t *, struct dirent *);
 int fwrite(file_t *, void *, size_t);
 int ffstat(file_t *, struct stat *);
 off_t flseek(file_t *, off_t, int);

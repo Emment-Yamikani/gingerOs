@@ -146,18 +146,10 @@ int pipefs_pipe(file_t *read, file_t *write)
     iread->i_mask = 0444;
     iread->i_priv = pipe;
     iread->ifs = &pipefs;
-    cond_free(iread->i_readers);
-    iread->i_readers = NULL;
-    cond_free(iread->i_writers);
-    iread->i_writers = NULL;
 
     iwrite->i_mask = 0222;
     iwrite->i_priv = pipe;
     iwrite->ifs = &pipefs;
-    cond_free(iwrite->i_readers);
-    iwrite->i_readers = NULL;
-    cond_free(iwrite->i_writers);
-    iwrite->i_writers = NULL;
 
     pipe->ropen = 1;
     pipe->wopen = 1;
@@ -188,11 +180,13 @@ static int pipefs_close(pipe_t *pipe, int writable)
     {
         //klog(KLOG_OK, "write pipe end\n");
         pipe->wopen = 0;
+        cond_signal(pipe->readers);
     }
     else
     {
         //klog(KLOG_OK, "read pipe end\n");
         pipe->ropen = 0;
+        cond_signal(pipe->writers);
     }
 
     if (!pipe->ropen && !pipe->wopen)
@@ -331,7 +325,7 @@ static int pipe_icreat(inode_t *inode __unused, dentry_t *dentry __unused, int m
     return -EINVAL;
 }
 
-static int pipe_ifind(inode_t *inode __unused, dentry_t *dentry __unused, inode_t **ref __unused)
+static int pipe_ifind(inode_t *inode __unused, const char *name __unused, inode_t **ref __unused)
 {
     return -EINVAL;
 }
@@ -348,12 +342,12 @@ static int pipe_iopen(inode_t *inode __unused, int oflags __unused, ...)
 
 static int pipe_iioctl(inode_t *inode __unused, int req __unused, void *p __unused)
 {
-    return -EINVAL;
+    return -ENOTTY;
 }
 
 static int pipe_ilseek(inode_t *inode __unused, off_t off __unused, int whence __unused)
 {
-    return -EINVAL;
+    return -ESPIPE;
 }
 
 static int pipefs_iclose(inode_t *inode __unused)
@@ -447,5 +441,5 @@ static filesystem_t pipefs = {
     .flist_node = NULL,
     .fsuper = &pipefs_sb,
     .load = pipefs_load,
-    .mount = pipefs_mount,
+    .fsmount = pipefs_mount,
 };

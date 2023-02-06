@@ -74,6 +74,16 @@
 #define SYS_ISATTY          49 //* isatty?
 #define SYS_UNLOCKPT        50 //* unlock a pty pair
 
+/*System configurations*/
+
+#define SYS_SYSCONF         51
+
+/*Directory manipulation*/
+
+#define SYS_READDIR         52
+#define SYS_REWINDDIR       53
+#define SYS_SEEKDIR         54
+
 /*
 #define SYSCALL5(ret, v, arg1, arg2, arg3, arg4, arg5) \
 	asm volatile("int $0x80;":"=a"(ret):"a"(v), "b"(arg1), "c"(arg2), "d"(arg3), "S"(arg4), "D"(arg5));

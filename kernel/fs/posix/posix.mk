@@ -6,6 +6,5 @@ $(posixdir)/write.o\
 $(posixdir)/ioctl.o\
 $(posixdir)/lseek.o\
 $(posixdir)/helpers.o\
-$(posixdir)/fstat.o
-#\
+$(posixdir)/fstat.o\
 $(posixdir)/readdir.o

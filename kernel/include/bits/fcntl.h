@@ -1,5 +1,5 @@
 #ifndef _FCNTL_H
-#define _FCNTL_H
+#define _FCNTL_H 1
 
 #define	O_ACCMODE	(O_RDONLY|O_WRONLY|O_RDWR)
 

@@ -47,6 +47,7 @@ ctype/isupper.o \
 ctype/isxdigit.o \
 ctype/tolower.o \
 ctype/toupper.o \
+dirent/dirent.o \
 stdio/printf.o \
 stdio/gets.o \
 stdio/printk.o \
