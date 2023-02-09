@@ -97,17 +97,24 @@ int open(const char *fn, int oflags, ...)
     if ((err = file_alloc(&file)))
         goto error;
 
+    file_table_lock(table);
+
     if ((err = vfs_lookup(fn, &table->uio, oflags, &inode, &dentry))) //@FIXME: provide process uio_t not 'NULL'
+    {
+        file_table_unlock(table);
         goto error;
+    }
 
     file->f_inode = inode;
     file->f_flags = oflags;
     file->f_dentry = dentry;
 
     if ((err = fopen(file, oflags)))
+    {
+        file_table_unlock(table);
         goto error;
+    }
 
-    file_table_lock(table);
     if ((err = fd = fdalloc(table, file)) < 0)
     {
         file_table_unlock(table);
@@ -117,6 +124,8 @@ int open(const char *fn, int oflags, ...)
 
     return fd;
 error:
+    if (file)
+        file_free(file);
     printk("open(%s): called @ 0x%p, error=%d\n", fn, return_address(0), err);
     return err;
 }

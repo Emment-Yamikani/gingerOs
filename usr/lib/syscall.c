@@ -81,8 +81,8 @@
 /*Directory manipulation*/
 
 #define SYS_READDIR         52
-#define SYS_REWINDDIR       53
-#define SYS_SEEKDIR         54
+#define SYS_CHOWN           53
+#define SYS_FCHOWN          54
 
 /*
 #define SYSCALL5(ret, v, arg1, arg2, arg3, arg4, arg5) \
@@ -121,6 +121,9 @@ extern int sys_dup2(int fd1, int fd2);
 extern int sys_getgid();
 extern int sys_setgid(int gid);
 extern int sys_setuid(int uid);
+extern int sys_chown(const char *, uid_t, gid_t);
+extern int sys_fchown(int, uid_t, gid_t);
+
 extern int sys_ioctl(int fd, long request, void *arg);
 extern int sys_stat(const char *path, struct stat *buf);
 extern int sys_creat(const char *path, int mode);
@@ -375,6 +378,16 @@ pid_t getsid(pid_t pid)
 pid_t setsid(void)
 {
     return sys_setsid();
+}
+
+int chown(const char *pathname, uid_t uid, gid_t gid)
+{
+    return sys_chown(pathname, uid, gid);
+}
+
+int fchown(int fd, uid_t uid, gid_t gid)
+{
+    return sys_fchown(fd, uid, gid);
 }
 
 void (*signal(int sig, void (*handler)(int)))(int)

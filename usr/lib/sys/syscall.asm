@@ -97,8 +97,8 @@
 ;/*Directory manipulation*/
 
 %define SYS_READDIR         52
-%define SYS_REWINDDIR       53
-%define SYS_SEEKDIR         54
+%define SYS_CHOWN           53
+%define SYS_FCHOWN         54
 
 %macro STUB 2
 global sys_%2
@@ -168,5 +168,6 @@ STUB SYS_UNLOCKPT, unlockpt
 
 STUB SYS_SYSCONF, sysconf
 STUB SYS_READDIR, readdir
-STUB SYS_REWINDDIR, rewinddir
-STUB SYS_SEEKDIR, seekdir
+
+STUB SYS_CHOWN, chown
+STUB SYS_FCHOWN, fchown

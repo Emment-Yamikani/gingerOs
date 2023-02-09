@@ -66,11 +66,13 @@ void trap(trapframe_t *tf)
         break;
     case T_PGFAULT: // Pagefault
         pushcli();
-        if ((tf->eip == 0xDEADDEAD) && trapframe_isuser(tf)) {
+        if ( current && (tf->eip == 0xDEADDEAD) && trapframe_isuser(tf)) {
             if ((thread_ishandling_signal(current)))
                 arch_return_signal(tf);
-            else
+            else if (proc && (current == proc->tmain))
                 exit(tf->eax);
+            else
+                thread_exit(tf->eax);
         }
         else
             paging_pagefault(tf);

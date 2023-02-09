@@ -475,8 +475,5 @@ int main(int argc, char *argv[])
     close(font_fd);
     close(fbx_fd);
 
-    char *img[] = {"/font", NULL};
-    execv(img[0], img);
-
     return 0;
 }

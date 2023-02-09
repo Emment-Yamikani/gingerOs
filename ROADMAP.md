@@ -6,7 +6,6 @@
 ### To Add
 #
 * chmod()
-* chown()
 * mmap()
 * unmap()
 * alarm()
@@ -14,7 +13,6 @@
 * rename()
 * openat()
 * rmdir()
-* unmount()
 * fcntl()
 * sync()
 * access()

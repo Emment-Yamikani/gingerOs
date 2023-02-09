@@ -118,7 +118,7 @@ static int ramfs_sync(inode_t *ip __unused)
 
 static int ramfs_ioctl(inode_t *ip __unused, int req __unused, void *argp __unused)
 {
-    return -EINVAL;
+    return -ENOTTY;
 }
 
 static size_t ramfs_read(inode_t *ip, off_t off, void *buf, size_t sz)
@@ -171,6 +171,41 @@ static int ramfs_readdir(inode_t *dir, off_t offset, struct dirent *dirent){
         [INITRD_FILE]= _IFREG,
     }[ramfs_super.inode[offset].type];
 
+    return 0;
+}
+
+static int ramfs_chown(inode_t *ip, uid_t uid, gid_t gid)
+{
+    ramfs_inode_t *inode = NULL;
+    if (ip == NULL)
+        return -EINVAL;
+    
+    ilock(ip);
+
+    inode = ramfs_convert(ip);
+
+    if (inode == NULL){
+        iunlock(ip);
+        return -EINVAL;
+    }
+
+    if (uid != -1)
+    {
+        inode->uid = uid;
+        ip->i_uid = uid;
+        iunlock(ip);
+        return 0;
+    }
+
+    if (gid != -1)
+    {
+        inode->uid = gid;
+        ip->i_gid = gid;
+        iunlock(ip);
+        return 0;
+    }
+
+    iunlock(ip);
     return 0;
 }
 
@@ -256,6 +291,7 @@ static iops_t ramfs_iops ={
     .creat = ramfs_creat,
     .find = ramfs_find,
     .bind = NULL,
+    .chown = ramfs_chown,
     .ioctl = ramfs_ioctl,
     .lseek = ramfs_lseek,
     .open = ramfs_open,

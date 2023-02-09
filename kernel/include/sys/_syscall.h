@@ -85,11 +85,10 @@
 /*Directory manipulation*/
 
 #define SYS_READDIR         52
-#define SYS_REWINDDIR       53
-#define SYS_SEEKDIR         54
-#define SYS_SCANDIR         55
-#define SYS_TELLDIR         56
-#define SYS_CLOSEDIR        57
+
+#define SYS_CHOWN           53
+#define SYS_FCHOWN          54
+
 
 #include <lib/types.h>
 #include <sys/_stat.h>
@@ -127,6 +126,9 @@ extern uid_t sys_getuid(void);
 extern gid_t sys_getgid(void);
 extern int sys_setgid(void);
 extern int sys_setuid(void);
+
+int sys_chown(void);
+int sys_fchown(void);
 
 /*Process management*/
 

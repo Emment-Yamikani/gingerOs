@@ -34,6 +34,9 @@ extern "C"
     extern uid_t getuid();
     extern gid_t setgid(gid_t gid);
     extern uid_t setuid(uid_t uid);
+    extern int chown(const char *, uid_t, gid_t);
+    extern int fchown(int , uid_t, gid_t);
+
     extern int pipe(int *p);
     
     extern int fork();

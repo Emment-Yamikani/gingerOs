@@ -53,8 +53,11 @@ typedef struct iops
     size_t (*read)(inode_t *, off_t, void *, size_t);
     size_t (*write)(inode_t *, off_t, void *, size_t);
     int (*lseek)(inode_t *, off_t, int);
-
+    
     int (*readdir)(inode_t *, off_t, struct dirent *);
+    
+    int (*chown)(inode_t *, uid_t, gid_t); 
+    
 
 } iops_t;
 
@@ -176,7 +179,7 @@ typedef struct file_table
 void f_free_table(struct file_table *ftable);
 int f_alloc_table(struct file_table **rft);
 #define file_table_assert(ft) assert(ft, "no file_table")
-#define file_table_assert_lock(tf) spin_assert_lock(ft->lock)
+#define file_table_assert_lock(ft) {file_table_assert(ft); spin_assert_lock(ft->lock);}
 
 #define file_table_lock(table)    \
     {                             \
@@ -212,9 +215,9 @@ int vfs_canonicalize_path(char *fn, char *cwd, char ***ref);
 
 int vfs_mount(const char *dir, const char *name, inode_t *ip);
 
-int vfs_open(const char *fn, uio_t *uio, int mode, inode_t **iref);
+int vfs_open(const char *fn, uio_t *uio, int oflags, inode_t **iref);
 
-int vfs_lookup(const char *fn, uio_t *uio, int mode, inode_t **iref, dentry_t **dref);
+int vfs_lookup(const char *fn, uio_t *uio, int oflags, inode_t **iref, dentry_t **dref);
 
 int vfs_mountat(const char *__src __unused,
                 const char *__target __unused,
@@ -240,6 +243,7 @@ int irelease(inode_t *);
 
 int iincrement(inode_t *inode);
 
+int ichown(inode_t *ip, uid_t uid, gid_t gid);
 int ibind(inode_t *dir, const char *name, inode_t *child);
 int imount(inode_t *dir, const char *name, inode_t *child);
 int iclose(inode_t *);

@@ -48,6 +48,7 @@ ctype/isxdigit.o \
 ctype/tolower.o \
 ctype/toupper.o \
 dirent/dirent.o \
+math/math.o\
 stdio/printf.o \
 stdio/gets.o \
 stdio/printk.o \
@@ -64,6 +65,9 @@ string/memmove.o \
 string/strncpy.o \
 string/strxfrm.o \
 tinyfont/tinyfont.o \
+glist.o\
+
+#stdio/stdio.o \
 
 HOSTEDOBJS=\
 $(ARCH_HOSTEDOBJS) \
@@ -84,7 +88,7 @@ BINARIES=libc.a
 .PHONY: all clean install install-headers install-libs
 .SUFFIXES: .o .libk.o .c .libc.o .S .asm
 
-all: $(BINARIES) syscall.a install
+all: $(BINARIES) syscall.a install clean
 
 syscall.a: $(SYS_CALLOBJS)
 	$(AR) rcs $@ $(SYS_CALLOBJS)

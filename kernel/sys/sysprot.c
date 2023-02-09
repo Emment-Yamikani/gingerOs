@@ -86,3 +86,63 @@ int setgid(gid_t gid)
     file_table_unlock(table);
     return -EPERM;
 }
+
+int chown(const char *pathname, uid_t uid, gid_t gid)
+{
+    int err = 0;
+    uio_t uio = {0};
+    inode_t *file = NULL;
+    file_table_t *table = NULL;
+
+    if (pathname == NULL)
+        return -EINVAL;
+
+    current_lock();
+    table = current->t_file_table;
+    current_unlock();
+
+    file_table_lock(table);
+    uio = table->uio;
+
+    if ((err = vfs_open(pathname, &uio, O_RDWR, &file)))
+    {
+        file_table_unlock(table);
+        goto error;
+    }
+    
+    file_table_unlock(table);
+
+    if ((err = ichown(file, uid, gid)))
+        goto error;
+
+    return 0;
+error:
+    klog(KLOG_FAIL, "failed to change \'%s\' owner, error: %d\n", pathname, err);
+    return err;
+}
+
+int fchown(int fd, uid_t uid, gid_t gid)
+{
+    size_t retval = 0;
+    file_t *file = NULL;
+    inode_t *inode = NULL;
+    struct file_table *table = current->t_file_table;
+    
+    file_table_lock(table);
+    if ((retval = check_fildes(fd, table)))
+    {
+        file_table_unlock(table);
+        return retval;
+    }
+
+    if (!(file = fileget(table, fd)))
+    {
+        file_table_unlock(table);
+        return -EBADFD;
+    }
+    file_table_unlock(table);
+
+    inode = file->f_inode;
+    //TODO: deligate this operation to filesystem
+    return ichown(inode, uid, gid);
+}

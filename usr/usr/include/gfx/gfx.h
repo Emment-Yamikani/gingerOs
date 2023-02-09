@@ -1,3 +1,4 @@
+
 #ifndef GFX_GFX_H
 #define GFX_GFX_H 1
 #include <video/color_code.h>
@@ -33,61 +34,5 @@
 
 #define PICK_PIXEL(l) (*l)
 
-/* graphx rendering thread for the kernel */
-void *gfx_thread(void *);
-
-void putpixel(uint8_t *buff, double x, double y, int pixel);
-void drawline(uint8_t *buff, int x1, int y1, int x2, int y2, int color);
-void drawLine(uint8_t *buff, double x0, double y0, double x1, double y1, int color);
-void drawcursor(uint8_t *buff, uint8_t *data, double xpos, double ypos, int xsz, int ysz, int color);
-
-typedef struct
-{
-    int opacity;
-    int cols, rows;
-    uint8_t *backbuff;
-    uint8_t *textbuff;
-} gctx_t;
-
-typedef struct _gfx_ctx_
-{
-    int bpp; // bytes per pixel
-    uint32_t *buffer;
-    int width, height;
-} gfx_ctx_t;
-
-typedef struct _window_
-{
-    int x, y;
-    int width, height;
-    void *node;
-    int bg_color;
-    int id;
-    gfx_ctx_t *ctx;
-} window_t;
-
-typedef struct _desktop_
-{
-    gfx_ctx_t *ctx; // context canvas
-    int mouse_x, mouse_y;
-    int last_button_state;
-    int nwindows;
-    window_t *dragged_child;
-    int drag_off_x, drag_off_y;
-} desktop_t;
-
-desktop_t *desktop_new(gfx_ctx_t *ctx);
-void desktop_paint(desktop_t *desktop);
-
-void desktop_mouse_event(desktop_t *desktop, int x, int y, int button);
-void desktop_create_window(desktop_t *desktop, int x, int y, int width, int height);
-void desktop_process_mouse(desktop_t *desktop, int mouse_x, int mouse_y, int button);
-
-void window_putpixel(window_t *window, int x, int y, int color);
-void window_drawline(window_t *window, double x0, double y0, double x1, double y1, int color);
-window_t *window_new(int x, int y, int width, int height, gfx_ctx_t *ctx);
-void window_paint(window_t *);
-
-void ctx_fillrect(gfx_ctx_t *, int x, int y, int wifth, int height, int color);
 
 #endif // GFX_GFX_H

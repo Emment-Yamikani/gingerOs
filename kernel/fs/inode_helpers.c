@@ -289,3 +289,16 @@ int istat(inode_t *ip, struct stat *buf)
     iunlock(ip);
     return 0;
 }
+
+int ichown(inode_t *ip, uid_t uid, gid_t gid)
+{
+    if (ip == NULL)
+        return -EINVAL;
+
+    CHK_IPTR(ip);
+
+    if (!ip->ifs->fsuper->iops->chown)
+        return -ENOSYS;
+
+    return ip->ifs->fsuper->iops->chown(ip, uid, gid);
+}

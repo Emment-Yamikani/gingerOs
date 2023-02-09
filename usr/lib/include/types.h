@@ -10,5 +10,6 @@ typedef int tid_t;
 typedef int pid_t;
 typedef int gid_t;
 typedef int uid_t;
+typedef long ssize_t;
 
 #endif // TYPES_H

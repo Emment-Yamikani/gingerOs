@@ -3,6 +3,7 @@
 #include <sys/kthread.h>
 #include <locks/cond.h>
 #include <fs/sysfile.h>
+#include <dev/fb.h>
 #include <sys/fcntl.h>
 #include <lib/string.h>
 #include <mm/kalloc.h>

@@ -61,6 +61,8 @@ static uintptr_t (*syscall[])(void) = {
     [SYS_SETUID](void *) sys_setuid,
     [SYS_GETGID](void *) sys_getgid,
     [SYS_SETGID](void *) sys_setgid,
+    [SYS_CHOWN] (void *) sys_chown,
+    [SYS_FCHOWN] (void *) sys_fchown,
     
     /*Process relationships*/
 
@@ -469,6 +471,28 @@ int sys_setuid(void)
     uid_t uid = 0;
     assert(!argint(0, &uid), "err fetching uid");
     return setuid(uid);
+}
+
+int sys_chown(void)
+{
+    char *pathname = NULL;
+    uid_t uid = 0;
+    gid_t gid = 0;
+    assert(argstr(0, &pathname) > 0, "err fetching pathname");
+    assert(!argint(1, &uid), "err fetching uid");
+    assert(!argint(2, &gid), "err fetching gid");
+    return chown(pathname, uid, gid);
+}
+
+int sys_fchown(void)
+{
+    int fd = 0;
+    uid_t uid = 0;
+    gid_t gid = 0;
+    assert(!argint(0, &fd), "err fetching fd");
+    assert(!argint(1, &uid), "err fetching uid");
+    assert(!argint(2, &gid), "err fetching gid");
+    return fchown(fd, uid, gid);
 }
 
 /*Process relationships*/
