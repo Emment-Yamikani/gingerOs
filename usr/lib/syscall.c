@@ -101,16 +101,20 @@
 
 #include <sys/stat.h>
 #include <types.h>
+#include <stdint.h>
+#include <stddef.h>
 
-extern int sys_getpid(void);
-extern int sys_getppid(void);
 extern int sys_kputc(int c);
-extern int sys_open(const char *path, int mode, ...);
-extern int sys_read(int fd, void *__buf, unsigned int size);
-extern int sys_getuid();
+
+extern void *sys_mmap(void *addr, size_t length, int prot, int flags,
+           int fd, off_t offset);
+extern int sys_munmap(void *addr, size_t length);
 extern int sys_brk(void *addr);
 extern void *sys_sbrk(int nbytes);
 extern int sys_getpagesize(void);
+
+extern int sys_open(const char *path, int mode, ...);
+extern int sys_read(int fd, void *__buf, unsigned int size);
 extern int sys_lseek(int fd, long off, int whence);
 extern int sys_write(int fd, void *buf, unsigned int size);
 extern int sys_close(int fd);
@@ -118,37 +122,47 @@ extern char *sys_getcwd(char *__buf, long __size);
 extern int sys_chdir(char *dir);
 extern int sys_dup(int fd);
 extern int sys_dup2(int fd1, int fd2);
+extern int sys_ioctl(int fd, long request, void *arg);
+extern int sys_fstat(int fd, struct stat*buf);
+extern int sys_pipe(int *p);
+extern int sys_stat(const char *path, struct stat *buf);
+extern int sys_creat(const char *path, int mode);
+
+extern int sys_getuid();
 extern int sys_getgid();
 extern int sys_setgid(int gid);
 extern int sys_setuid(int uid);
 extern int sys_chown(const char *, uid_t, gid_t);
 extern int sys_fchown(int, uid_t, gid_t);
 
-extern int sys_ioctl(int fd, long request, void *arg);
-extern int sys_stat(const char *path, struct stat *buf);
-extern int sys_creat(const char *path, int mode);
+
+extern int sys_getpid(void);
+extern int sys_getppid(void);
 extern int sys_execve(char *path, char *const argp[], char *const envp[]);
 extern int sys_execv(char *path, char **argp);
 extern int sys_fork();
-extern void sys_thread_yield(void);
 extern void sys_exit(int status);
 extern int sys_wait(int *stat_loc);
-extern int sys_fstat(int fd, struct stat*buf);
 extern long sys_sleep(long ms);
-extern int sys_pipe(int *p);
+
+
 extern int sys_thread_create(tid_t *tid, void *(*func)(void *), void *arg);
+extern void sys_thread_yield(void);
 extern int sys_thread_self(void);
 extern int sys_thread_join(tid_t __tid, void *__res);
 extern void sys_thread_exit(void *_exit);
+
 extern pid_t sys_getpgrp(void);
 extern pid_t sys_getpgid(pid_t pid);
 extern pid_t sys_setpgrp(void);
 extern int sys_setpgid(pid_t pid, pid_t pgid);
 extern pid_t sys_getsid(pid_t pid);
 extern pid_t sys_setsid(void);
+
 extern void (*sys_signal(int sig, void (*handler)(int)))(int);
 extern int sys_kill(pid_t pid, int sig);
 extern int sys_pause(void);
+
 extern int sys_openpt(int flags);
 extern int sys_grantpt(int fd);
 extern int sys_ptsname_r(int fd, char *buf, long buflen);
@@ -156,10 +170,6 @@ extern char *sys_ptsname(int fd);
 extern int sys_isatty(int fd);
 extern int sys_unlockpt(int fd);
 
-extern void *sys_mmap(void *addr, size_t length, int prot, int flags,
-           int fd, off_t offset);
-
-extern int sys_munmap(void *addr, size_t length);
 
 int getpid(void)
 {

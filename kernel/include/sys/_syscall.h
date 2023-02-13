@@ -49,7 +49,7 @@
 #define SYS_SBRK	        28 //* sbrk
 #define SYS_BRK             29
 #define SYS_GETPAGESIZE     30 //* get kernel page size (currently not dynamic)
-#define SYS_MMAN            31
+#define SYS_MMAP            31
 
 /* Signals */
 
@@ -80,7 +80,7 @@
 
 /*System configurations*/
 
-#define SYS_SYSCONF         51
+#define SYS_MUNMAP         51
 
 /*Directory manipulation*/
 
@@ -119,6 +119,8 @@ extern int sys_creat(void);
 extern int sys_getpagesize(void);
 extern int sys_brk(void);
 extern void *sys_sbrk(void);
+extern void *sys_mmap(void);
+extern int sys_munmap(void);
 
 /*Protection*/
 

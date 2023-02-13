@@ -53,7 +53,7 @@
 %define SYS_SBRK	        28 ;sbrk
 %define SYS_BRK             29
 %define SYS_GETPAGESIZE     30 ;get kernel page size (currently not dynamic)
-%define SYS_MMAN            31
+%define SYS_MMAP            31
 
 ;-------------------------------------------------------------------
 ;---------------------------Signals---------------------------------
@@ -92,13 +92,13 @@
 
 ;/*System configurations*/
 
-%define SYS_SYSCONF         51
+%define SYS_MUNMAP          51
 
 ;/*Directory manipulation*/
 
 %define SYS_READDIR         52
 %define SYS_CHOWN           53
-%define SYS_FCHOWN         54
+%define SYS_FCHOWN          54
 
 %macro STUB 2
 global sys_%2
@@ -140,7 +140,8 @@ STUB SYS_IOCTL, ioctl
 
 STUB SYS_SBRK, sbrk
 STUB SYS_GETPAGESIZE, getpagesize
-STUB SYS_MMAN, mman
+STUB SYS_MMAP, mmap
+STUB SYS_MUNMAP, munmap
 STUB SYS_BRK, brk
 
 STUB SYS_KILL, kill
@@ -166,7 +167,6 @@ STUB SYS_PTSNAME_R, ptsname_r
 STUB SYS_ISATTY, isatty
 STUB SYS_UNLOCKPT, unlockpt
 
-STUB SYS_SYSCONF, sysconf
 STUB SYS_READDIR, readdir
 
 STUB SYS_CHOWN, chown

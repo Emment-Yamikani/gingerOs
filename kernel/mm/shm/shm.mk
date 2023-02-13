@@ -1,4 +1,4 @@
 shmobjs=\
-$(shmdir)/mmap.o\
+$(shmdir)/mman.o\
 $(shmdir)/shm.o\
 $(shmdir)/vmr.o

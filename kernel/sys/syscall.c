@@ -41,11 +41,13 @@ static uintptr_t (*syscall[])(void) = {
     [SYS_WAIT](void *) sys_wait,
     [SYS_EXECVE](void *) sys_execve,
     [SYS_EXECV](void *) sys_execv,
-    [SYS_SBRK](void *) sys_sbrk,
 
     /*Memory Management*/
 
+    [SYS_SBRK](void *) sys_sbrk,
     [SYS_GETPAGESIZE](void *) sys_getpagesize,
+    [SYS_MMAP] (void *)sys_mmap,
+    [SYS_MUNMAP] (void *)sys_munmap,
 
     /*Thread management*/
 
@@ -115,6 +117,8 @@ int chk_addr(uintptr_t addr)
 {
     current_assert();
     shm_assert_lock(current->mmap);
+    if (addr == 0)
+        return 0;
     if (shm_lookup(current->mmap, addr) == NULL)
         return -EADDRNOTAVAIL;
     return 0;
@@ -394,6 +398,10 @@ int sys_execv(void)
     return execv(path, argv);
 }
 
+
+/*Memery management*/
+#include <sys/mman/mman.h>
+
 void *sys_sbrk(void)
 {
     ptrdiff_t incr = 0;
@@ -401,11 +409,35 @@ void *sys_sbrk(void)
     return sbrk(incr);
 }
 
-/*Memery management*/
-
 int sys_getpagesize(void)
 {
     return getpagesize();
+}
+
+void *sys_mmap(void)
+{
+    uintptr_t addr = 0;
+    size_t length = 0;
+    int prot = 0;
+    int flags = 0;
+    int fd = 0;
+    off_t offset = 0;
+    assert(!argint(0, (int *)&addr), "err fetching addr");
+    assert(!argint(1, (int *)&length), "err fetching length");
+    assert(!argint(2, (int *)&prot), "err fetching prot");
+    assert(!argint(3, (int *)&flags), "err fetching flags");
+    assert(!argint(4, (int *)&fd), "err fetching fd");
+    assert(!argint(5, (int *)&offset), "err fetching offset");
+    return mmap((void *)addr, length, prot, flags, fd, offset);
+}
+
+int sys_munmap(void)
+{
+    uintptr_t addr = 0;
+    size_t length = 0;
+    assert(!argint(0, (int *)&addr), "err fetching addr");
+    assert(!argint(1, (int *)&length), "err fetching length");
+    return munmap((void *)addr, length);
 }
 
 /*Thread Management*/

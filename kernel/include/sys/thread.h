@@ -108,8 +108,8 @@ typedef struct thread
 #define thread_iskilled(t) (atomic_read(&t->t_killed))
 
 #define current_assert() assert(current, "no current thread");
-#define current_lock() thread_lock(current)
-#define current_unlock() thread_unlock(current)
+#define current_lock() thread_lock(current);
+#define current_unlock() thread_unlock(current);
 #define current_assert_lock() assert(spin_holding(current->t_lock), "current not locked")
 
 void thread_free(thread_t *);
