@@ -4,5 +4,12 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"files.associations": {
+			"*.h": "c",
+			"*.asm": "asm-intel-x86-generic",
+			"compare": "c",
+			"random": "c"
+		}
+	}
 }

@@ -12,6 +12,7 @@
 #include <sys/sleep.h>
 #include <sys/proc.h>
 #include <fs/fs.h>
+#include <lime/jiffies.h>
 
 void *kthread_main(void *arg)
 {
@@ -20,6 +21,7 @@ void *kthread_main(void *arg)
 
     proc_init("/init");
 
+    while(1);
     klog(KLOG_OK, "kthread_main done executing\n");
     return NULL;
 }

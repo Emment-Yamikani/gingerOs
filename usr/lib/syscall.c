@@ -45,7 +45,7 @@
 #define SYS_SBRK	        28 //* sbrk
 #define SYS_BRK             29
 #define SYS_GETPAGESIZE     30 //* get kernel page size (currently not dynamic)
-#define SYS_MMAN            31
+#define SYS_MMAP            31
 
 /* Signals */
 
@@ -76,7 +76,7 @@
 
 /*System configurations*/
 
-#define SYS_SYSCONF         51
+#define SYS_MUNMAP         51
 
 /*Directory manipulation*/
 
@@ -155,6 +155,11 @@ extern int sys_ptsname_r(int fd, char *buf, long buflen);
 extern char *sys_ptsname(int fd);
 extern int sys_isatty(int fd);
 extern int sys_unlockpt(int fd);
+
+extern void *sys_mmap(void *addr, size_t length, int prot, int flags,
+           int fd, off_t offset);
+
+extern int sys_munmap(void *addr, size_t length);
 
 int getpid(void)
 {
@@ -449,4 +454,15 @@ int isatty(int fd)
 int unlockpt(int fd)
 {
     return sys_unlockpt(fd);
+}
+
+void *mmap(void *addr, size_t length, int prot, int flags,
+           int fd, off_t offset)
+{
+    return sys_mmap(addr, length, prot, flags, fd, offset);
+}
+
+int munmap(void *addr, size_t length)
+{
+    return sys_munmap(addr, length);
 }

@@ -1,0 +1,2 @@
+hpetobjs=\
+$(hpetdir)/hpet.o

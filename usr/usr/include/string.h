@@ -14,6 +14,7 @@ extern "C"
     extern int atoi(const char * s);
 
     extern void *memcpy(void *restrict dstptr, const void *restrict srcptr, size_t size);
+    extern void *memcpy32(void *restrict dstptr, const void *restrict srcptr, size_t n);
     extern void *memset(void *bufptr, int value, size_t size);
     extern int memcmp(const void * vl, const void * vr, size_t n);
     extern void * memchr(const void * src, int c, size_t n);

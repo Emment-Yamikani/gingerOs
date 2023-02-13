@@ -18,6 +18,7 @@
 #include <locks/spinlock.h>
 #include <sys/proc.h>
 #include <sys/sysproc.h>
+#include <dev/hpet.h>
 
 void rtc_intr(void);
 void kbd_intr(void);
@@ -54,6 +55,10 @@ void trap(trapframe_t *tf)
         break;
     case T_KBD0: // PS/2 keyboard
         kbd_intr();
+        lapic_eoi();
+        break;
+    case T_HPET:
+        hpet_intr();
         lapic_eoi();
         break;
     case T_RTC_TIMER: // Real Time Clock

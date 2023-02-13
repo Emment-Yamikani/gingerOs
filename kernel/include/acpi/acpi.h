@@ -52,7 +52,12 @@ int acpi_parse_madt(acpiMADT_t *madt);
 acpiMADT_t *acpi_find_madt(rsdp20_t *rsdp, int revno);
 int acpi_validate_table(char *addr, int size);
 acpiSDT_t *acpi_parse_rsdt(acpiSDT_t *rsdt, char *sign);
-acpiMADT_t *acpi_parse_xsdt(acpiSDT_t *xsdt, char *sign);
+acpiSDT_t *acpi_parse_xsdt(acpiSDT_t *xsdt, char *sign);
+
+int acpi_enumarate(const char *signature, acpiSDT_t **ref);
+
+extern int acpi_version;
+extern void *ACPI_RSDP_addr;
 
 
 #endif //ACPI_H

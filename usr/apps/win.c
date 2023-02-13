@@ -99,15 +99,22 @@ int main(int argc, const char *argv[])
     getcwd(cwd, sizeof cwd);
     chdir("/dev");
 
-    open("kbd0", O_RDONLY);
-    open("uart", O_WRONLY);
-    open("uart", O_WRONLY);
-    fb = open("fbdev", O_RDWR);
-    mouse = open("event0", O_RDONLY);
+    if (open("kbd0", O_RDONLY) < 0)
+        return -1;
+    if (open("uart", O_WRONLY) < 0)
+        return -1;
+    if (open("uart", O_WRONLY) < 0)
+        return -1;
+    if ((fb = open("fbdev", O_RDWR)) < 0)
+        return -1;
+    if ((mouse = open("event0", O_RDONLY)) < 0)
+        return -1;
     chdir(cwd);
 
-    ioctl(fb, FBIOGET_FIX_INFO, &fixinfo);
-    ioctl(fb, FBIOGET_VAR_INFO, &varinfo);
+    if (ioctl(fb, FBIOGET_FIX_INFO, &fixinfo) < 0)
+        return -2;
+    if (ioctl(fb, FBIOGET_VAR_INFO, &varinfo) < 0)
+        return -2;
 
     printf("Window manager.\n");
 

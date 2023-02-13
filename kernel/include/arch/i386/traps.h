@@ -4,9 +4,9 @@
 #define IRQ_OFFSET 32
 #define IRQ_TIMER   0
 #define IRQ_KBD     1
+#define IRQ_HPET    2
 #define IRQ_MOUSE   12
 #define IRQ_ERROR   19
-#define IRQ_HPET    20
 #define IRQ_RTC     8
 #define IRQ_SPURIOUS 31
 #define IRQ_TLB_SHOOT 40

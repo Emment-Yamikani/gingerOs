@@ -4,11 +4,13 @@
 #include <acpi/acpi.h>
 #include <arch/i386/paging.h>
 
+int acpi_version = 0;
+void *ACPI_RSDP_addr = NULL;
 // #include <printk.h>
 
 int acpi_validate_table(char *addr, int size)
 {
-    int sum = 0;
+    uint8_t sum = 0;
     while (size--)
         sum += *addr++;
     return sum == 0;
@@ -17,12 +19,15 @@ int acpi_validate_table(char *addr, int size)
 void *acpi_findrsdp(void)
 {
     char *rsdp;
+    if (ACPI_RSDP_addr)
+        return ACPI_RSDP_addr;
+
     for (rsdp = (char *)EBDA; rsdp < (char *)(EBDA + 1024); rsdp +=4)
         if (!strncmp(rsdp, "RSD PTR ", 8))
-            return (void *)rsdp;
+            return (void *)(ACPI_RSDP_addr = rsdp);
     for (rsdp = (char *)BIOSROM; rsdp < (char *)(BIOSROM + 0xfffff); rsdp +=4)
         if (!strncmp(rsdp, "RSD PTR ", 8))
-            return (void *)rsdp;
+            return (void *)(ACPI_RSDP_addr = rsdp);
     return 0;
 }
 
@@ -39,7 +44,7 @@ acpiSDT_t *acpi_parse_rsdt(acpiSDT_t *rsdt, char *sign)
     return 0;
 }
 
-acpiMADT_t *acpi_parse_xsdt(acpiSDT_t *xsdt, char *sign)
+acpiSDT_t *acpi_parse_xsdt(acpiSDT_t *xsdt, char *sign)
 {
     uint64_t *entry = (uint64_t *)(((char *)xsdt) + sizeof(*xsdt));
     long entries = (xsdt->length - sizeof(*xsdt)) / 8;
@@ -47,7 +52,7 @@ acpiMADT_t *acpi_parse_xsdt(acpiSDT_t *xsdt, char *sign)
     {
         acpiSDT_t *sdt = (acpiSDT_t *)((uint32_t)entry[i]);
         if (!strncmp(sdt->signature, sign, 4))
-            return (acpiMADT_t *)sdt;
+            return (acpiSDT_t *)sdt;
     }
     return 0;
 }
@@ -117,4 +122,23 @@ int acpi_mp(void)
     if (!madt)
         return 0;
     return acpi_parse_madt(madt);
+}
+
+int acpi_enumarate(const char *signature, acpiSDT_t **ref)
+{
+    acpiSDT_t *ACPI_HDR = NULL;
+    rsdp20_t *rsdp = (rsdp20_t *)acpi_findrsdp();
+    if (ref == NULL)
+        return -22;
+    if (rsdp == NULL)
+        return -2;
+    int size = (rsdp->rsdp.revno < 2) ? sizeof (rsdp_t) : rsdp->length;
+    acpi_validate_table((char *)rsdp, size);
+    ACPI_HDR = (acpiSDT_t *)((rsdp->rsdp.revno < 2)
+                ? acpi_parse_rsdt((acpiSDT_t *)rsdp->rsdp.rsdtaddr, (char *)signature)
+                : acpi_parse_xsdt((acpiSDT_t *)(uintptr_t)rsdp->xsdtaddr, (char *)signature));
+    if (ACPI_HDR == NULL)
+        return -2;    
+    *ref = ACPI_HDR;
+    return 0;
 }
