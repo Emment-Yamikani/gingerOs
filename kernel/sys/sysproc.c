@@ -130,6 +130,8 @@ void *sbrk(ptrdiff_t incr)
     size_t heap_max = 0xC000000;
     int decrease = incr < 0 ? 1 : 0;
 
+    printk("[%d:%d:%d]: sbrk(%d)\n", thread_self(), getpid(), getppid(), incr);
+
     if (current == NULL)
         return NULL;
 
@@ -143,6 +145,9 @@ void *sbrk(ptrdiff_t incr)
     mmap_lock(mmap);
     if (mmap->heap == NULL) {
         try:
+        if (incr < 0)
+            goto error;
+
         if ((ptrdiff_t)heap_max < incr)
             goto error;
         if ((err = mmap_alloc_vmr(mmap, heap_max, PROT_RW, MAP_PRIVATE, &heap)) == -ENOMEM) {
@@ -150,7 +155,8 @@ void *sbrk(ptrdiff_t incr)
             goto try;
         } else if (err == 0) {
             mmap->heap = heap;
-            brk = (mmap->brk = heap->start);
+            brk = heap->start;
+            mmap->brk = brk + incr;
             goto done;
         }
         else
@@ -163,22 +169,25 @@ void *sbrk(ptrdiff_t incr)
 
     if (decrease) {
         new_brk -= incr;
-        if (new_brk < heap->start)
-            goto error;
+        if (new_brk < heap->start) {
+            mmap_remove(mmap, mmap->heap);
+            mmap->heap = NULL;
+            mmap->brk = 0;
+            goto done;
+        }
         uintptr_t page = PGROUNDUP(new_brk);
-        size_t size = brk - page;
-        int np = size / PAGESZ + PGOFFSET(size);
+        int np = NPAGE(brk - page);
         while (np--)
         {
-            paging_unmap(page);
+            if (paging_getmapping(page))
+                paging_unmap(page);
             page += PAGESZ;
         }
     } else {
         new_brk += incr;
-        incr = new_brk - heap->end;
         if (new_brk >= __vmr_upper_bound(heap)) {
-            if ((err = mmap_vmr_expand(mmap, heap, incr)))
-                goto error;
+            if ((err = mmap_vmr_expand(mmap, heap, (new_brk - heap->end))))
+            goto error;
         }
     }
 

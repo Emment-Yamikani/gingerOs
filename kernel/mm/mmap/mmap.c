@@ -1082,8 +1082,8 @@ int mmap_copy(mmap_t *dst, mmap_t *src)
     dst->refs = 0;
     dst->priv = NULL;
     dst->used_space = 0;
-    dst->heap = dst->env = NULL;
     dst->vmr_head = dst->vmr_tail = NULL;
+    dst->heap = dst->arg = dst->env = NULL;
 
     forlinked(tmp, src->vmr_head, tmp->next)
     {
@@ -1097,10 +1097,9 @@ int mmap_copy(mmap_t *dst, mmap_t *src)
         vmr = NULL;
     }
 
-    if (src->heap)
-        dst->heap = mmap_find(dst, src->heap->start);
-    if (src->env)
-        dst->env = mmap_find(dst, src->env->start);
+    dst->arg = src->arg ? mmap_find(dst, src->arg->start) : NULL;
+    dst->env = src->env ? mmap_find(dst, src->env->start) : NULL;
+    dst->heap = src->heap ? mmap_find(dst, src->heap->start) : NULL;
 
     if ((err = paging_lazycopy(dst->pgdir, src->pgdir)))
         return err;

@@ -53,7 +53,7 @@
 
 #define TYPE(x) typedef struct x
 
-#define NPAGE(len) ((size_t)((len / PAGESZ) + (PGOFFSET(len) ? 1 : 0)))
+#define NPAGE(len) ((size_t)(((len) / PAGESZ) + (PGOFFSET(len) ? 1 : 0)))
 
 #ifndef NELEM
 #define NELEM(x) ((int)(sizeof(x) / sizeof(x[0])))

@@ -6,8 +6,6 @@
 ### To Add
 #
 * chmod()
-* mmap()
-* unmap()
 * alarm()
 * mknod()
 * rename()
@@ -23,7 +21,6 @@
 * utime()
 * times()
 * ptrace()
-* waitpid()
 * wait4()
 * mkdir()
 * sysconf()
