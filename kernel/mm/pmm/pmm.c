@@ -29,21 +29,21 @@ struct
 long frames_incr(int frame)
 {
     assert((frame < MAXFRAMES) && (frame >=0), "frame out of bounds");
-    assert(!spin_try_lock(frameslk), "caller must hold frameslk");
+    assert(!spin_trylock(frameslk), "caller must hold frameslk");
     return frames[frame].refs++;
 }
 
 long frames_decr(int frame)
 {
     assert((frame < MAXFRAMES) && (frame >= 0), "frame out of bounds");
-    assert(!spin_try_lock(frameslk), "caller must hold frameslk");
+    assert(!spin_trylock(frameslk), "caller must hold frameslk");
     return frames[frame].refs--;
 }
 
 long frames_get_refs(int frame)
 {
     assert((frame < MAXFRAMES) && (frame >= 0), "frame out of bounds");
-    assert(!spin_try_lock(frameslk), "caller must hold frameslk");
+    assert(!spin_trylock(frameslk), "caller must hold frameslk");
     return frames[frame].refs;
 }
 
@@ -54,7 +54,7 @@ int pmm_init(void)
     uintptr_t addr = 0;
 
     bitmap_init(bitmap, -1);
-    bitmap->size = (bootinfo.pmemsize / 32);
+    //bitmap->size = (bootinfo.pmemsize / 32);
     memsetd(frames, 1, (sizeof frames) / 4);
 
     for (int i = 0; i < bootinfo.mmap_count; ++i)

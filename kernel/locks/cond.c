@@ -72,8 +72,8 @@ int cond_wait(cond_t *cond)
 {
     int retval = 0;
     assert(cond, "no condition-variable");
-
     current_assert();
+
     spin_lock(cond->guard);
     if ((int)atomic_incr(&cond->count) >= 0)
     {

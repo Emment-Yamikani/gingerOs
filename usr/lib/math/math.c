@@ -11,7 +11,12 @@ extern char * _argv_0;
 #endif
 
 double exp(double x) {
-	return pow(2.71828182846, x);
+	return __builtin_powi(2.71828182846, x);
+}
+
+double sqrt(double x)
+{
+	return __builtin_sqrt(x);
 }
 
 int abs(int j) {

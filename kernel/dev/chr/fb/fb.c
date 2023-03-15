@@ -9,6 +9,7 @@
 #include <fs/devfs.h>
 #include <arch/boot/boot.h>
 #include <arch/i386/paging.h>
+#include <mm/pmm.h>
 
 static struct dev fbdev;
 fb_fixinfo_t fix_info;
@@ -31,6 +32,12 @@ int fbdev_probe()
         return err;
 
     fblen = bootinfo.framebuffer.framebuffer_pitch * bootinfo.framebuffer.framebuffer_height;
+
+    frames_lock();
+    int frame = bootinfo.framebuffer.framebuffer_addr / PAGESZ;
+    for (int npages = NPAGE(fblen); npages-- ; ++frame)
+        frames_incr(frame);
+    frames_unlock();
 
     if ((err = paging_identity_map(bootinfo.framebuffer.framebuffer_addr,
                                    bootinfo.framebuffer.framebuffer_addr, GET_BOUNDARY_SIZE(0, fblen), VM_KRW | VM_PCD)))
@@ -102,7 +109,7 @@ int fbdev_open(struct devid *dd __unused, int mode __unused, ...)
 
 int fbdev_close(struct devid *dd __unused)
 {
-    return -EINVAL;
+    return 0;
 }
 
 int fbdev_ioctl(struct devid *dd, int req, void *argp)
@@ -169,6 +176,61 @@ size_t fbdev_write(struct devid *dd, off_t offset, void *buf, size_t sz)
     return size;
 }
 
+int fbdev_mmap(file_t *file, vmr_t *region)
+{
+    int err = 0;
+    off_t off = 0;
+    size_t len = 0;
+    int npages = 0;
+    uintptr_t addr = 0;
+    uintptr_t to_addr = 0;
+    inode_t *inode = NULL;
+    struct devid *dd = NULL;
+
+    inode = file->f_inode;
+    
+    dd = _INODE_DEV(inode);
+
+    if (dd->dev_minor >= NFBDEV)
+        return -EINVAL;
+
+    framebuffer_t *fb = &framebuffer[dd->dev_minor];
+
+    if (__vmr_exec(region))
+        return -EINVAL;
+
+    if (!__vmr_read(region) && !__vmr_write(region))
+        return -EINVAL;
+
+    if (!__vmr_dontexpand(region))
+        region->flags |= VM_DONTEXPAND;
+
+    off = region->file_pos;
+    addr = PGROUND(region->start);
+    to_addr = PGROUND(fb->fixinfo->addr + off);
+    len = MIN(MIN(region->filesz, __vmr_size(region)), fb->fixinfo->memsz - off);
+    region->filesz = len;
+    len = GET_BOUNDARY_SIZE(0, region->filesz);
+
+    frames_lock();
+    int frame = to_addr / PAGESZ;
+    for (npages = NPAGE(len) + frame; frame < npages; )
+        frames_incr(frame++);
+    frames_unlock();
+
+    if ((err = paging_identity_map(to_addr, addr, len, region->vflags)))
+    {
+        frames_lock();
+        int frame = to_addr / PAGESZ;
+        for (npages = NPAGE(len) + frame; frame < npages;)
+            frames_decr(frame++);
+        frames_unlock();
+        return err;
+    }
+
+    return 0;
+}
+
 int fbdev_init(void)
 {
     if (bootinfo.framebuffer.framebuffer_type == 1)
@@ -200,6 +262,7 @@ static struct dev fbdev = {
         .sync = NULL,
         .stat = posix_file_ffstat,
         .write = posix_file_write,
+        .mmap = fbdev_mmap,
 
         .can_read = (size_t(*)(struct file *, size_t))__always,
         .can_write = (size_t(*)(struct file *, size_t))__always,

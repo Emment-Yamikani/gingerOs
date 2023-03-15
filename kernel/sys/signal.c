@@ -386,6 +386,7 @@ int kill(pid_t pid, int sig)
     {
         if (pid == getpid())
         {
+            proc_lock(proc);
             process = proc;
         }
         else if ((err = proc_get(pid, &process)))

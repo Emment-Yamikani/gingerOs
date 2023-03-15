@@ -1,6 +1,7 @@
 posixobjs=\
 $(posixdir)/open.o\
 $(posixdir)/close.o\
+$(posixdir)/mmap.o\
 $(posixdir)/read.o\
 $(posixdir)/write.o\
 $(posixdir)/ioctl.o\

@@ -54,19 +54,18 @@ typedef union viraddr
 } __packed viraddr_t;
 
 #define VM_P    _BS(0)
+#define VM_R    _BS(0)
+#define VM_X    _BS(0)
 #define VM_W    _BS(1)
 #define VM_U    _BS(2)
 #define VM_PWT  _BS(3)
 #define VM_PCD  _BS(4)
 
-#define VM_UX      0x0020  /* User eXecute */
-#define VM_FILE    0x0080  /* File backed */
-#define VM_ZERO    0x0100  /* Zero fill */
 #define VM_KR   VM_P
-#define VM_KRW  VM_W | VM_P
-#define VM_UR   VM_U | VM_P
-#define VM_UW   VM_U | VM_W
-#define VM_URW  VM_U | VM_W | VM_P
+#define VM_KRW  (VM_W | VM_P)
+#define VM_UR   (VM_U | VM_P)
+#define VM_UW   (VM_U | VM_W)
+#define VM_URW  (VM_U | VM_W | VM_P)
 
 //all processes have their page-dir mapped-in here
 #define PGDIR ((table_t *)0xfffff000)

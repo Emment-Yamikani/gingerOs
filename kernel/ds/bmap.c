@@ -25,7 +25,7 @@ int bitmap_try_lock(bitmap_t *bmap)
     assert(bmap, "no bitmap struct");
     assert((bmap->base && bmap->size), "invalid bitmap");
     assert(bmap->size < sizeof(int[MAX_INT_BITMAP(131072)]), "bitmap too big");
-    return spin_try_lock(bmap->lock);
+    return spin_trylock(bmap->lock);
 }
 
 

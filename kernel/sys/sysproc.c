@@ -21,86 +21,6 @@ pid_t getpid(void)
     return pid;
 }
 
-void exit(int status)
-{
-    proc_t *child = NULL;
-    proc_t *parent = NULL;
-    SESSION session = NULL;
-    queue_node_t *next = NULL;
-
-    proc_assert(proc);
-
-    if (proc == initproc)
-        panic("init exiting\n");
-
-    if (thread_kill_all() == -ERFKILL)
-    {
-        thread_exit(status);
-    }
-
-    proc_lock(proc);
-    parent = proc->parent;
-    session = proc->session;
-
-    signals_cancel(proc);
-
-    proc_lock(parent);
-
-    printk("EXIT_SYSCALL\n");
-
-    queue_lock(processes);
-    queue_remove(processes, proc);
-    queue_unlock(processes);
-
-    if (session)
-        session_exit(session, proc, 1);
-
-    for (int fd = 0; fd < NFILE; ++fd)
-        close(fd);
-
-
-    queue_lock(initproc->children);
-    queue_lock(proc->children);
-
-    forlinked(node, proc->children->head, next)
-    {
-        next = node->next;
-        child = node->data;
-        proc_lock(child);
-
-        child->parent = initproc;
-        queue_remove(proc->children, child);
-        atomic_or(&child->flags, PROC_ORPHANED);
-        enqueue(initproc->children, child);
-        proc_unlock(child);
-    }
-
-    queue_unlock(proc->children);
-    queue_unlock(initproc->children);
-
-    shm_lock(proc->mmap);
-    shm_pgdir_lock(proc->mmap);
-    shm_unmap_addrspace(proc->mmap);
-    shm_pgdir_unlock(proc->mmap);
-    shm_unlock(proc->mmap);
-
-    proc->state = ZOMBIE;
-    proc->exit = status;
-
-    cond_broadcast(proc->wait);
-    cond_broadcast(parent->wait);
-
-    printk("[\e[0;11m%d\e[0m:\e[0;012m%d\e[0m:\e[0;02m%d\e[0m]: '%s' "
-           "\e[0;04mexit(\e[0;017m%d\e[0m)\e[0m\n",
-           parent->pid, proc->pid, thread_self(),  proc->name, status);
-
-    proc_unlock(parent);
-    proc_unlock(proc);
-
-    thread_exit(status);
-    panic("exit unsuccessful\n");
-}
-
 pid_t getppid(void)
 {
     pid_t ppid = 0;
@@ -126,23 +46,23 @@ pid_t fork(void)
     thread_t *thread = NULL;
 
     proc_lock(proc);
-    shm_lock(proc->mmap);
+    mmap_lock(proc->mmap);
 
     if ((err = proc_alloc(proc->name, &child)))
     {
-        shm_unlock(proc->mmap);
+        mmap_unlock(proc->mmap);
         proc_unlock(proc);
         goto error;
     }
 
     proc_lock(child);
-    shm_lock(child->mmap);
+    mmap_lock(child->mmap);
 
     if ((err = proc_copy(child, proc)))
     {
-        shm_unlock(child->mmap);
+        mmap_unlock(child->mmap);
         proc_unlock(child);
-        shm_unlock(proc->mmap);
+        mmap_unlock(proc->mmap);
         proc_unlock(proc);
         goto error;
     }
@@ -158,19 +78,19 @@ pid_t fork(void)
     {
         current_unlock();
 
-        shm_unlock(child->mmap);
+        mmap_unlock(child->mmap);
         proc_unlock(child);
-        shm_unlock(proc->mmap);
+        mmap_unlock(proc->mmap);
         proc_unlock(proc);
         goto error;
     }
 
     current_unlock();
 
-    shm_unlock(child->mmap);
+    mmap_unlock(child->mmap);
     proc_unlock(child);
 
-    shm_unlock(proc->mmap);
+    mmap_unlock(proc->mmap);
     proc_unlock(proc);
 
     queue_lock(proc->children);
@@ -198,228 +118,76 @@ error:
     return err;
 }
 
-pid_t wait(int *staloc)
-{
-    pid_t pid = 0;
-    proc_t *child = NULL;
-    atomic_t haskids;
-    queue_node_t *next = NULL;
-
-    for (;;)
-    {
-        atomic_clear(&haskids);
-
-        proc_lock(proc);
-        queue_lock(proc->children);
-
-        forlinked(node, proc->children->head, next)
-        {
-            atomic_incr(&haskids);
-            next = node->next;
-            child = node->data;
-            proc_lock(child);
-            if (child->state == ZOMBIE)
-            {
-                queue_remove(proc->children, child);
-
-                *staloc = child->exit;
-                pid = child->pid;
-
-                assert(child->tgroup, "No tgroup");
-                while (atomic_read(&child->tgroup->nthreads))
-                {
-                    proc_unlock(child);
-                    CPU_RELAX();
-                    proc_lock(child);
-                }
-
-                proc_unlock(child);
-                proc_free(child);
-                queue_unlock(proc->children);
-                proc_unlock(proc);
-                goto done;
-            }
-            proc_unlock(child);
-        }
-
-        queue_unlock(proc->children);
-
-        if (atomic_read(&proc->flags) & PROC_KILLED)
-        {
-            proc_unlock(proc);
-            return -EINTR;
-        }
-
-        if (atomic_read(&haskids))
-        {
-            proc_unlock(proc);
-            if (cond_wait(proc->wait))
-                return -EINTR;
-            continue;
-        }
-        else
-        {
-            proc_unlock(proc);
-            return -EINVAL;
-        }
-        proc_unlock(proc);
-    }
-
-done:
-    return pid;
-}
-
-int execve(char *path, char *argp[], char *envp[])
-{
-    int err = 0;
-    char ***argp_envp = NULL;
-    
-    cli();
-
-    if (!(path = strdup(path)))
-    {
-        err = -ENOMEM;
-        goto error;
-    }
-
-    // printk("execve(%s, %p, %p)\n", path, argp, envp);
-
-    if (!(argp_envp = arch_execve_cpy(argp, envp)))
-    {
-        kfree(path);
-        err = -ENOMEM;
-        goto error;
-    }
-
-    if ((err = binfmt_load(path, current->owner, NULL)))
-    {
-        kfree(path);
-        arch_exec_free_cpy(argp_envp);
-        goto error;
-    }
-
-    current->t_tarch->ustack = NULL;
-
-    shm_lock(proc->mmap);
-    if ((err = thread_execve(proc, current, (void *)proc->entry, (const char **)argp_envp[0], (const char **)argp_envp[1])))
-    {
-        shm_unlock(proc->mmap);
-        kfree(path);
-        arch_exec_free_cpy(argp_envp);
-        goto error;
-    }
-    shm_unlock(proc->mmap);
-
-    arch_exec_free_cpy(argp_envp);
-
-    context_t *ctx = NULL;
-
-    current_lock();
-    proc->name = path;
-    current->t_state = T_READY;
-
-    atomic_or(&proc->flags, PROC_EXECED);
-    
-    proc_lock(proc);
-    signals_cancel(proc);
-    proc_unlock(proc);
-
-    swtch(&ctx, cpu->context);
-    panic("\e[014;0mexecve-1\e[0m\n");
-    return 0;
-error:
-    return err;
-}
-
-int execv(char *path, char *argp[])
-{
-    return execve(path, argp, NULL);
-}
-
 int brk(void *addr);
 
-void *sbrk(ptrdiff_t nbytes)
+void *sbrk(ptrdiff_t incr)
 {
     int err = 0;
-    vmr_t *vmr = NULL;
+    uintptr_t brk = 0;
+    vmr_t *heap = NULL;
+    mmap_t *mmap = NULL;
+    uintptr_t new_brk = 0;
+    size_t heap_max = 0xC000000;
+    int decrease = incr < 0 ? 1 : 0;
 
-    shm_lock(proc->mmap);
-    shm_pgdir_lock(proc->mmap);
-
-    uintptr_t _brk = proc->mmap->brk_start;
-
-    if (!nbytes)
-    {
-        shm_pgdir_unlock(proc->mmap);
-        shm_unlock(proc->mmap);
-        return (void *)_brk;
-    }
-
-    if ((_brk + nbytes) >= USTACK_LIMIT)
-    {
-        shm_pgdir_unlock(proc->mmap);
-        shm_unlock(proc->mmap);
+    if (current == NULL)
         return NULL;
-    }
 
-    // printk("sbrk(%d): BRK: %p\n", nbytes, _brk);
+    current_lock();
+    mmap = current->mmap;
+    current_unlock();
 
-    vmr = shm_lookup(proc->mmap, _brk - 1);
+    if (mmap == NULL)
+        return NULL;
 
-    if (vmr == NULL)
-        goto creat;
-    else if (vmr->oflags & VM_GROWSUP)
-    {
-        if (nbytes > 0)
-            vmr->size += (size_t)nbytes;
+    mmap_lock(mmap);
+    if (mmap->heap == NULL) {
+        try:
+        if ((ptrdiff_t)heap_max < incr)
+            goto error;
+        if ((err = mmap_alloc_vmr(mmap, heap_max, PROT_RW, MAP_PRIVATE, &heap)) == -ENOMEM) {
+            heap_max /= 1024;
+            goto try;
+        } else if (err == 0) {
+            mmap->heap = heap;
+            brk = (mmap->brk = heap->start);
+            goto done;
+        }
         else
-            vmr->size -= (size_t)nbytes;
-        goto done;
+            goto error;
     }
 
-creat:
-    if ((err = vmr_alloc(&vmr)))
-    {
-        shm_pgdir_unlock(proc->mmap);
-        shm_unlock(proc->mmap);
-        goto error;
+    brk = new_brk = mmap->brk;
+    incr = ABS(incr);
+    heap = mmap->heap;
+
+    if (decrease) {
+        new_brk -= incr;
+        if (new_brk < heap->start)
+            goto error;
+        uintptr_t page = PGROUNDUP(new_brk);
+        size_t size = brk - page;
+        int np = size / PAGESZ + PGOFFSET(size);
+        while (np--)
+        {
+            paging_unmap(page);
+            page += PAGESZ;
+        }
+    } else {
+        new_brk += incr;
+        incr = new_brk - heap->end;
+        if (new_brk >= __vmr_upper_bound(heap)) {
+            if ((err = mmap_vmr_expand(mmap, heap, incr)))
+                goto error;
+        }
     }
 
-    vmr->oflags = VM_WRITE | VM_READ | VM_GROWSUP;
-    vmr->size = nbytes;
-    vmr->vaddr = _brk;
-    vmr->vflags = VM_URW;
-
-    // printk("brk: vmr: %p, oflags: \e[0;013m0%b\e[0m, vflags: \e[0;012m0%b\e[0m\n", vmr->vaddr, vmr->oflags, vmr->vflags);
-
-    if ((err = shm_map(proc->mmap, vmr)))
-    {
-        shm_pgdir_unlock(proc->mmap);
-        shm_unlock(proc->mmap);
-        goto error;
-    }
-
+    mmap->brk = new_brk;
 done:
-
-    if (nbytes > 0)
-    {
-        proc->mmap->brk_start += (size_t)nbytes;
-        proc->mmap->brk_size -= (size_t)nbytes;
-    }
-    else
-    {
-        proc->mmap->brk_start -= (size_t)nbytes;
-        proc->mmap->brk_size += (size_t)nbytes;
-    }
-
-    shm_pgdir_unlock(proc->mmap);
-    shm_unlock(proc->mmap);
-
-    return (void *)_brk;
-
+    mmap_unlock(mmap);
+    return (void *)brk;
 error:
-    if (vmr)
-        vmr_free(vmr);
+    mmap_unlock(mmap);
     return NULL;
 }
 

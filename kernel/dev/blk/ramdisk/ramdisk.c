@@ -34,15 +34,9 @@ error:
     return err;
 }
 
-static void ramdisk_lock(void)
-{
-    spin_lock(ramdisklock);
-}
+#define ramdisk_lock() spin_lock(ramdisklock)
 
-static void ramdisk_unlock(void)
-{
-    spin_unlock(ramdisklock);
-}
+#define ramdisk_unlock() spin_unlock(ramdisklock)
 
 int ramdisk_probe(void)
 {
@@ -61,10 +55,20 @@ int ramdisk_mount()
 
 size_t ramdisk_read(struct devid *dd __unused, off_t off, void *buf, size_t sz)
 {
+    int locked = 0;
     size_t size = MIN(sz, ramdisk_size - off);
-    ramdisk_lock();
+    if (!spin_holding(ramdisklock)){
+        ramdisk_lock();
+        locked = 1;
+    }
+
     memcpy(buf, ramdisk_addr + off, size);
-    ramdisk_unlock();
+
+    if (spin_holding(ramdisklock) && locked)
+    {
+        ramdisk_unlock();
+        locked = 0;
+    }
     return size;
 }
 

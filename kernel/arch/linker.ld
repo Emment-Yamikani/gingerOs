@@ -30,6 +30,21 @@ SECTIONS
         *(.__efini*)
         __efini_end = .;
     }
+
+    .__builtin_thread_entry ALIGN (4K) : AT(ADDR(.__builtin_thread_entry) - 0xC0000000)
+    {
+        __builtin_thread_entry = .;
+        *(.__builtin_thread_entry*)
+        __builtin_thread_entry_end = .;
+    }
+
+    .__builtin_thread_arg ALIGN (4K) : AT(ADDR(.__builtin_thread_arg) - 0xC0000000)
+    {
+        __builtin_thread_arg = .;
+        *(.__builtin_thread_arg*)
+        __builtin_thread_arg_end = .;
+    }
+
     .rodata ALIGN (4K) : AT (ADDR (.rodata) - 0xC0000000)
     {
         *(.rodata)

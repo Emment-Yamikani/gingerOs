@@ -1,0 +1,2 @@
+mmapobjs=\
+$(mmapdir)/mmap.o

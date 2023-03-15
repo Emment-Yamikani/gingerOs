@@ -12,6 +12,9 @@
 //page size mask
 #define PAGEMASK (PAGESZ - 1)
 
+#define ISPG_ALIGNED(x) (((uintptr_t)x % PAGESZ) == 0)
+
+
 #define PGOFFSET(p) ((uintptr_t)(p) & PAGEMASK)
 #define PGROUND(p) ((uintptr_t)(p) & ~PAGEMASK)
 #define PGROUNDUP(sz) (((sz) + PAGEMASK) & ~(PAGEMASK))
@@ -22,6 +25,8 @@
 
 #define VMA_HIGH(p) (((uintptr_t)(p)) + VMA_BASE)
 #define VMA_LOW(p) (((uintptr_t)(p)) - VMA_BASE)
+
+#define ISKERNEL_ADDR(p) ((uintptr_t)p >= VMA_BASE)
 
 #define MMAP_DEVADDR (0xFE000000)
 #define USER_STACK (0xC0000000)
@@ -34,7 +39,9 @@
 #define _BS(b) ((1 << b))
 #define _BITMASK(f, b) (f & (~b))
 #define MIN(a, b) ((a < b) ? a : b)
+#define MAX(a, b) ((a > b) ? a : b)
 #define SHL(a, b) (a << b)
+#define ABS(a) ((long)a < 0 ? -(long)a : a)
 
 #define foreach(elem, list) \
     for (typeof(*list) *tmp = list, elem = *tmp; elem; elem = *++tmp)
@@ -42,13 +49,18 @@
 #define forlinked(elem, list, iter) \
     for (typeof(list) elem = list; elem; elem = iter)
 
+#define loop() for(;;)
+
 #define TYPE(x) typedef struct x
+
+#define NPAGE(len) ((size_t)((len / PAGESZ) + (PGOFFSET(len) ? 1 : 0)))
 
 #ifndef NELEM
 #define NELEM(x) ((int)(sizeof(x) / sizeof(x[0])))
 #endif // NELEM__ARRAY
 
 #define LIME_DEBUG 0
+extern int PROC_EXIT;
 
 /*Misc*/
 

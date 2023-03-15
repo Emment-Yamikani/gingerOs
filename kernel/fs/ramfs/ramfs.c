@@ -8,6 +8,7 @@
 #include <printk.h>
 #include <fs/posix.h>
 #include <sys/_stat.h>
+#include <sys/mman/mman.h>
 
 static iops_t ramfs_iops;
 static inode_t *iroot = NULL;
@@ -15,6 +16,7 @@ static inode_t *iramdisk = NULL;
 static ramfs_superblock_t ramfs_super = {0};
 static filesystem_t ramfs;
 static super_block_t ramfs_sb;
+static vmr_ops_t ramfs_vmr_ops __unused;
 
 static int ramfs_ialloc(inode_t **ref)
 {
@@ -209,6 +211,41 @@ static int ramfs_chown(inode_t *ip, uid_t uid, gid_t gid)
     return 0;
 }
 
+int ramfs_fault(vmr_t *vmr, struct vm_fault *fault)
+{
+    (void)vmr;
+    (void)fault;
+    return -ENOSYS;
+}
+
+int ramfs_mmap(file_t *file, vmr_t *vmr)
+{
+    inode_t *ip = NULL;
+    ramfs_inode_t *inode = NULL;
+    if (file == NULL || vmr == NULL)
+        return -EINVAL;
+
+    if (file->f_inode == NULL)
+        return -EINVAL;
+
+    ip = file->f_inode;
+
+    inode = ramfs_convert(ip);
+
+    if (inode == NULL)
+        return -EINVAL;
+
+    if (inode->type != INITRD_FILE)
+        return -EINVAL;
+
+    vmr->file = ip;
+    iincrement(ip);
+
+    //vmr->vmrops = &ramfs_vmr_ops;
+
+    return 0;
+}
+
 static int ramfs_read_super()
 {
     int err=0;
@@ -301,8 +338,23 @@ static iops_t ramfs_iops ={
     .readdir = ramfs_readdir,
 };
 
+static struct fops ramfs_fops = (struct fops){
+    .can_read = posix_file_can_read,
+    .can_write = posix_file_can_write,
+    .close = posix_file_close,
+    .open = posix_file_open,
+    .eof = posix_file_eof,
+    .ioctl = posix_file_ioctl,
+    .lseek = posix_file_lseek,
+    .read = posix_file_read,
+    .write = posix_file_write,
+    .readdir = posix_file_readdir,
+    .stat = posix_file_ffstat,
+    .mmap = ramfs_mmap,
+};
+
 static super_block_t ramfs_sb = {
-    .fops = &posix_fops,
+    .fops = &ramfs_fops,
     .iops = &ramfs_iops,
     .s_blocksz = 512,
     .s_magic = 0xc0deb00c,
@@ -315,4 +367,8 @@ static filesystem_t ramfs = {
     .fsuper = &ramfs_sb,
     .load = ramfs_load,
     .fsmount = ramfs_fsmount,
+};
+
+static vmr_ops_t ramfs_vmr_ops = {
+    .fault = ramfs_fault,
 };

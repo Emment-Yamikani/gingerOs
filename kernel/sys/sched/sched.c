@@ -124,7 +124,7 @@ void sched_yield(void)
 
 __noreturn void schedule(void)
 {
-    shm_t *mmap = NULL;
+    mmap_t *mmap = NULL;
     uintptr_t oldpgdir = 0;
     thread_t *thread = NULL;
 
@@ -161,11 +161,9 @@ __noreturn void schedule(void)
 
         if (mmap && current)
         {
-            shm_lock(mmap);
-            spin_lock(mmap->pgdir_lock);
+            mmap_lock(mmap);
             oldpgdir = paging_switch(mmap->pgdir);
-            spin_unlock(mmap->pgdir_lock);
-            shm_unlock(mmap);
+            mmap_unlock(mmap);
             thread_setkstack(current->t_tarch);
         }
 

@@ -11,6 +11,7 @@
 #include <sys/_stat.h>
 #include <sys/fcntl.h>
 #include <bits/dirent.h>
+#include <mm/mmap.h>
 
 typedef enum
 {
@@ -61,6 +62,10 @@ typedef struct iops
 
 } iops_t;
 
+#define INODE_MMAPPED 0x1
+#define INODE_BUSY    0x2
+#define INODE_NEED_SYNC 0x4
+
 /*inode*/
 typedef struct inode
 {
@@ -71,6 +76,7 @@ typedef struct inode
     gid_t i_gid;        /*group ID*/
     int i_refs;         /*reference count*/
     int i_ino;          /*inode number*/
+    int i_flags;
     itype_t i_type;     /*file type*/
     dentry_t *i_dentry; /*this i-node's directory entry, maybe NULL*/
     spinlock_t *i_lock; /*per-inode lock*/
@@ -124,6 +130,9 @@ struct fops
     size_t (*eof)(file_t *);
     size_t (*can_read)(struct file *file, size_t size);
     size_t (*can_write)(struct file *file, size_t size);
+
+    int (*mmap)(file_t *file, vmr_t *vmr);
+    int (*munmap)(file_t *file, vmr_t *region);
 };
 
 typedef struct super_block
@@ -219,11 +228,13 @@ int vfs_open(const char *fn, uio_t *uio, int oflags, inode_t **iref);
 
 int vfs_lookup(const char *fn, uio_t *uio, int oflags, inode_t **iref, dentry_t **dref);
 
-int vfs_mountat(const char *__src __unused,
-                const char *__target __unused,
-                const char *__type __unused,
-                uint32_t __mount_flags __unused,
-                const void *__data __unused, inode_t *__inode, uio_t *__uio __unused);
+int vfs_mountat(const char *__src,
+                const char *__target,
+                const char *__type,
+                uint32_t __mount_flags,
+                const void *__data,
+                inode_t *__inode,
+                uio_t *__uio);
 
 /* inode helpers*/
 
@@ -276,5 +287,6 @@ int ffstat(file_t *, struct stat *);
 off_t flseek(file_t *, off_t, int);
 int fioctl(file_t *, int, void * /* args */);
 void file_free(file_t *file);
+int fmmap(file_t *file, vmr_t *vmr);
 
 #endif // FS_FS_H

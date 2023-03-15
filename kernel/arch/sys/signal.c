@@ -9,7 +9,7 @@
 #include <arch/system.h>
 #include <sys/system.h>
 #include <sys/sysproc.h>
-#include <mm/shm.h>
+#include <mm/mmap.h>
 #include <mm/kalloc.h>
 #include <arch/i386/paging.h>
 #include <lib/string.h>

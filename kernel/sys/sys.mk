@@ -1,14 +1,17 @@
 binfmtdir=$(sysdir)/binfmt
 scheddir=$(sysdir)/sched
+syscalldir=$(sysdir)/syscall
 threadsdir=$(sysdir)/threads
 
 include $(binfmtdir)/binfmt.mk
 include $(scheddir)/sched.mk
+include $(syscalldir)/syscall.mk
 include $(threadsdir)/threads.mk
 
 sysobjs=\
 $(binfmtobjs)\
 $(schedobjs)\
+$(syscallobjs)\
 $(threadsobjs)\
 $(sysdir)/proc.o\
 $(sysdir)/session.o\

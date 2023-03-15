@@ -11,6 +11,7 @@
 #include <printk.h>
 #include <sys/system.h>
 #include <lime/module.h>
+#include <dev/bio.h>
 
 static dev_t **blkdevs = NULL;
 static spinlock_t *blkdevs_lock = SPINLOCK_NEW("blkdevs-lock");
@@ -146,6 +147,7 @@ size_t kdev_read(struct devid *dd, off_t offset, void *buf, size_t sz)
     dev_t *dev = NULL;
     if (!dd)
         return -ENXIO;
+
     if (!(dev = kdev_get(dd)))
         return -ENXIO;
     if (!dev->devops.read)
@@ -156,8 +158,10 @@ size_t kdev_read(struct devid *dd, off_t offset, void *buf, size_t sz)
 size_t kdev_write(struct devid *dd, off_t offset, void *buf, size_t sz)
 {
     dev_t *dev = NULL;
+
     if (!dd)
         return -ENXIO;
+
     if (!(dev = kdev_get(dd)))
         return -ENXIO;
     if (!dev->devops.write)

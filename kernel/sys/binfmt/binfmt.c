@@ -1,6 +1,6 @@
 #include <bits/errno.h>
 #include <sys/binfmt.h>
-#include <mm/shm.h>
+#include <mm/mmap.h>
 #include <lime/assert.h>
 #include <printk.h>
 #include <lib/string.h>
@@ -13,15 +13,14 @@ struct binfmt
 {
     int (*check)(inode_t *);
     int (*load)(inode_t *, proc_t *);
-}binfmt[] =
-{
-    {.check = binfmt_elf_check, .load = binfmt_elf_load}
-};
+} binfmt[] =
+    {
+        {.check = binfmt_elf_check, .load = binfmt_elf_load}};
 
 int binfmt_load(const char *fn, proc_t *proc, proc_t **ref)
 {
-    uio_t uio;
     int err = 0;
+    uio_t uio = {0};
     int new = !proc;
     inode_t *image = NULL;
     uintptr_t oldpgdir = 0;
@@ -62,51 +61,54 @@ int binfmt_load(const char *fn, proc_t *proc, proc_t **ref)
     {
         if ((err = proc_alloc(fn, &proc)))
             goto error;
-        shm_lock(proc->mmap);
+        proc_lock(proc);
+        mmap_lock(proc->mmap);
         oldpgdir = arch_proc_init(proc->mmap);
     }
     else
     {
+        proc_assert_lock(proc);
         if ((err = thread_kill_all()))
             goto error;
-        
+
         atomic_write(&proc->tgroup->nthreads, 1);
         proc->tmain = current;
-
-        shm_lock(proc->mmap);
-        shm_pgdir_lock(proc->mmap);
-        err = shm_unmap_addrspace(proc->mmap);
-        if (err && err != -ENOENT)
-        {
-            printk("failed to unmap addrspace\n");
-            shm_pgdir_unlock(proc->mmap);
-            shm_unlock(proc->mmap);
-            goto error;
-        }
-        shm_pgdir_unlock(proc->mmap);
+        mmap_assert_locked(proc->mmap);
     }
 
-
-    for (int i =0; i < NELEM(binfmt); ++i)
+    for (int i = 0; i < NELEM(binfmt); ++i)
     {
-        if ((err = binfmt[i].check(image))){
+        if ((err = binfmt[i].check(image)))
+        {
             paging_switch(oldpgdir);
-            shm_unlock(proc->mmap);
+            if (new){
+                mmap_unlock(proc->mmap);
+                proc_unlock(proc);
+            }
             goto error;
         }
-        
-        if ((err = binfmt[i].load(image, proc))){
+
+        if ((err = binfmt[i].load(image, proc)))
+        {
             paging_switch(oldpgdir);
-            shm_unlock(proc->mmap);
+            if (new){
+                mmap_unlock(proc->mmap);
+                proc_unlock(proc);
+            }
             goto error;
         }
     }
 
     paging_switch(oldpgdir);
-    shm_unlock(proc->mmap);
 
-    //printk("BINELF: brk_start: %p\n", proc->mmap->brk_start);
-    if (ref) *ref = proc;
+    if (new){
+        mmap_unlock(proc->mmap);
+        proc_unlock(proc);
+    }
+
+    // printk("BINELF: brk_start: %p\n", proc->mmap->brk_start);
+    if (ref)
+        *ref = proc;
 
     return 0;
 error:

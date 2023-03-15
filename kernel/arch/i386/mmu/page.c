@@ -56,7 +56,24 @@ static int _32bit_map(uintptr_t frame, int t, int p, int flags)
             return err;
     }
     if (PTE(t, p)->structure.p)
-        panic("%d:%d page %p, map:%p available\n", t, p, _VADDR(t, p), paging_getmapping(_VADDR(t, p))->raw);
+        panic("%d:%d page [%p], map:%p available\n", t, p, _VADDR(t, p), paging_getmapping(_VADDR(t, p))->raw);
+    PTE(t, p)->raw = PGROUND(frame) | flags;
+    paging_invlpg(_VADDR(t, p));
+    return 0;
+}
+
+static int _32bit_map_err(uintptr_t frame, int t, int p, int flags)
+{
+    int err = 0;
+    assert(!(frame & PAGEMASK), "frame address must be page aligned");
+    VM_CHECKBOUNDS(t, p);
+    if (!PDE(t)->structure.p)
+    {
+        if ((err = _32bit_maptable(t, flags)))
+            return err;
+    }
+    if (PTE(t, p)->structure.p)
+        return -EEXIST;
     PTE(t, p)->raw = PGROUND(frame) | flags;
     paging_invlpg(_VADDR(t, p));
     return 0;
@@ -114,6 +131,13 @@ int paging_map(uintptr_t frame, uintptr_t v, int flags)
     return _32bit_map(frame, V_PDI(v), V_PTI(v), flags);
 }
 
+int paging_map_err(uintptr_t frame, uintptr_t v, int flags)
+{
+    assert(!(v & PAGEMASK), "page address must be page aligned");
+    assert(!(frame & PAGEMASK), "frame address must be page aligned");
+    return _32bit_map_err(frame, V_PDI(v), V_PTI(v), flags);
+}
+
 int paging_unmap_mapped(uintptr_t p, size_t sz)
 {
     int err = 0;
@@ -167,6 +191,23 @@ int paging_mappages(uintptr_t v, size_t sz, int flags)
     return err;
 }
 
+int paging_mappages_err(uintptr_t v, size_t sz, int flags)
+{
+    uintptr_t p = 0;
+    assert(!(v & PAGEMASK), "page address must be page aligned");
+    assert(!(sz & PAGEMASK), "invalid size, must be page aligned");
+    int err = 0, np = GET_BOUNDARY_SIZE(v, sz) / PAGESZ;
+    while (np--)
+    {
+        if (!(p = pmman.alloc()))
+            return -ENOMEM;
+        if ((err = paging_map_err(p, v, flags)))
+            break;
+        v += PAGESZ;
+    }
+    return err;
+}
+
 int paging_unmappages(uintptr_t v, size_t sz)
 {
     assert(!(v & PAGEMASK), "page address must be page aligned");
@@ -204,7 +245,6 @@ void paging_proc_unmap(uintptr_t pgd)
 page_t *paging_getmapping(uintptr_t v)
 {
     page_t *page = NULL;
-    assert(!(v & PAGEMASK), "page address must be page aligned");
     if (!PDE(V_PDI(v))->structure.p)
         return NULL;
     else if (!((page = PTE(V_PDI(v), V_PTI(v)))->structure.p))
@@ -215,9 +255,9 @@ page_t *paging_getmapping(uintptr_t v)
 int paging_mapvmr(const vmr_t *vmr)
 {
     if (vmr->paddr)
-        return paging_identity_map(vmr->paddr, vmr->vaddr, vmr->size, vmr->vflags);
+        return paging_identity_map(vmr->paddr, vmr->start, __vmr_size(vmr), vmr->vflags);
     else
-        return paging_mappages(vmr->vaddr, vmr->size, vmr->vflags);
+        return paging_mappages(vmr->start, __vmr_size(vmr), vmr->vflags);
 }
 
 uintptr_t paging_alloc(size_t sz)
@@ -288,6 +328,75 @@ uintptr_t paging_getpgdir(void)
     paging_unmount((uintptr_t)cur_pgdir);
     paging_unmount((uintptr_t)v);
     return p;
+}
+
+int paging_memcpypp(uintptr_t pdst, uintptr_t psrc, size_t size)
+{
+    uintptr_t vdst = 0, vsrc = 0;
+    size_t len = 0;
+    
+    while (size)
+    {
+        if ((vdst = paging_mount(PGROUND(pdst))) == 0)
+            return -ENOMEM;
+
+        if ((vsrc = paging_mount(PGROUND(psrc))) == 0)
+        {
+            paging_unmount(vdst);
+            return -ENOMEM;
+        }
+
+        len = MIN(PAGESZ - MAX(PGOFFSET(psrc), PGOFFSET(pdst)), PAGESZ);
+        len = MIN(len, size);
+        memcpy((void *)(vdst + PGOFFSET(pdst)), (void *)(vsrc + PGOFFSET(psrc)), len);
+        size -= len;
+        psrc += len;
+        pdst += len;
+        paging_unmount(vsrc);
+        paging_unmount(vdst);
+    }
+
+    return 0;
+}
+
+int paging_memcpyvp(uintptr_t p, uintptr_t v, size_t size)
+{
+    uintptr_t vdst = 0;
+    size_t len = 0;
+    while (size)
+    {
+        if ((vdst = paging_mount(PGROUND(p))) == 0)
+            return -ENOMEM;
+
+        len = MIN(PAGESZ - PGOFFSET(p), size);
+        memcpy((void *)(vdst + PGOFFSET(p)), (void *)v, len);
+        size -= len;
+        p += len;
+        v += len;
+        paging_unmount(vdst);
+    }
+
+    return 0;
+}
+
+int paging_memcpypv(uintptr_t v, uintptr_t p, size_t size)
+{
+    uintptr_t vsrc = 0;
+    size_t len = 0;
+    while (size)
+    {
+        if ((vsrc = paging_mount(PGROUND(p))) == 0)
+            return -ENOMEM;
+
+        len = MIN(PAGESZ - PGOFFSET(p), size);
+        memcpy((void *)v, (void *)(vsrc + PGOFFSET(p)), len);
+        size -= len;
+        p += len;
+        v += len;
+        paging_unmount(vsrc);
+    }
+
+    return 0;
 }
 
 int paging_init(void)

@@ -23,8 +23,7 @@ static int open_stdio(void)
 
 int main(int argc, char *argv[])
 {
-    int err = 0;
-    tid_t tid = 0;
+    int err;
     pid_t pid = 0;
     int staloc = 0;
 
@@ -33,24 +32,18 @@ int main(int argc, char *argv[])
     if ((err = open_stdio()))
         return err;
 
-
     loop:
-    if ((pid = fork()) < 0)
-        panic("failed to fork a child\n");
-    else
-    if (pid > 0)
+    switch (fork())
     {
-        haschild:
-        pid = wait(&staloc);
-        if (pid < 0)
-            goto loop;
-        goto haschild;
-    }
-    else{
+    case -1:
+        goto loop;
+    case 0:
         setsid();
-        execv(argp[0], argp);
-        panic("execv returned\n");
-    }
-
-    exit(0);
+        exit(execv(*argp, argp));
+        break;
+    default:
+        pid = wait(&staloc);
+        goto loop;
+    }    
+    return 0;
 }

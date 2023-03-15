@@ -1,0 +1,21 @@
+MAJOR CHANGES!
+
+1. Reimplementation of process Address Space.
+    - rewrite of mmap().
+    - removed per-vmr_t locks.
+    - removed mmap->pgdir lock.
+    - improved mmap_t and vmr_t cloning.
+    - added mmap_forced_mapin() so overwrite old overlapping memory maps.
+    - added mmap_remove() which can now unmap paged-in regions
+    - added mmap_map_region() with flags to specify the kind of mapping you want to make in an address space.
+    - mmap_map_region() also allows for flexible thread user stack allocation.
+    - added support for memory region expansion.
+    - added minimal mprotect() for page protection alterations.
+    - added mmap_clean() which calls mmap_unmap(), to remove all memory mappings in an address space.
+
+2. Moved some syscalls into newly created directory "/kernel/sys/syscalls/*.c".
+    - reimplemented execve().
+    - added minimal waitpid() support.
+    - rewrite of wait() which now calls into waitpid().
+
+3. Added minimal Demand paging support.

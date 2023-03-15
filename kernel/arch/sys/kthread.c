@@ -56,49 +56,37 @@ int arch_kthread_init(x86_thread_t *thread, void *(*entry)(void *), void *arg)
 
 //############################## USER THREADS ###############################
 
-int arch_uthread_init(x86_thread_t *thread, void *(*entry)(void *), const char *argp[], const char *envp[])
+int arch_uthread_init(x86_thread_t *thread, void *(*entry)(void *), const char *argp[], int argc, const char *envp[])
 {
     int err = 0;
     vmr_t *stack = NULL;
-    uintptr_t ustack = 0;
+    uintptr_t *ustack = 0;
     context_t *ctx = NULL;
     trapframe_t *tf = NULL;
     uint32_t *kstack = NULL;
 
-    assert(thread, "no thread->t_tarch");
     assert(entry, "no entry point");
+    assert(thread, "no thread->t_tarch");
 
     stack = thread->ustack;
-    ustack = stack->vaddr + USTACKSIZE;
+    ustack = (uintptr_t *)__vmr_upper_bound(stack);
     kstack = (uint32_t *)(thread->kstack + KSTACKSIZE);
 
-    //klog(KLOG_WARN, "\e[0;013mOnly map part of user stack that is acutally in use\e[0m\n");
-
-    size_t mapsz =  2 * sizeof (char *) + 5 * sizeof (uint32_t);
-
-    if (argp)
-        foreach (arg, argp)
-            mapsz += strlen(arg) + 1 + sizeof(char *);
-    if (envp)
-        foreach (env, envp)
-            mapsz += strlen(env) + 1 + sizeof(char *);
+    if ((err = paging_mappages((uintptr_t)ustack - PAGESZ, PAGESZ, stack->vflags)))
+        goto error;
     
-    //printk("mapsize: %d\n", mapsz);
-
-    if ((err = paging_mappages(ustack - GET_BOUNDARY_SIZE(0, mapsz), GET_BOUNDARY_SIZE(0, mapsz), stack->vflags)))
-        goto error;
-
-    if ((err = arch_uthread_execve(&ustack, argp, envp)))
-        goto error;
-
+    *--ustack = (uintptr_t)envp;
+    *--ustack = (uintptr_t)argp;
+    *--ustack = (uintptr_t)argc;
+    *--ustack = 0xDEADDEAD;
 
     *--kstack = (uint32_t)NULL;
     *--kstack = (uint32_t)arch_thread_stop;
     tf = (trapframe_t *)((uint32_t)kstack - sizeof *tf);
 
     tf->ss = (SEG_UDATA << 3) | DPL_USER;
-    tf->esp = ustack;
-    tf->ebp = ustack;
+    tf->ebp = (uintptr_t)ustack;
+    tf->esp = (uintptr_t)ustack;
     tf->eflags = FL_IF;
     tf->cs = (SEG_UCODE << 3) | DPL_USER;
     tf->eip = (uint32_t)entry;
@@ -108,7 +96,7 @@ int arch_uthread_init(x86_thread_t *thread, void *(*entry)(void *), const char *
     tf->es = (SEG_UDATA << 3) | DPL_USER;
     tf->ds = (SEG_UDATA << 3) | DPL_USER;
 
-    kstack = (uint32_t*)tf;
+    kstack = (uint32_t *)tf;
     *--kstack = (uint32_t)trapret;
     ctx = (context_t *)((uint32_t)kstack - sizeof *ctx);
     ctx->eip = (uint32_t)arch_thread_start;
@@ -116,6 +104,7 @@ int arch_uthread_init(x86_thread_t *thread, void *(*entry)(void *), const char *
 
     thread->tf = tf;
     thread->context = ctx;
+
     return 0;
 error:
     return err;
@@ -134,7 +123,7 @@ int arch_uthread_create(x86_thread_t *thread, void *(*entry)(void *), void *arg)
     assert(entry, "no entry point");
 
     stack = thread->ustack;
-    ustack = (uint32_t *)(stack->vaddr + USTACKSIZE);
+    ustack = (uint32_t *)(stack->start + USTACKSIZE);
     kstack = (uint32_t *)(thread->kstack + KSTACKSIZE);
 
     if ((err = paging_mappages(((uintptr_t)ustack) - PAGESZ, PAGESZ, stack->vflags)))

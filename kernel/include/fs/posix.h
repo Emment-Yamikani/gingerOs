@@ -14,6 +14,7 @@ int posix_file_readdir(struct file *file, struct dirent *dirent);
 
 int posix_file_ioctl(struct file *file, int request, void *argp);
 size_t posix_file_lseek(struct file *file, size_t offset, int whence);
+int posix_file_mmap(file_t *file, vmr_t *vmr);
 
 /* helpers */
 size_t posix_file_eof(struct file *file);

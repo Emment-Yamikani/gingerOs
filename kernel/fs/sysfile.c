@@ -122,6 +122,7 @@ int open(const char *fn, int oflags, ...)
     }
     file_table_unlock(table);
 
+    printk("open(%s) done\n", fn);
     return fd;
 error:
     if (file)

@@ -21,6 +21,7 @@
 #include <sys/kthread.h>
 #include <arch/boot/early.h>
 #include <dev/hpet.h>
+#include <dev/bio.h>
 
 void *kthread_main(void *);
 
@@ -29,8 +30,6 @@ int early_init(void)
     int err =0;
     if ((err = pmman.init()))
         return err;
-   
-
 
     if ((err = mp_process()))
         return err;
@@ -45,7 +44,9 @@ int early_init(void)
         return err;
     
     lapic_init();
-    
+
+    if ((err = binit()))
+        return err;
 
     if ((err = dev_init()))
         return err;

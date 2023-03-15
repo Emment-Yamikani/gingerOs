@@ -17,7 +17,7 @@ void queue_free(queue_t *q)
 void queue_flush(queue_t *q)
 {
     queue_assert_lock(q);
-    if (spin_try_lock(q->lock))
+    if (spin_trylock(q->lock))
         panic("caller not holding %s\n", q->lock->name);
     while (dequeue(q))
         ;
@@ -29,7 +29,7 @@ void *dequeue(queue_t *q)
     queue_node_t *node = NULL;
 
     queue_assert_lock(q);
-    if (spin_try_lock(q->lock))
+    if (spin_trylock(q->lock))
         panic("caller not holding %s\n", q->lock->name);
 
     if (!(node = q->head))
@@ -59,7 +59,7 @@ queue_node_t *enqueue(queue_t *q, void *data)
     queue_node_t *node = NULL;
 
     queue_assert_lock(q);
-    if (spin_try_lock(q->lock))
+    if (spin_trylock(q->lock))
         panic("caller not holding %s\n", q->lock->name);
 
     if (!(node = __cast_to_type(node) kmalloc(sizeof *node)))
@@ -84,7 +84,7 @@ queue_node_t *enqueue(queue_t *q, void *data)
 int queue_count(queue_t *q)
 {
     queue_assert_lock(q);
-    if (spin_try_lock(q->lock))
+    if (spin_trylock(q->lock))
         panic("caller not holding %s\n", q->lock->name);
     return q->count;
 }
@@ -92,9 +92,8 @@ int queue_count(queue_t *q)
 queue_node_t *queue_contains(queue_t *q, void *data)
 {
     queue_assert_lock(q);
-    if (spin_try_lock(q->lock))
+    if (spin_trylock(q->lock))
         panic("caller not holding %s\n", q->lock->name);
-
     forlinked(node, q->head, node->next) if (node->data == data) return node;
     return NULL;
 }
@@ -102,9 +101,8 @@ queue_node_t *queue_contains(queue_t *q, void *data)
 int queue_contains_node(queue_t *q, queue_node_t *node)
 {
     queue_assert_lock(q);
-    if (spin_try_lock(q->lock))
+    if (spin_trylock(q->lock))
         panic("caller not holding %s\n", q->lock->name);
-    
     forlinked(n, q->head, n->next) if (n == node) return 1;
     return 0;
 }
@@ -159,7 +157,7 @@ int queue_remove_node(queue_t *q, queue_node_t *node)
     queue_assert_lock(q);
     assert(node, "no node");
 
-    if (spin_try_lock(q->lock))
+    if (spin_trylock(q->lock))
         panic("caller not holding %s\n", q->lock->name);
 
     if (!queue_contains_node(q, node))
@@ -187,7 +185,7 @@ int queue_remove_node(queue_t *q, queue_node_t *node)
 int queue_remove(queue_t *q, void *data)
 {
     queue_assert_lock(q);
-    if (spin_try_lock(q->lock))
+    if (spin_trylock(q->lock))
         panic("caller not holding %s\n", q->lock->name);
     queue_node_t *node = queue_contains(q, data);
     if (!node) return -ENOENT;

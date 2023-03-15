@@ -2,7 +2,7 @@
 
 #include <arch/context.h>
 #include <lib/stdint.h>
-#include <mm/shm.h>
+#include <mm/mmap.h>
 
 /*x86 32bit architecture specific thread*/
 typedef struct x86_thread

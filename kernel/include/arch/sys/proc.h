@@ -1,5 +1,5 @@
 #pragma once
 
-#include <mm/shm.h>
+#include <mm/mmap.h>
 
-uintptr_t arch_proc_init(shm_t *shm);
+uintptr_t arch_proc_init(mmap_t *shm);

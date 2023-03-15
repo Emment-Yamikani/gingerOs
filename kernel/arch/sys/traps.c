@@ -22,11 +22,9 @@
 
 void rtc_intr(void);
 void kbd_intr(void);
-
-spinlock_t *biglock = SPINLOCK_NEW("biglock");
-
 void ps2mouse_handler(void);
 void paging_pagefault(trapframe_t *tf);
+void do_page_fault(trapframe_t *tf);
 void paging_tbl_shootdown();
 
 void trap(trapframe_t *tf)
@@ -70,19 +68,8 @@ void trap(trapframe_t *tf)
         lapic_eoi();
         break;
     case T_PGFAULT: // Pagefault
-        pushcli();
-        if ( current && (tf->eip == 0xDEADDEAD) && trapframe_isuser(tf)) {
-            if ((thread_ishandling_signal(current)))
-                arch_return_signal(tf);
-            else if (proc && (current == proc->tmain))
-                exit(tf->eax);
-            else
-                thread_exit(tf->eax);
-        }
-        else
-            paging_pagefault(tf);
+        do_page_fault(tf);
         lapic_eoi();
-        popcli();
         break;
     case T_TLB_SHOOTDOWN: // TLB shootdown
         paging_tbl_shootdown();

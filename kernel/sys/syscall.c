@@ -11,6 +11,7 @@
 #include <mm/vmm.h>
 #include <sys/sysproc.h>
 #include <dev/pty.h>
+#include <sys/_wait.h>
 
 static uintptr_t (*syscall[])(void) = {
     /*File Management*/
@@ -34,13 +35,14 @@ static uintptr_t (*syscall[])(void) = {
 
     /*Process management*/
 
-    [SYS_GETPID](void *) sys_getpid,
-    [SYS_SLEEP](void *) sys_sleep,
-    [SYS_EXIT](void *) sys_exit,
     [SYS_FORK](void *) sys_fork,
+    [SYS_EXIT](void *) sys_exit,
     [SYS_WAIT](void *) sys_wait,
-    [SYS_EXECVE](void *) sys_execve,
+    [SYS_WAITPID](void *)sys_waitpid,
+    [SYS_SLEEP](void *) sys_sleep,
     [SYS_EXECV](void *) sys_execv,
+    [SYS_EXECVE](void *) sys_execve,
+    [SYS_GETPID](void *) sys_getpid,
 
     /*Memory Management*/
 
@@ -56,6 +58,7 @@ static uintptr_t (*syscall[])(void) = {
     [SYS_THREAD_SELF](void *) sys_thread_self,
     [SYS_THREAD_JOIN](void *) sys_thread_join,
     [SYS_THREAD_EXIT](void *) sys_thread_exit,
+    [SYS_THREAD_CANCEL](void *)sys_thread_cancel,
 
     /*Protection*/
 
@@ -116,25 +119,24 @@ void syscall_stub(trapframe_t *tf)
 int chk_addr(uintptr_t addr)
 {
     current_assert();
-    shm_assert_lock(current->mmap);
     if (addr == 0)
         return 0;
-    if (shm_lookup(current->mmap, addr) == NULL)
+    mmap_lock(current->mmap);
+    if (mmap_find(current->mmap, addr) == NULL)
+    {
+        mmap_unlock(current->mmap);
         return -EADDRNOTAVAIL;
+    }
+    mmap_unlock(current->mmap);
     return 0;
 }
 
 int fetchint(uintptr_t addr, int *p)
 {
     int err = 0;
-    shm_lock(current->mmap);
     if ((err = chk_addr(addr)))
-    {
-        shm_unlock(current->mmap);
         return err;
-    }
     *p = *(int *)addr;
-    shm_unlock(current->mmap);
     return 0;
 }
 
@@ -143,23 +145,15 @@ int fetchstr(uintptr_t addr, char **pp)
     int err = 0, len = 0;
     char *str = (char *)addr, *end = (char *)USER_STACK;
 
-    shm_lock(current->mmap);
     if ((err = chk_addr(addr)))
-    {
-        shm_unlock(current->mmap);
         return err;
-    }
 
     for (; (str < end) && *str; ++len, ++str)
     {
         if ((err = chk_addr(addr)))
-        {
-            shm_unlock(current->mmap);
             return err;
-        }
     }
 
-    shm_unlock(current->mmap);
     *pp = (char *)addr;
     return len;
 }
@@ -187,13 +181,8 @@ int argptr(int n, void **pp, int size)
     current_assert();
     if ((err = argint(n, &addr)))
         return err;
-    shm_lock(current->mmap);
     if ((err = chk_addr(addr + size)))
-    {
-        shm_unlock(current->mmap);
         return err;
-    }
-    shm_unlock(current->mmap);
     *pp = (void *)addr;
     return 0;
 }
@@ -373,9 +362,18 @@ pid_t sys_wait(void)
 {
     int *staloc = NULL;
     assert(!argptr(0, (void **)&staloc, sizeof(int *)), "err fetching staloc");
-    int ret = wait(staloc);
-    //printk("wait pid: %d, eip: %p\n", ret, ((trapframe_t *)current->t_tarch->tf)->eip);
-    return ret;
+    return wait(staloc);
+}
+
+pid_t sys_waitpid(void)
+{
+    pid_t pid = 0;
+    int *stat_loc = NULL;
+    int options = 0;
+    argint(0, &pid);
+    argptr(1, (void **)&stat_loc, sizeof(int *));
+    argint(2, &options);
+    return waitpid(pid, stat_loc, options);
 }
 
 int sys_execve(void)
@@ -386,7 +384,7 @@ int sys_execve(void)
     assert(!argstr(0, &path), "err fetching execv");
     assert(!argptr(1, (void **)&argp, sizeof(char **)), "err fetching argp");
     assert(!argptr(1, (void **)&envp, sizeof(char **)), "err fetching envp");
-    return execve(path, argp, envp);
+    return execve(path, (const char **)argp, (const char **)envp);
 }
 
 int sys_execv(void)
@@ -395,7 +393,7 @@ int sys_execv(void)
     char **argv = NULL;
     assert(argstr(0, &path) > 0, "err fetching execv");
     assert(!argptr(1, (void **)&argv, sizeof(char **)), "err fetching argv");
-    return execv(path, argv);
+    return execv(path, (const char **)argv);
 }
 
 
@@ -437,7 +435,8 @@ int sys_munmap(void)
     size_t length = 0;
     assert(!argint(0, (int *)&addr), "err fetching addr");
     assert(!argint(1, (int *)&length), "err fetching length");
-    return munmap((void *)addr, length);
+    return -ENOSYS;
+    //return munmap((void *)addr, length);
 }
 
 /*Thread Management*/
@@ -477,6 +476,14 @@ void sys_thread_exit(void)
     uintptr_t retval = 0;
     assert(!argint(0, (int *)&retval), "err fetching retval-ptr");
     thread_exit((uintptr_t)retval);
+}
+
+int sys_thread_cancel(void)
+{
+    tid_t thread = 0;
+    argint(0, &thread);
+
+    return thread_cancel(thread);
 }
 
 /*Protection*/

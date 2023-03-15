@@ -2,6 +2,7 @@
 #define GINGER_H 1
 
 #include <unistd.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
@@ -11,9 +12,12 @@
 #include <ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <math.h>
 #include <sys/fcntl.h>
 #include <bits/dirent.h>
 #include <bits/errno.h>
+
+#include <ginger/mman.h>
 
 #include <gfx/gfx.h>
 #include <fbterm/fb.h>

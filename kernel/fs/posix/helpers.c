@@ -26,6 +26,7 @@ struct fops posix_fops = {
     .read = posix_file_read,
     .readdir = posix_file_readdir,
     .sync = NULL,
+    .mmap = posix_file_mmap,
     .stat = posix_file_ffstat,
     .write = posix_file_write,
     .can_read = posix_file_can_read,

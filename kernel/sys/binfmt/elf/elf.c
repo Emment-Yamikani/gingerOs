@@ -15,7 +15,7 @@
 #include <lib/string.h>
 #include <arch/i386/paging.h>
 #include <sys/elf/elf.h>
-#include <mm/shm.h>
+#include <mm/mmap.h>
 #include <printk.h>
 
 static int elf_check_file(Elf32_Ehdr *elf_hdr)
@@ -208,91 +208,93 @@ static __unused int elf_load_stage2(Elf32_Ehdr *elf_hdr)
     return 0;
 }
 
-int binfmt_elf_load(struct inode *file, proc_t *proc)
+#define DEMAND_PAGING 1
+
+int binfmt_elf_load(inode_t *binary, proc_t *proc)
 {
-    int err =0;
-    void *buf = NULL;
-    uintptr_t brk =0;
-    size_t retval =0;
-    vmr_t *vmr = NULL;
-    Elf32_Phdr *phdr = NULL;
-    Elf32_Ehdr *elf_hdr = NULL;
+    int err = 0;
+    int prot = 0;
+    int flags = 0;
+    size_t phdrsz = 0;
+    mmap_t *mmap = NULL;
+    vmr_t *region = NULL;
+    Elf32_Phdr *hdr = NULL;
+    Elf32_Ehdr *elf = NULL;
 
-    if ((buf = kmalloc(file->i_size)) == NULL)
-        return -ENOMEM;
+    proc_assert_lock(proc);
+    mmap_assert_locked(proc->mmap);
 
-    // thisssss IISSSS SOOOO SLOWWWWWWWW!!!!!
-    retval = iread(file, 0, (char *)buf, file->i_size);
+    mmap = proc->mmap;
 
-    if (retval != file->i_size)
+    if ((elf = kcalloc(1, sizeof *elf)) == NULL)
+    {
+        err = -ENOMEM;
+        goto error;
+    }
+
+    if (iread(binary, 0, elf, sizeof *elf) != sizeof *elf)
     {
         err = -EAGAIN;
         goto error;
     }
 
-    elf_hdr = (typeof (elf_hdr))buf;
-    phdr = (typeof (phdr))(buf + elf_hdr->e_phoff);
+    phdrsz = elf->e_phentsize * elf->e_phnum;
 
-    for (int i =0; i < elf_hdr->e_phnum; ++i)
+    if ((hdr = kcalloc(elf->e_phnum, elf->e_phentsize)) == NULL)
     {
-        size_t truncate = 0;
+        err = -ENOMEM;
+        goto error;
+    }
 
-        if (phdr[i].p_type == PT_LOAD)
+    if (iread(binary, elf->e_phoff, hdr, phdrsz) != phdrsz)
+    {
+        err = -EAGAIN;
+        goto error;
+    }
+
+    for (int i = 0; i < elf->e_phnum; i++)
+    {
+        if (hdr[i].p_type & PT_LOAD)
         {
-            truncate = phdr[i].p_memsz - phdr[i].p_filesz;
-            
-            if (vmr_alloc(&vmr))
-                panic("binfmt_elf_load(): failed to alloc vmr\n");
+            flags = MAP_PRIVATE | MAP_DONTEXPAND | MAP_FIXED;
+            prot = (hdr[i].p_flags & PF_R ? PROT_R : 0) |
+                   (hdr[i].p_flags & PF_W ? PROT_W : 0) |
+                   (hdr[i].p_flags & PF_X ? PROT_X : 0);
 
-            vmr->file = file;
-            vmr->vaddr = phdr[i].p_vaddr;
-            vmr->size = phdr[i].p_memsz;
-            vmr->file_pos = phdr[i].p_offset;
-            
-            vmr->vflags |= phdr[i].p_flags & PF_X ? VM_UR : 0;
-            vmr->vflags |= phdr[i].p_flags & PF_R ? VM_UR : 0;
-            vmr->vflags |= phdr[i].p_flags & PF_W ? VM_UW : 0;
+            if ((err = mmap_map_region(mmap, PGROUND(hdr[i].p_vaddr),
+                                       GET_BOUNDARY_SIZE(0, hdr[i].p_memsz), prot, flags, &region)))
+                goto error;
 
-            vmr->oflags |= phdr[i].p_flags & PF_R ? VM_READ : 0;
-            vmr->oflags |= phdr[i].p_flags & PF_W ? VM_WRITE : 0;
-            vmr->oflags |= phdr[i].p_flags & PF_X ? VM_EXECUTABLE : 0;
-            vmr->oflags |= phdr[i].p_flags & PF_X ? VM_DONTEXPAND : 0;
+#ifndef DEMAND_PAGING
+            if ((err = paging_mappages(region->start,
+                                       GET_BOUNDARY_SIZE(0, hdr[i].p_memsz), region->vflags)))
+                goto error;
 
-            //printk("elf: vmr: %p, oflags: \e[0;013m0%b\e[0m, vflags: \e[0;012m0%b\e[0m\n", vmr->vaddr, vmr->oflags, vmr->vflags);
-
-            if (phdr[i].p_flags & PF_X)
+            size_t truncsz = __vmr_size(region) - hdr[i].p_filesz;
+            if (iread(binary, hdr[i].p_offset, (void *)region->start, hdr[i].p_filesz) != hdr[i].p_filesz)
             {
-                proc->mmap->code_start = phdr[i].p_vaddr;
-                proc->mmap->code_size = phdr[i].p_memsz;
+                err = -EAGAIN;
+                goto error;
             }
-            else
-            {
-                proc->mmap->data_start = phdr[i].p_vaddr;
-                proc->mmap->data_size = phdr[i].p_memsz;
-            }
-            
-            shm_map(proc->mmap, vmr);
-            paging_mappages(vmr->vaddr, GET_BOUNDARY_SIZE(vmr->vaddr, vmr->size), vmr->vflags);
-            //!TODO: implement demand paging
-            //klog(KLOG_WARN, "%s:%d:: [TODO] implement demand paging\n", __FILE__, __LINE__);
-            memcpy((void *)phdr[i].p_vaddr, (void *)(buf + phdr[i].p_offset), phdr[i].p_filesz);
-            if (truncate)
-                memset((void *)(phdr[i].p_vaddr + phdr[i].p_filesz), 0, truncate);
-        }
+            memset((void *)region->start + hdr[i].p_filesz, 0, truncsz);
+#endif // DEMAND_PAGING
 
-        if (phdr[i].p_vaddr > brk)
-        {
-            brk = phdr[i].p_vaddr + phdr[i].p_memsz;
-            proc->mmap->brk_size -= GET_BOUNDARY_SIZE(0, phdr[i].p_memsz);
+            region->file = binary;
+            region->filesz = hdr[i].p_filesz;
+            region->file_pos = hdr[i].p_offset;
         }
     }
 
-    proc->entry = elf_hdr->e_entry;
-    proc->mmap->brk_start = GET_BOUNDARY_SIZE(0, brk);
-    kfree(buf);
+    kfree(elf);
+    kfree(hdr);
+
+    proc->entry = elf->e_entry;
+
     return 0;
 error:
-    if (buf) kfree(buf);
-    printk("binfmt_elf_load: err=%d\n", err);
+    if (elf)
+        kfree(elf);
+    if (hdr)
+        kfree(hdr);
     return err;
 }

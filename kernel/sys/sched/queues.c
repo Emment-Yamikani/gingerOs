@@ -156,6 +156,7 @@ int sched_wakeall(queue_t *sleep_queue)
         assert(!thread_wake(thread), "failed to park thread");
         thread_unlock(thread);
     }
+
     queue_unlock(sleep_queue);
 
     return count;
@@ -166,9 +167,11 @@ int sched_zombie(thread_t *thread)
     int err = 0;
     thread_assert(thread);
     thread_assert_lock(thread);
+
     if ((err = thread_enqueue(zombie_queue, thread, NULL)))
         return err;
-    cond_broadcast(thread->t_wait);
+
     atomic_decr(&thread->t_group->nthreads);
+    cond_broadcast(thread->t_wait);
     return 0;
 }

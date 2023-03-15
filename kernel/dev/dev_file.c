@@ -104,7 +104,7 @@ off_t kdev_fopen(struct devid *dd, file_t *file, int oflags, ...)
     return dev->fops.open(file, oflags);
 }
 
-off_t kdev_fioctl(struct devid *dd, file_t *file, int request, void *args)
+int kdev_fioctl(struct devid *dd, file_t *file, int request, void *args)
 {
     dev_t *dev = NULL;
     if ((dev = kdev_get(dd)) == NULL)
@@ -122,4 +122,14 @@ int kdev_fstat(struct devid *dd, file_t *file, struct stat *buf)
     if (!dev->fops.stat)
         return -ENXIO;
     return dev->fops.stat(file, buf);
+}
+
+int kdev_fmmap(struct devid *dd, file_t *file, vmr_t *vmr)
+{
+    dev_t *dev = NULL;
+    if ((dev = kdev_get(dd)) == NULL)
+        return -ENXIO;
+    if (!dev->fops.mmap)
+        return -ENXIO;
+    return dev->fops.mmap(file, vmr);
 }

@@ -1,0 +1,2 @@
+bioobjs=\
+$(biodir)/bio.o

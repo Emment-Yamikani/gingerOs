@@ -21,12 +21,15 @@ typedef struct trapframe
     uint32_t edx;
     uint32_t ecx;
     uint32_t eax;
+
     uint32_t gs;
     uint32_t fs;
     uint32_t es;
     uint32_t ds;
+    
     uint32_t ino;
     uint32_t eno;
+    
     uint32_t eip;
     uint32_t cs;
     uint32_t eflags;

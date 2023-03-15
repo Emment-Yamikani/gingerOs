@@ -91,7 +91,7 @@ void spinlock_free(spinlock_t *__lock);
  * @param __lock
  * @return int '1' if acquisition was successful(lock wasn't held before) and '0' if acquisition failed(lock is already held)
  */
-static inline int spin_try_lock(spinlock_t *__lock)
+static inline int spin_trylock(spinlock_t *__lock)
 {
     assert(__lock, "no spinlock");
     pushcli();

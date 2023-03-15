@@ -9,52 +9,54 @@
 #include <arch/sys/thread.h>
 #include <arch/sys/uthread.h>
 
-void tgroup_free(tgroup_t *tgrp)
+static atomic_t tids = 1;
+
+void tgroup_free(tgroup_t *tgroup)
 {
     thread_t *thread = NULL;
-    assert(tgrp, "no tgrp pointer");
-    if (tgrp->queue)
+    assert(tgroup, "no tgroup pointer");
+    if (tgroup->queue)
     {
-        queue_lock(tgrp->queue);
-        while ((thread = thread_dequeue(tgrp->queue)))
+        queue_lock(tgroup->queue);
+        while ((thread = thread_dequeue(tgroup->queue)))
         {
             printk("\e[07;04mtrashing thread(%d)\e[0m\n", thread->t_tid);
             thread_free(thread);
         }
-        queue_free(tgrp->queue);
+        queue_free(tgroup->queue);
     }
-    kfree(tgrp);
+    kfree(tgroup);
 }
 
 int tgroup_new(tid_t tgid, tgroup_t **ref)
 {
     int err =0;
     queue_t *queue = NULL;
-    tgroup_t *tgrp = NULL;
+    tgroup_t *tgroup = NULL;
 
-    assert(ref, "no tgrp poiter reference");
-    if (!(tgrp = kmalloc(sizeof *tgrp)))
+    assert(ref, "no tgroup poiter reference");
+    if (!(tgroup = kmalloc(sizeof *tgroup)))
         return -ENOMEM;
 
-    char *name = strcat_num("tgrp", tgid, 10);
-    assert(name, "no memory to alloc tgrp name");
+    char *name = strcat_num("tgroup", tgid, 10);
+    assert(name, "no memory to alloc tgroup name");
 
     if ((err = queue_new(name, &queue)))
         goto error;
 
-    memset(tgrp, 0, sizeof *tgrp);
+    memset(tgroup, 0, sizeof *tgroup);
 
-    tgrp->gid = tgid;
-    tgrp->queue = queue;
+    tgroup->gid = tgid;
+    tgroup->queue = queue;
 
-    *ref = tgrp;
+    *ref = tgroup;
     if (name)
         kfree(name);
     return 0;
 
 error:
-    if (tgrp)
-        kfree(tgrp);
+    if (tgroup)
+        kfree(tgroup);
     if (name)
         kfree(name);
     if (queue)
@@ -63,7 +65,103 @@ error:
     return err;
 }
 
-static atomic_t tids = 1;
+void tgroup_wait_all(tgroup_t *tgroup)
+{
+    thread_t *thread = NULL;
+    queue_node_t *next = NULL;
+
+    if (tgroup == NULL)
+        return;
+    
+    queue_lock(tgroup->queue);
+
+    forlinked(node, tgroup->queue->head, next)
+    {
+        next = node->next;
+        thread = node->data;
+
+        if (thread == current)
+            continue;
+
+        thread_lock(thread);
+
+        thread_kill_n(thread);
+        thread_wake(thread);
+        
+        queue_unlock(tgroup->queue);
+        thread_wait(thread, 0, NULL);
+        queue_lock(tgroup->queue);
+
+        thread_unlock(thread);
+    }
+
+    queue_unlock(tgroup->queue);
+
+    return;
+}
+
+int tgroup_kill_thread(tgroup_t *tgroup, tid_t tid)
+{
+    int err = 0;
+    thread_t *thread = NULL;
+    queue_node_t *next = NULL;
+
+    if (tgroup == NULL)
+        return -EINVAL;
+    
+    if (current && thread_iskilled(current))
+        return -EALREADY;
+
+    if (tid == -1)
+        goto all;
+    else if (tid == 0)
+        thread_exit(0);
+
+    if ((err = thread_get(tgroup, tid, &thread)))
+        return err;
+
+    thread_assert_lock(thread);
+    if (thread == current)
+    {
+        current_unlock();
+        thread_exit(0);
+    }
+
+    if ((err = thread_kill_n(thread)))
+    {
+        thread_unlock(thread);
+        return err;
+    }
+    thread_unlock(thread);
+
+    return 0;
+all:
+    queue_lock(tgroup->queue);
+
+    forlinked(node, tgroup->queue->head, next)
+    {
+        next = node->next;
+        thread = node->data;
+
+        if (thread == current)
+            continue;
+
+        thread_lock(thread);
+
+        thread_kill_n(thread);
+        thread_wake(thread);
+
+        queue_unlock(tgroup->queue);
+        thread_wait(thread, 1, NULL);
+        queue_lock(tgroup->queue);
+
+        thread_unlock(thread);
+    }
+
+    queue_unlock(tgroup->queue);
+
+    return 0;
+}
 
 static tid_t thread_tid_alloc(void)
 {
@@ -220,26 +318,35 @@ thread_t *thread_dequeue(queue_t *queue)
 
 int thread_execve(proc_t *proc, thread_t *thread, void *(*entry)(void *), const char *argp[], const char *envp[])
 {
-    int err = 0;
     vmr_t *stack = NULL;
-    thread_assert(thread);
-    shm_assert_lock(proc->mmap);
+    int err = 0, argc = 0;
+    char **argv = NULL, **envv = NULL;
 
-    if ((err = shm_alloc_stack(proc->mmap, &stack)))
+    proc_assert_lock(proc);
+    thread_assert_lock(thread);
+    mmap_assert_locked(proc->mmap);
+
+    if ((err = argenv_copy(proc->mmap, (const char **)argp,
+                           (const char **)envp, &argv, &argc, &envv)))
         goto error;
 
-    thread->t_tarch->ustack = stack;
-    if ((err = arch_uthread_init(thread->t_tarch, entry, argp, envp)))
+    stack = thread->t_tarch->ustack;
+    if ((err = mmap_alloc_stack(proc->mmap, USTACKSIZE, &thread->t_tarch->ustack)))
+    {
+        thread->t_tarch->ustack = stack;
         goto error;
+    }
+
+    if ((err = arch_uthread_init(thread->t_tarch, entry, (const char **)argv, argc, (const char **)envv)))
+    {
+        thread->t_tarch->ustack = stack;
+        goto error;
+    }
 
     return 0;
 error:
     if (stack)
-    {
-        vmr_lock(stack);
-        shm_remove(proc->mmap, stack);
-        vmr_unlock(stack);
-    }
+        mmap_remove(proc->mmap, stack);
     return err;
 }
 
@@ -258,7 +365,7 @@ int thread_fork(thread_t *dst, thread_t *src)
     dst->t_sched_attr = src->t_sched_attr;
     atomic_write(&dst->t_sched_attr.age, 0);
 
-    if (!(vmr = shm_lookup(dst->mmap, ((trapframe_t *)src->t_tarch->tf)->esp)))
+    if (!(vmr = mmap_find(dst->mmap, ((trapframe_t *)src->t_tarch->tf)->esp)))
     {
         err = -EADDRNOTAVAIL;
         goto error;

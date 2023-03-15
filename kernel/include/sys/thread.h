@@ -11,7 +11,7 @@
 #include <locks/cond.h>
 #include <locks/atomic.h>
 #include <lime/assert.h>
-#include <mm/shm.h>
+#include <mm/mmap.h>
 
 typedef enum
 {
@@ -24,7 +24,11 @@ typedef enum
     /*running*/
     T_RUNNING = 3,
     /*zombie*/
-    T_ZOMBIE = 4
+    T_ZOMBIE = 4,
+    /*thread was stopped*/
+    T_STOPPED = 5,
+    /*thread was terminated*/
+    T_TERMINATED = 6,
 } tstate_t;
 
 __unused static const char *STATES[] = {
@@ -80,7 +84,7 @@ typedef struct thread
     spinlock_t *t_lock;        /*thread lock*/
     sched_attr_t t_sched_attr; /*thread scheduling attributes*/
 
-    shm_t *mmap;       /*memory map*/
+    mmap_t *mmap;       /*memory map*/
     tgroup_t *t_group; /*thread group*/
     queue_t *t_queues; /*thread queues*/
     struct
@@ -100,6 +104,10 @@ typedef struct thread
     cond_t *t_wait;                  /*thread wait condition*/
 } thread_t;
 
+#define __thread_zombie(thread)        (thread->t_state == T_ZOMBIE)
+#define __thread_stopped(thread)       (thread->t_state == T_STOPPED)
+#define __thread_terminated(thread)    (thread->t_state == T_TERMINATED)
+
 #define thread_assert(t) assert(t, "no thread");
 #define thread_lock(t) {thread_assert(t); spin_lock(t->t_lock); if (LIME_DEBUG) printk("%s:%d:: TID(%d) locked [%p]\n", __FILE__, __LINE__, t->t_tid, return_address(0));}
 #define thread_unlock(t) {thread_assert(t); spin_unlock(t->t_lock); if (LIME_DEBUG) printk("%s:%d:: TID(%d) unlocked [%p]\n", __FILE__, __LINE__, t->t_tid, return_address(0));}
@@ -111,6 +119,10 @@ typedef struct thread
 #define current_lock() thread_lock(current);
 #define current_unlock() thread_unlock(current);
 #define current_assert_lock() assert(spin_holding(current->t_lock), "current not locked")
+#define current_mmap() (current->mmap)
+
+#define current_mmap_lock()     mmap_lock(current_mmap())
+#define current_mmap_unlock()   mmap_unlock(current_mmap())
 
 void thread_free(thread_t *);
 void thread_dump(thread_t *);
@@ -118,6 +130,9 @@ int thread_new(thread_t **);
 
 void tgroup_free(tgroup_t *);
 int tgroup_new(tid_t, tgroup_t **);
+void tgroup_wait_all(tgroup_t *tgrp);
+int tgroup_kill_thread(tgroup_t *tgroup, tid_t tid);
+
 thread_t *thread_dequeue(queue_t *);
 int thread_enqueue(queue_t *, thread_t *, queue_node_t **node);
 
@@ -126,12 +141,16 @@ int thread_ishandling_signal(thread_t *thread);
 
 void thread_yield(void);
 tid_t thread_self(void);
-void thread_exit(uintptr_t);
-int thread_wake(thread_t *thread);
-int thread_fork(thread_t *dst, thread_t *src);
 int thread_kill_all(void);
 int thread_kill(tid_t tid);
+void thread_exit(uintptr_t);
+int thread_cancel(tid_t tid);
+int thread_wake(thread_t *thread);
 int thread_kill_n(thread_t *thread);
 int thread_join(tid_t tid, void **retval);
+int thread_fork(thread_t *dst, thread_t *src);
+int thread_get(tgroup_t *tgrp, tid_t tid, thread_t **tref);
+int thread_wait(thread_t *thread, int reap, void **retval);
 int thread_create(tid_t *tid, void *(*entry)(void *), void *arg);
 int thread_execve(proc_t *proc, thread_t *thread, void *(*entry)(void *), const char *argp[], const char *envp[]);
+int argenv_copy(mmap_t *__mmap, const char *__argp[], const char *__envp[], char **argv[], int *pargc, char **envv[]);

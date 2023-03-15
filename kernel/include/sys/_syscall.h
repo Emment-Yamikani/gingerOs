@@ -15,6 +15,7 @@
 #define SYS_YIELD           3 //* yield cpu
 #define SYS_EXIT            4 //* exit the process
 #define SYS_WAIT            5 //* wait for child to terminate
+#define SYS_WAITPID         55 //* wait for a specific process to change state
 #define SYS_SLEEP           6 //* sleep for n secs.
 #define SYS_GETPID          7 //* get process ID
 #define SYS_EXECV           8 //* exec
@@ -62,6 +63,7 @@
 #define SYS_THREAD_JOIN     37 //* wait for thread TID to terminate
 #define SYS_THREAD_EXIT     38 //* terminate thread
 #define SYS_THREAD_YIELD    39 //* create a thread
+#define SYS_THREAD_CANCEL   56
 
 #define SYS_GETPGRP         40 //* get process group ID
 #define SYS_SETPGRP         41 //* set process group ID
@@ -139,7 +141,8 @@ extern long sys_sleep(void);
 extern void sys_exit(void);
 
 extern int sys_fork(void);
-extern int sys_wait(void);
+extern pid_t sys_wait(void);
+extern pid_t sys_waitpid(void);
 extern int sys_execv(void);
 extern int sys_execve(void);
 
@@ -158,6 +161,7 @@ extern int sys_setpgid(void);
 extern void sys_thread_yield(void);
 extern int sys_thread_create(void);
 extern int sys_thread_self(void);
+extern int sys_thread_cancel(void);
 extern int sys_thread_join(void);
 extern void sys_thread_exit(void);
 

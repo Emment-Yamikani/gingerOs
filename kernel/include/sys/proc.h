@@ -1,6 +1,6 @@
 #pragma once
 
-#include <mm/shm.h>
+#include <mm/mmap.h>
 #include <fs/fs.h>
 #include <ds/queue.h>
 #include <lib/types.h>
@@ -19,37 +19,43 @@ struct pgroup;
 #define PROC_ORPHANED   0x04
 #define PROC_REAP       0x08
 
+
+typedef struct proc_event
+{
+    pid_t pid;
+    int status;
+} proc_envent_t;
+
 typedef struct proc
 {
     pid_t pid;
     char *name;
-    shm_t *mmap;
-    uintptr_t entry;
-    struct proc *parent;
-    file_table_t *ftable;
-    atomic_t flags;
+    mmap_t *mmap;
     pid_t *killer;
     uintptr_t exit;
+    atomic_t flags;
+    int exit_status;
+    uintptr_t entry;
+    atomic_t rthreads;
+    struct proc *parent;
+    file_table_t *ftable;
 
     enum
     {
-        EMBRYO,
-        SLEEPING,
-        RUNNING,
-        ZOMBIE,
+        EMBRYO, SLEEPING, RUNNING,
+        ZOMBIE, STOPPED, TERMINATED,
+        CONTINUED,
     } state;
 
     thread_t *tmain;
     tgroup_t *tgroup;
 
-    cond_t *wait;
-
-    struct signals *signals;
-
     queue_t *children;
+    cond_t *wait_child;
 
     struct pgroup *pgroup;
     struct session *session;
+    struct signals *signals;
 
     spinlock_t *lock;
 } proc_t;
@@ -73,15 +79,21 @@ extern queue_t *processes;
     {                         \
         proc_assert(p);       \
         spin_unlock(p->lock); \
+        if (PROC_EXIT) printk("proc_unlock()\n"); \
         if (LIME_DEBUG) printk("%s:%d unlocked(%d)\n", __FILE__, __LINE__, p->pid); \
     }
 
-int proc_has_execed(proc_t *);
+#define __proc_ischild(p0, p) (p->parent == p0)
+
+#define __proc_wait4_threads(process) while(atomic_read(&process->rthreads))
+
 int proc_iskilled(proc_t *);
 int proc_isorphan(proc_t *);
+int proc_has_execed(proc_t *);
+int proc_getchild(pid_t pid, proc_t **ref);
 
-int proc_get(pid_t, proc_t **);
 void proc_free(proc_t *);
 int proc_init(const char *);
+int proc_get(pid_t, proc_t **);
 int proc_copy(proc_t *, proc_t *);
 int proc_alloc(const char *, proc_t **);

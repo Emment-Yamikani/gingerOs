@@ -4,6 +4,7 @@ global _start
 extern sys_exit
 extern printf
 
+section .text
 _start:
     mov eax, esp
     push dword [eax + 12]

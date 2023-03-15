@@ -24,7 +24,7 @@ int proc_alloc(const char *name, proc_t **ref)
     int err = 0;
     pid_t pid = 0;
     char *str = NULL;
-    shm_t *mmap = NULL;
+    mmap_t *mmap = NULL;
     proc_t *proc = NULL;
     SIGNAL sigs = NULL;
     thread_t *tmain = NULL;
@@ -38,7 +38,7 @@ int proc_alloc(const char *name, proc_t **ref)
     assert(name, "proc name not specified");
     assert(ref, "proc ref not specified");
 
-    if ((err = shm_alloc(&mmap)))
+    if ((err = mmap_alloc(&mmap)))
         goto error;
 
     if ((str = combine_strings(name, "-signals")) == NULL)
@@ -119,7 +119,7 @@ int proc_alloc(const char *name, proc_t **ref)
     proc->tmain = tmain;
     proc->signals = sigs;
     proc->tgroup = tgroup;
-    proc->wait = procwait;
+    proc->wait_child = procwait;
     proc->children = children;
 
     tmain->mmap = mmap;
@@ -145,7 +145,7 @@ error:
     if (proc)
         kfree(proc);
     if (mmap)
-        shm_free(mmap);
+        mmap_free(mmap);
     if (sigs)
         signals_free(sigs);
     if (tmain)
@@ -178,23 +178,36 @@ int proc_init(const char *fn)
     if ((err = binfmt_load(fn, NULL, &proc)))
         goto error;
 
+    proc_lock(proc);
     thread = proc->tmain;
+    mmap_lock(proc->mmap);
 
-    shm_lock(proc->mmap);
     oldpgdir = arch_proc_init(proc->mmap);
 
-    if ((err = thread_execve(proc, thread, (void *)proc->entry, argp, envp)))
+    if ((err = thread_execve(proc, thread, (void *)proc->entry, argp, envp))) {
+        paging_switch(oldpgdir);
+        thread_unlock(thread);
+        mmap_unlock(proc->mmap);
+        proc_unlock(proc);
         goto error;
-
+    }
+    
     paging_switch(oldpgdir);
-    shm_unlock(proc->mmap);
+    mmap_unlock(proc->mmap);
+
     initproc = proc;
     sched_set_priority(thread, SCHED_LOWEST_PRIORITY);
 
     if ((err = sched_park(thread)))
+    {
+        paging_switch(oldpgdir);
+        thread_unlock(thread);
+        proc_unlock(proc);
         goto error;
+    }
 
     thread_unlock(thread);
+    proc_unlock(proc);
     return 0;
 error:
     klog(KLOG_FAIL, "failed to load \'init\', error= %d\n", err);
@@ -208,21 +221,12 @@ int proc_copy(proc_t *dst, proc_t *src)
 
     proc_assert_lock(src);
     proc_assert_lock(dst);
-    shm_assert_lock(src->mmap);
-    shm_assert_lock(dst->mmap);
 
-    shm_pgdir_lock(dst->mmap);
-    shm_pgdir_lock(src->mmap);
+    mmap_assert_locked(src->mmap);
+    mmap_assert_locked(dst->mmap);
 
-    if ((err = shm_copy(dst->mmap, src->mmap)))
-    {
-        shm_pgdir_unlock(src->mmap);
-        shm_pgdir_unlock(dst->mmap);
+    if ((err = mmap_copy(dst->mmap, src->mmap)))
         goto error;
-    }
-
-    shm_pgdir_unlock(src->mmap);
-    shm_pgdir_unlock(dst->mmap);
 
     dst->entry = src->entry;
     dst->state = src->state;
@@ -290,7 +294,7 @@ void proc_free(proc_t *proc)
         kfree(proc->name);
 
     if (proc->mmap)
-        shm_free(proc->mmap);
+        mmap_free(proc->mmap);
 
     if (proc->signals)
         signals_free(proc->signals);
@@ -304,8 +308,8 @@ void proc_free(proc_t *proc)
     if (proc->tgroup)
         tgroup_free(proc->tgroup);
 
-    if (proc->wait)
-        cond_free(proc->wait);
+    if (proc->wait_child)
+        cond_free(proc->wait_child);
 
     if (proc->ftable)
         f_free_table(proc->ftable);
@@ -341,6 +345,25 @@ int proc_get(pid_t pid, proc_t **ref)
     queue_unlock(processes);
 
     return -ESRCH;
+}
+
+int proc_getchild(pid_t pid, proc_t **ref)
+{
+    int err = 0;
+    proc_t *child = NULL;
+    assert(ref, "No ref");
+
+    if ((err = proc_get(pid, &child)))
+        return err;
+    
+    if (__proc_ischild(proc, child))
+    {
+        proc_unlock(child);
+        return -ECHILD;
+    }
+
+    *ref = child;
+    return 0;
 }
 
 int proc_has_execed(proc_t *p)

@@ -33,6 +33,8 @@ typedef struct devops
     int (*ioctl)(struct devid *, int, void *);
     size_t (*read)(struct devid *, off_t, void *, size_t);
     size_t (*write)(struct devid *, off_t, void *, size_t);
+    int (*mmap)(struct devid *, vmr_t *);
+    int (*munmap)(vmr_t *);
 } devops_t;
 
 typedef struct dev
@@ -91,6 +93,7 @@ off_t kdev_fperm(struct devid *dd, file_t *file, int mode);
 int kdev_fcan_read(struct devid *dd, file_t *file, size_t sz);
 int kdev_fcan_write(struct devid *dd, file_t *file, size_t sz);
 off_t kdev_fopen(struct devid *dd, file_t *file, int mode, ...);
-off_t kdev_fioctl(struct devid *dd, file_t *file, int request, void *args);
+int kdev_fioctl(struct devid *dd, file_t *file, int request, void *args);
+int kdev_fmmap(struct devid *dd, file_t *file, vmr_t *vmr);
 
 #endif // DEV_DEV_H

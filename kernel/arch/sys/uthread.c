@@ -56,14 +56,12 @@ int arch_uthread_execve(uintptr_t *ustack, const char **__argp, const char **__e
     stack -= (argc + 1) * sizeof(char *);
     memcpy(stack, argp, ((argc + 1) * sizeof(char *)));
     kfree(argp);
-    argp = (char **)stack;
 
+    argp = (char **)stack;
     uint32_t *stack_top = (uint32_t *)stack;
 
     /**
-     * @brief exec() starts running a program image as main(int argc, char *argv[]);
-     *
-     */
+     * @brief exec() starts running a program image as main(int argc, char *argv[]);*/
     *--stack_top = (uint32_t)envp;       // push poiter environment variables
     *--stack_top = (uint32_t)argp;       // push poiter argument variables
     *--stack_top = (uint32_t)argc;       // push argc

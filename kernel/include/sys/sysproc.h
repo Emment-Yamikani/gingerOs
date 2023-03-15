@@ -8,8 +8,8 @@ pid_t getpid(void);
 void exit(int);
 pid_t fork(void);
 pid_t wait(int *);
-int execv(char *, char *[]);
-int execve(char *, char *[], char *[]);
+int execv(const char *, const char *[]);
+int execve(const char *fn, const char *argp[], const char *envp[]);
 extern int brk(void *addr);
 extern void *sbrk(ptrdiff_t nbytes);
 
