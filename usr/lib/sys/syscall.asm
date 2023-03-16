@@ -51,7 +51,7 @@
 ;-------------------------------------------------------------------
 
 %define SYS_SBRK	        28 ;sbrk
-%define SYS_BRK             29
+%define SYS_MPROTECT        29
 %define SYS_GETPAGESIZE     30 ;get kernel page size (currently not dynamic)
 %define SYS_MMAP            31
 
@@ -142,7 +142,7 @@ STUB SYS_SBRK, sbrk
 STUB SYS_GETPAGESIZE, getpagesize
 STUB SYS_MMAP, mmap
 STUB SYS_MUNMAP, munmap
-STUB SYS_BRK, brk
+STUB SYS_MPROTECT, mprotect
 
 STUB SYS_KILL, kill
 STUB SYS_SIGNAL, signal

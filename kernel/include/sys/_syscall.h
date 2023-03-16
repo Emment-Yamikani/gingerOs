@@ -48,7 +48,7 @@
 /* Memory management */
 
 #define SYS_SBRK	        28 //* sbrk
-#define SYS_BRK             29
+#define SYS_MPROTECT        29
 #define SYS_GETPAGESIZE     30 //* get kernel page size (currently not dynamic)
 #define SYS_MMAP            31
 
@@ -119,7 +119,7 @@ extern int sys_creat(void);
 /*Memory management*/
 
 extern int sys_getpagesize(void);
-extern int sys_brk(void);
+extern int sys_mprotect(void);
 extern void *sys_sbrk(void);
 extern void *sys_mmap(void);
 extern int sys_munmap(void);

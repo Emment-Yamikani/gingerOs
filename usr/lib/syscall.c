@@ -109,6 +109,7 @@ extern int sys_kputc(int c);
 extern void *sys_mmap(void *addr, size_t length, int prot, int flags,
            int fd, off_t offset);
 extern int sys_munmap(void *addr, size_t length);
+int sys_mprotect(void *addr, size_t len, int prot);
 extern int sys_brk(void *addr);
 extern void *sys_sbrk(int nbytes);
 extern int sys_getpagesize(void);
@@ -205,7 +206,8 @@ extern int dprintf(int, char *, ...);
 
 int brk(void *addr)
 {
-    return sys_brk(addr);
+    //return sys_brk(addr);
+    return -1;
 }
 
 void *sbrk(int nbytes)
@@ -475,4 +477,9 @@ void *mmap(void *addr, size_t length, int prot, int flags,
 int munmap(void *addr, size_t length)
 {
     return sys_munmap(addr, length);
+}
+
+int mprotect(void *addr, size_t len, int prot)
+{
+    return sys_mprotect(addr, len, prot);
 }

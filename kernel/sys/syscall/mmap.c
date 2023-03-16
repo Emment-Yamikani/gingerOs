@@ -83,4 +83,24 @@ error:
     return (void *)err;
 }
 
-int munmap(void *addr, size_t length);
+int munmap(void *addr __unused, size_t len __unused)
+{
+    return -ENOSYS;
+}
+
+
+int mprotect(void *addr, size_t len, int prot)
+{
+    mmap_t *mmap = NULL;
+    current_lock();
+    mmap = current->mmap;
+    current_unlock();
+
+    if (mmap == NULL)
+        return -EINVAL;
+    
+    mmap_lock(mmap);
+    int err = mmap_protect(mmap, (uintptr_t)addr, len, prot);
+    mmap_unlock(mmap);
+    return err;
+}

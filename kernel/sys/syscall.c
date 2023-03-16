@@ -50,6 +50,7 @@ static uintptr_t (*syscall[])(void) = {
     [SYS_GETPAGESIZE](void *) sys_getpagesize,
     [SYS_MMAP] (void *)sys_mmap,
     [SYS_MUNMAP] (void *)sys_munmap,
+    [SYS_MPROTECT](void *)sys_mprotect,
 
     /*Thread management*/
 
@@ -436,7 +437,18 @@ int sys_munmap(void)
     assert(!argint(0, (int *)&addr), "err fetching addr");
     assert(!argint(1, (int *)&length), "err fetching length");
     return -ENOSYS;
-    //return munmap((void *)addr, length);
+    return munmap((void *)addr, length);
+}
+
+int sys_mprotect(void)
+{
+    int prot = 0;
+    size_t len = 0;
+    uintptr_t addr = 0;
+    assert(!argint(0, (int *)&addr), "err fetching addr");
+    assert(!argint(1, (int *)&len), "err fetching length");
+    assert(!argint(2, (int *)&prot), "err fetching prot");
+    return mprotect((void *)addr, len, prot);
 }
 
 /*Thread Management*/

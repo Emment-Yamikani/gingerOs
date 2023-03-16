@@ -35,6 +35,7 @@ extern "C"
                       int __flags, int __fd, long __offset);
     
     extern int munmap(void *addr, size_t length);
+    extern int mprotect(void *addr, size_t len, int prot);
 #ifdef __cplusplus
 }
 #endif
