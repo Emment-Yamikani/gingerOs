@@ -72,6 +72,8 @@ extern uint32_t _xchg_(volatile uint32_t *ptr, uint32_t newval);
 extern void write_cr3(uint32_t);
 extern uint32_t read_cr3(void);
 extern uint32_t read_cr2(void);
+extern uintptr_t read_cr0(void);
+extern void write_cr0(uintptr_t);
 extern uint32_t read_esp(void);
 extern uint32_t read_ebp(void);
 extern uint32_t read_eax(void);

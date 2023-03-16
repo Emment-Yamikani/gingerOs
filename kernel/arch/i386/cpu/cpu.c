@@ -10,6 +10,7 @@ volatile int ncpu = 0;
 cpu_t cpus[NCPU] = {0};
 atomic_t cpus_online = {0};
 cpu_t *bootstrap_cpu = NULL;
+char fpus[NCPU][512] = {0};
 
 void set_tss(uint32_t esp, int ss)
 {
@@ -39,7 +40,9 @@ void setupsegs(void)
     cpu = c;
     proc = NULL;
     current = NULL;
+    fpu_thread = NULL;
     ready_queue = NULL;
+    fpu_ctx = fpus[cpuid()];
 }
 
 int cpu_init(void)
@@ -52,6 +55,10 @@ int cpu_init(void)
     cpu->ncli = 0;
     cpu->intena = 0;
     atomic_incr(&cpus_online);
+
+    fpu_enable();
+    fpu_init();
+    fpu_disable();
     return 0;
 }
 

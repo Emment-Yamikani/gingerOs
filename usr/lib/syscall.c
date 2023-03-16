@@ -206,6 +206,7 @@ extern int dprintf(int, char *, ...);
 
 int brk(void *addr)
 {
+    (void)addr;
     //return sys_brk(addr);
     return -1;
 }

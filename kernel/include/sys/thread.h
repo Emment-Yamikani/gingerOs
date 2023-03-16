@@ -36,7 +36,8 @@ __unused static const char *STATES[] = {
     [T_READY] = "ready",
     [T_RUNNING] = "running",
     [T_ISLEEP] = "isleep",
-    [T_ZOMBIE] = "zombie"};
+    [T_ZOMBIE] = "zombie",
+};
 
 typedef struct sched_attr
 {
@@ -75,6 +76,8 @@ typedef struct thread
     tid_t t_tid;           /*thread ID*/
     tid_t t_gid;           /*thread group ID*/
     x86_thread_t *t_tarch; /*thread architecture*/
+    int fpu_enabled;
+    void *fpu_ctx;
     tstate_t t_state;      /*thread state*/
     uintptr_t t_exit;      /*thread exit code*/
     atomic_t t_killed;     /*thread killed by other*/

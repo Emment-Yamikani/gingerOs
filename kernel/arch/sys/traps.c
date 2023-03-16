@@ -67,6 +67,9 @@ void trap(trapframe_t *tf)
         ps2mouse_handler();
         lapic_eoi();
         break;
+    case T_FPU:
+        fpu_intr();
+        return;
     case T_PGFAULT: // Pagefault
         do_page_fault(tf);
         lapic_eoi();

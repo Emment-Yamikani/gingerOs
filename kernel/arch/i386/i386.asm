@@ -5,6 +5,8 @@ global read_tsc
 global read_esp
 global read_ebp
 global read_eax
+global read_cr0
+global write_cr0
 global read_cr2
 global read_cr3
 global write_cr3
@@ -54,6 +56,15 @@ read_cr3:
     
 read_cr2:
     mov eax, cr2
+    ret
+
+read_cr0:
+    mov eax, cr0
+    ret
+
+write_cr0:
+    mov eax, dword[esp + 4]
+    mov cr0, eax
     ret
 
 read_eflags:

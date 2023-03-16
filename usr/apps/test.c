@@ -1,9 +1,8 @@
 #include <ginger.h>
 
 int main (int argc, char *const argv[]) {
-    int err = mprotect(mmap(NULL, 4096, PROT_READ,
-        MAP_PRIVATE | MAP_ANON, -1, 0), 4096, PROT_READ | PROT_WRITE);
-    
-    printf("err: %d\n", err);
+    printf("pow()=%0.6f\n", pow(22, 0.5));
+
+    printf("sin()=%0.6f\n", sin(1));
     return 0;
 }

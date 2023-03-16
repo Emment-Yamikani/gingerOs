@@ -5,9 +5,9 @@
 #define IRQ_TIMER   0
 #define IRQ_KBD     1
 #define IRQ_HPET    2
+#define IRQ_RTC     8
 #define IRQ_MOUSE   12
 #define IRQ_ERROR   19
-#define IRQ_RTC     8
 #define IRQ_SPURIOUS 31
 #define IRQ_TLB_SHOOT 40
 
@@ -19,7 +19,8 @@
 #define T_TLB_SHOOTDOWN  (IRQ_TLB_SHOOT + IRQ_OFFSET)
 
 
-#define T_PGFAULT   14
+#define T_FPU       0x07
+#define T_PGFAULT   0x0E
 #define T_SYSCALL   0x80
 
 void tvinit(void);

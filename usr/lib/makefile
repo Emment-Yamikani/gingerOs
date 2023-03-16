@@ -32,6 +32,7 @@ LIBK_CFLAGS:=$(LIBK_CFLAGS) $(KERNEL_ARCH_CFLAGS)
 LIBK_CPPFLAGS:=$(LIBK_CPPFLAGS) $(KERNEL_ARCH_CPPFLAGS)
 
 FREEOBJS=\
+arch/x86_64/math.o \
 ctype/_ctype.o \
 ctype/isalnum.o \
 ctype/isalpha.o \

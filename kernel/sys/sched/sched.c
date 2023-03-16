@@ -167,6 +167,8 @@ __noreturn void schedule(void)
             thread_setkstack(current->t_tarch);
         }
 
+        fpu_disable();
+
         current_assert_lock();
         swtch(&cpu->context, current->t_tarch->context);
         current_assert_lock();
@@ -180,6 +182,7 @@ __noreturn void schedule(void)
             break;
         case T_ZOMBIE:
             assert(!sched_zombie(current), "couldn't zombie");
+            fpu_thread = NULL;
             current_unlock();
             break;
         case T_READY:
