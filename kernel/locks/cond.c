@@ -129,8 +129,7 @@ void cond_remove(cond_t *cond, thread_t *thread)
     thread_assert(thread);
     thread_assert_lock(thread);
 
-    if (spin_holding(cond->guard) == 0)
-    {
+    if (spin_holding(cond->guard) == 0) {
         spin_lock(cond->guard);
         locked = 1;
     }
@@ -138,6 +137,7 @@ void cond_remove(cond_t *cond, thread_t *thread)
     assert(cond->waiters == thread->sleep.queue, "sleep queues don't match");
 
     queue_remove(cond->waiters, thread);
+
     queue_lock(thread->t_queues);
     queue_remove(thread->t_queues, cond->waiters);
     queue_unlock(thread->t_queues);

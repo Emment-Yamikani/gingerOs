@@ -12,10 +12,8 @@
 //page size mask
 #define PAGEMASK (PAGESZ - 1)
 
-#define ISPG_ALIGNED(x) (((uintptr_t)x % PAGESZ) == 0)
-
-
 #define PGOFFSET(p) ((uintptr_t)(p) & PAGEMASK)
+#define ISPG_ALIGNED(x) (PGOFFSET(x) == 0)
 #define PGROUND(p) ((uintptr_t)(p) & ~PAGEMASK)
 #define PGROUNDUP(sz) (((sz) + PAGEMASK) & ~(PAGEMASK))
 #define GET_BOUNDARY_SIZE(p, s) (PGROUNDUP((p) + (s)) - PGROUND((p)))

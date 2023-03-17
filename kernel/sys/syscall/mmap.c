@@ -42,8 +42,9 @@ void *mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off)
         goto error;
     }
 
-    region->file_pos = off;
     region->filesz = len;
+    region->file_pos = off;
+    region->flags |= VM_FILE;
 
     if ((err = fmmap(file, region)))
         goto error;
@@ -83,9 +84,34 @@ error:
     return (void *)err;
 }
 
-int munmap(void *addr __unused, size_t len __unused)
+int munmap(void *addr, size_t len)
 {
-    return -ENOSYS;
+    int err = -EINVAL;
+    mmap_t *mm = NULL;
+    vmr_t *region = NULL;
+
+    current_lock();
+    mm = current->mmap;
+    current_unlock();
+
+    if (mm == NULL)
+        return -EINVAL;
+
+    if (!ISPG_ALIGNED(addr))
+        return -EINVAL;
+
+    mmap_lock(mm);
+
+    if ((region = mmap_find(mm, (uintptr_t)addr)) == NULL)
+        goto error;
+
+    mmap_unmap(mm, (uintptr_t)addr, PGROUND(len));
+    mmap_unlock(mm);
+
+    return 0;
+error:
+    mmap_unlock(mm);
+    return err;
 }
 
 

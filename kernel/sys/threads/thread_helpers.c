@@ -60,7 +60,7 @@ int thread_get(tgroup_t *tgrp, tid_t tid, thread_t **tref)
         {
             *tref = thread;
             thread_lock(thread)
-                queue_unlock(tgrp->queue);
+            queue_unlock(tgrp->queue);
             return 0;
         }
     }
@@ -100,7 +100,8 @@ int thread_kill(tid_t tid)
 int thread_wait(thread_t *thread, int reap, void **retval)
 {
     thread_assert_lock(thread);
-    for (;;)
+
+    loop()
     {
         if (atomic_read(&current->t_killed))
             return -ERFKILL;
@@ -118,6 +119,7 @@ int thread_wait(thread_t *thread, int reap, void **retval)
         cond_wait(thread->t_wait);
         thread_lock(thread);
     }
+
     return 0;
 }
 
@@ -128,8 +130,6 @@ int thread_ishandling_signal(thread_t *thread)
 
 int thread_kill_all(void)
 {
-    tgroup_t *tgrp = NULL;
     current_assert();
-    tgrp = current->t_group;
-    return tgroup_kill_thread(tgrp, -1);
+    return tgroup_kill_thread(current->t_group, -1);
 }

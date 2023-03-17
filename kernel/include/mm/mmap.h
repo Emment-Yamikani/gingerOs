@@ -266,6 +266,7 @@ int mmap_clone(mmap_t *mm, mmap_t **pclone);
 #define VM_READ         0x0004
 #define VM_ZERO         0x0008
 #define VM_SHARED       0x0010
+#define VM_FILE         0x0020
 #define VM_GROWSDOWN    0x0100
 #define VM_DONTEXPAND   0x0200
 
@@ -300,6 +301,8 @@ int mmap_clone(mmap_t *mm, mmap_t **pclone);
 
 #define __vm_zero(flags)        (flags & VM_ZERO)
 
+#define __vm_filebacked(flags)  (flags & VM_FILE)
+
 /*Sharable*/
 #define __vm_shared(flags)      (flags & VM_SHARED)
 
@@ -323,6 +326,7 @@ int mmap_clone(mmap_t *mm, mmap_t **pclone);
 #define __vmr_rwx(vmr)         __vm_rwx(vmr->flags)
 #define __vmr_shared(vmr)      __vm_shared(vmr->flags)
 #define __vmr_zero(vmr)        __vm_zero(vmr->flags)
+#define __vmr_filebacked(vmr)  (vmr->file && __vm_filebacked(vmr->flags))
 #define __vmr_dontexpand(vmr)  __vm_dontexpand(vmr->flags)
 #define __vmr_can_expand(vmr)  __vm_can_expand(vmr->flags)
 #define __vmr_growsdown(vmr)   __vm_growsdown(vmr->flags)

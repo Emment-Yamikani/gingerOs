@@ -115,10 +115,10 @@ void dump_trapframe(trapframe_t *tf)
     printk("\n\t\t\tTRAPFRAME\n"
            "edi: %08p, esi: %08p, ebp: %08p\n"
            "esp: %08p, ebx: %08p, edx: %08p\n"
-           "ecx: %08p, eax: %08p, _gs: %08p\n"
-           "_fs: %08p, _es: %08p, _ds: %08p\n"
+           "ecx: %08p, eax: %08p,  gs: %08p\n"
+           " fs: %08p, _es: %08p,  ds: %08p\n"
            "ino: %08p, eno: %08p, eip: %08p\n"
-           "_cs: %08p, EFL: %08p, esp: %08p, _ss: %0p\n",
+           " cs: %08p, EFL: %08p, esp: %08p,  ss: %0p\n",
            tf->edi, tf->esi, tf->ebp, tf->temp_esp,
            tf->ebx, tf->edx, tf->ecx, tf->eax, tf->gs,
            tf->fs, tf->es, tf->ds, tf->ino, tf->eno,

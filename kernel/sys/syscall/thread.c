@@ -29,6 +29,8 @@ int thread_join(tid_t tid, void **retval)
     if (tid < 0)
         return -EINVAL;
 
+    printk("%s(%d, %p)\n", __func__, thread_self(), tid, retval);
+
     current_assert();
     if (atomic_read(&current->t_killed))
         return -ERFKILL;

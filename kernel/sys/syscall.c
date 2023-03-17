@@ -436,7 +436,6 @@ int sys_munmap(void)
     size_t length = 0;
     assert(!argint(0, (int *)&addr), "err fetching addr");
     assert(!argint(1, (int *)&length), "err fetching length");
-    return -ENOSYS;
     return munmap((void *)addr, length);
 }
 

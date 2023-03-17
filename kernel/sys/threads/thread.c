@@ -84,10 +84,14 @@ void tgroup_wait_all(tgroup_t *tgroup)
             continue;
 
         thread_lock(thread);
-
         thread_kill_n(thread);
-        thread_wake(thread);
         
+        if (thread->sleep.queue) {
+            queue_lock(thread->sleep.queue);
+            thread_wake(thread);
+            queue_unlock(thread->sleep.queue);
+        }     
+       
         queue_unlock(tgroup->queue);
         thread_wait(thread, 0, NULL);
         queue_lock(tgroup->queue);
@@ -147,10 +151,14 @@ all:
             continue;
 
         thread_lock(thread);
-
         thread_kill_n(thread);
-        thread_wake(thread);
-
+        
+        if (thread->sleep.queue) {
+            queue_lock(thread->sleep.queue);
+            thread_wake(thread);
+            queue_unlock(thread->sleep.queue);
+        }
+    
         queue_unlock(tgroup->queue);
         thread_wait(thread, 1, NULL);
         queue_lock(tgroup->queue);
@@ -159,7 +167,6 @@ all:
     }
 
     queue_unlock(tgroup->queue);
-
     return 0;
 }
 
