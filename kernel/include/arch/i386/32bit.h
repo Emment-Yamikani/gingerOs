@@ -5,7 +5,7 @@
 #include <sys/system.h>
 #include <lime/assert.h>
 
-typedef union _page_
+typedef union _pte_
 {
     struct
     {
@@ -22,9 +22,9 @@ typedef union _page_
         uint32_t phy : 20;
     } structure;
     uint32_t raw;
-} __packed page_t;
+} __packed pte_t;
 
-typedef union _table_
+typedef union _pde_
 {
     struct
     {
@@ -40,7 +40,7 @@ typedef union _table_
         uint32_t phy : 20;
     } structure;
     uint32_t raw;
-} __packed table_t;
+} __packed pde_t;
 
 typedef union viraddr
 {
@@ -68,10 +68,10 @@ typedef union viraddr
 #define VM_URW  (VM_U | VM_W | VM_P)
 
 //all processes have their page-dir mapped-in here
-#define PGDIR ((table_t *)0xfffff000)
+#define PGDIR ((pde_t *)0xfffff000)
 
 //base address for all page table in the same address space
-#define PAGETBL(i) ((page_t *)(0xffc00000 + (0x1000 * (i))))
+#define PAGETBL(i) ((pte_t *)(0xffc00000 + (0x1000 * (i))))
 
 //get page directory entry(t)
 #define PDE(t) (&PGDIR[(t)])

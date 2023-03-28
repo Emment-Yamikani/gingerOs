@@ -1,0 +1,33 @@
+1. Added "struct page" a new way to keep track of physical 
+    memory pages.
+    so as to easily implement memory map sharing between processes.
+    this change has later led to
+    re-implementation of the physical memory allocator.
+2. Introducing the 'all-new' Physical memory allocator.
+    based in part on the Linux concept of memory zones.
+    This allocator adds new features to the kernel such as:
+    i).     Sleeping(waiting) for memory if we run out of memory.
+    ii).    Threads can now retry a memory allocation if they want to.
+    iii).   Threads can decide from which pool they want to
+            allocate memory.
+            This in general increases the allocation
+            throughput and maximizes on
+            memory allocation-flexibility.
+    iv).    The Memory allocator can now monitor who owns a page
+            and what they're using it for.
+    v). Newly implemented physical memory manager interface.
+        mm_zone_t *get_mmzone(uintptr_t addr, size_t size);
+    mm_zone_t *mm_zone_get(int z);
+    int page_incr(page_t *page);
+    int __page_incr(uintptr_t addr);
+    int page_count(page_t *page);
+    int __page_count(uintptr_t addr);
+    page_t *alloc_page(gfp_mask_t gfp);
+    page_t *alloc_pages(gfp_mask_t gfp, size_t order);
+    uintptr_t page_address(page_t *page);
+    uintptr_t __get_free_page(gfp_mask_t gfp);
+    uintptr_t __get_free_pages(gfp_mask_t gfp, size_t order);
+    void pages_put(page_t *page, size_t order);
+    void page_put(page_t *page);
+    void __pages_put(uintptr_t addr, size_t order);
+    void __page_put(uintptr_t addr);

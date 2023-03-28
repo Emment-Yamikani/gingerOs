@@ -119,7 +119,7 @@ int sched_sleep(queue_t *sleep_queue, spinlock_t *lock)
     return 0;
 }
 
-void sched_wake1(queue_t *sleep_queue)
+int sched_wake1(queue_t *sleep_queue)
 {
     thread_t *thread = NULL;
     queue_assert(sleep_queue);
@@ -129,13 +129,14 @@ void sched_wake1(queue_t *sleep_queue)
     queue_unlock(sleep_queue);
 
     if (thread == NULL)
-        return;
+        return 0;
 
     thread_assert_lock(thread);
     thread->t_state = T_READY;
     
     sched_park(thread);
     thread_unlock(thread);
+    return 1;
 }
 
 int sched_wakeall(queue_t *sleep_queue)

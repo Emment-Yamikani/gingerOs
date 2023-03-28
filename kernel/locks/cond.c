@@ -19,6 +19,7 @@ int cond_free(cond_t *c)
     }
     if (c->name)
         kfree(c->name);
+    spinlock_free(c->guard);
     kfree(c);
     return 0;
 }
@@ -29,6 +30,7 @@ int cond_init(cond_t *c, char *name, cond_t **ref)
     int alloc = !c;
     spinlock_t *lk = NULL;
     queue_t *waiters = NULL;
+
     if ((!c && !ref) || !name)
         return -EINVAL;
     if (alloc)

@@ -84,6 +84,7 @@ typedef struct inode
     cond_t *i_writers;    /*per-inode writers wait condition*/
     void *i_priv;       /*private data*/
     //iops_t *i_ops;
+    struct mapping *mapping;
     struct filesystem *ifs; /*super block on which this inode resides*/
 } inode_t;
 

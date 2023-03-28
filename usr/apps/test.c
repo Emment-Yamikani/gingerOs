@@ -28,8 +28,7 @@ int main(int argc, char *const argv[])
     for (int sl = 0; sl < 600; ++sl)
         scanlines[sl] = &((int *)framebuffer)[sl * 800];
 
-    fill_circle(400, 300, 100, RGB_cyan);
-
+    draw_circle(400, 300, 100, RGB_cyan);
     //memcpy(framebuffer, backbuffer, fbsz);
     munmap(framebuffer, fbsz);
     return 0;
@@ -93,7 +92,7 @@ void fill_circle(float x0, float y0, float r, int color)
         
     }*/
 
-    for (; r > 0.0 ; r -= .001){
-        draw_circle(x0, y0, r, color -= 0xfff);
+    for (; r > 0.0 ; r -= .1){
+        draw_circle(x0, y0, r, color);
     }
 }

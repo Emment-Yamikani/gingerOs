@@ -30,4 +30,6 @@ struct pmman
 
 extern struct pmman pmman;
 
+int physical_memory(void);
+
 #endif //PMM_H

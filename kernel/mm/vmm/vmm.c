@@ -24,18 +24,18 @@ int getpagesize(void) { return PAGESZ; }
 
 typedef struct node
 {
-    uint32_t        base; //start of region (zero if free)
-    struct node *next;  //next region
-    struct node *prev;  //prev region
-    size_t          size;  //size of region in bytes
-}node_t;
+    uint32_t base;     // start of region (zero if free)
+    struct node *next; // next region
+    struct node *prev; // prev region
+    size_t size;       // size of region in bytes
+} node_t;
 
-#define KHEAPBASE (VMA_HIGH(0x1000000))         //kernel heap base address.
-#define KHEAPSZ   ((0xFE000000) - KHEAPBASE)    //size of kernel heap.
+#define KHEAPBASE (VMA_HIGH(0x2000000))    // kernel heap base address.
+#define KHEAPSZ ((0xFE000000) - KHEAPBASE) // size of kernel heap.
 
-#define KHEAP_MAX_NODES ((int)KHEAPSZ / PAGESZ)  //maximum blocks that can be address.
-#define KHEAP_NODES_ARRAY ((node_t *)KHEAPBASE)  //array of memory nodes.
-#define KHEAP_NODES_ARRAY_SZ (KHEAP_MAX_NODES * sizeof (node_t)) // sizeof node array
+#define KHEAP_MAX_NODES ((int)KHEAPSZ / PAGESZ)                 // maximum blocks that can be address.
+#define KHEAP_NODES_ARRAY ((node_t *)KHEAPBASE)                 // array of memory nodes.
+#define KHEAP_NODES_ARRAY_SZ (KHEAP_MAX_NODES * sizeof(node_t)) // sizeof node array
 
 struct vmrx
 {
@@ -45,11 +45,10 @@ struct vmrx
     uintptr_t v_base;  // virtual base address
     uintptr_t v_paddr; // physical address
 } kheap_vmrs[] =
-{
-    [0] = {.v_base = VMA_HIGH(0x100000), .v_size = 0, .v_refs = 1},
-    [1] = {.v_base = KHEAPBASE, .v_size = KHEAP_NODES_ARRAY_SZ, .v_paddr = 0, .v_flags = (VM_PWT | VM_KRW | VM_PCD), .v_refs = 1},
-    [2] = {.v_base = MMAP_DEVADDR, .v_refs =1, .v_flags = (VM_PWT | VM_KRW | VM_PCD), .v_paddr = MMAP_DEVADDR}
-};
+    {
+        [0] = {.v_base = VMA_HIGH(0x100000), .v_size = 0, .v_refs = 1},
+        [1] = {.v_base = KHEAPBASE, .v_size = KHEAP_NODES_ARRAY_SZ, .v_paddr = 0, .v_flags = (VM_PWT | VM_KRW | VM_PCD), .v_refs = 1},
+        [2] = {.v_base = MMAP_DEVADDR, .v_refs = 1, .v_flags = (VM_PWT | VM_KRW | VM_PCD), .v_paddr = MMAP_DEVADDR}};
 
 static node_t *usedvmr_head = NULL;
 static node_t *usedvmr_tail = NULL;
@@ -113,7 +112,7 @@ static void merge_left(node_t *node, node_t *left)
     assert(left, "no left");
     if (!can_merge_left(node, left))
         panic("node[%p: %dkib] can't merge with left[%p: %dkib]\n",
-            node->base, node->size / 1024, left->base, left->size / 1024);
+              node->base, node->size / 1024, left->base, left->size / 1024);
     left->size += node->size;
     freenodes_put(node);
 }
@@ -124,7 +123,7 @@ static void merge_right(node_t *node, node_t *right)
     assert(right, "no right");
     if (!can_merge_right(node, right))
         panic("node[%p: %dkib] can't merge with right[%p: %dkib]\n",
-            node->base, node->size / 1024, right->base, right->size / 1024);
+              node->base, node->size / 1024, right->base, right->size / 1024);
     right->base = right->base - node->size;
     right->size += node->size;
     freenodes_put(node);
@@ -134,7 +133,7 @@ static void concatenate(node_t *left, node_t *node, node_t *right)
 {
     if (!can_merge_both(left, node, right))
         panic("node[%p:%dB] can't merge left[%p:%dB] and right[%p:%dB]\n",
-            node->base, node->size, left->base, left->size, right->base, right->size);
+              node->base, node->size, left->base, left->size, right->base, right->size);
     left->size += (node->size + right->size);
     if (right->next)
         right->next->prev = left;
@@ -180,7 +179,7 @@ static void freevmr_put(node_t *node)
     assert(node->base >= KHEAPBASE, "invalid memory region base address");
 
     node_t *tmp = NULL, *right = freevmr_head, *left = NULL;
-    
+
     if (!freevmr_head)
     {
         freevmr_head = node;
@@ -188,7 +187,6 @@ static void freevmr_put(node_t *node)
         return;
     }
 
-    
     for (tmp = right; tmp && (right->base < node->base); tmp = right = tmp->next)
     {
         left = right;
@@ -196,92 +194,91 @@ static void freevmr_put(node_t *node)
 
     if (left && right)
     {
-        #if KVM_DEBUG
-            printk("left and right\n");
-        #endif
+#if KVM_DEBUG
+        printk("left and right\n");
+#endif
         if (can_merge_both(left, node, right))
         {
-            #if KVM_DEBUG
-                printk("can merge with both L[%p : %dkib] : [%p : %dkib] : R[%p : %dkib]\n",
-                        left->base, left->size / 1024, node->base, node->size / 1024, right->base, right->size / 1024);
-            #endif
+#if KVM_DEBUG
+            printk("can merge with both L[%p : %dkib] : [%p : %dkib] : R[%p : %dkib]\n",
+                   left->base, left->size / 1024, node->base, node->size / 1024, right->base, right->size / 1024);
+#endif
             concatenate(left, node, right);
         }
         else if (can_merge_left(node, left))
         {
-            #if KVM_DEBUG
-                printk("can merge with left L[%p : %dkib] : [%p : %dkib] : R[%p : %dkib]\n",
-                        left->base, left->size / 1024, node->base, node->size / 1024, right->base, right->size / 1024);
-            #endif
+#if KVM_DEBUG
+            printk("can merge with left L[%p : %dkib] : [%p : %dkib] : R[%p : %dkib]\n",
+                   left->base, left->size / 1024, node->base, node->size / 1024, right->base, right->size / 1024);
+#endif
             merge_left(node, left);
         }
         else if (can_merge_right(node, right))
         {
-            #if KVM_DEBUG
-                printk("can merge with right L[%p : %dkib] : [%p : %dkib] : R[%p : %dkib]\n",
-                        left->base, left->size / 1024, node->base, node->size / 1024, right->base, right->size / 1024);
-            #endif
+#if KVM_DEBUG
+            printk("can merge with right L[%p : %dkib] : [%p : %dkib] : R[%p : %dkib]\n",
+                   left->base, left->size / 1024, node->base, node->size / 1024, right->base, right->size / 1024);
+#endif
             merge_right(node, right);
         }
         else
         {
-            #if KVM_DEBUG
-                printk("can not merge with any L[%p : %dkib] : [%p : %dkib] : R[%p : %dkib]\n",
-                        left->base, left->size / 1024, node->base, node->size / 1024, right->base, right->size / 1024);
-            #endif
+#if KVM_DEBUG
+            printk("can not merge with any L[%p : %dkib] : [%p : %dkib] : R[%p : %dkib]\n",
+                   left->base, left->size / 1024, node->base, node->size / 1024, right->base, right->size / 1024);
+#endif
             freevmr_linkto_left(node, left);
             freevmr_linkto_right(node, right);
         }
     }
     else if (left)
     {
-        #if KVM_DEBUG
-            printk("only has left L[%p : %dkib] : [%p : %dkib]\n",
-                left->base, left->size / 1024, node->base, node->size / 1024);
-        #endif
+#if KVM_DEBUG
+        printk("only has left L[%p : %dkib] : [%p : %dkib]\n",
+               left->base, left->size / 1024, node->base, node->size / 1024);
+#endif
         if (can_merge_left(node, left))
         {
-            #if KVM_DEBUG
-                printk("can merge left L[%p : %dkib] : [%p : %dkib]\n",
-                        left->base, left->size / 1024, node->base, node->size / 1024);
-            #endif
+#if KVM_DEBUG
+            printk("can merge left L[%p : %dkib] : [%p : %dkib]\n",
+                   left->base, left->size / 1024, node->base, node->size / 1024);
+#endif
             merge_left(node, left);
         }
         else
         {
-            #if KVM_DEBUG
-                printk("can not merge left L[%p : %dkib] : [%p : %dkib]\n",
-                        left->base, left->size / 1024, node->base, node->size / 1024);
-            #endif
+#if KVM_DEBUG
+            printk("can not merge left L[%p : %dkib] : [%p : %dkib]\n",
+                   left->base, left->size / 1024, node->base, node->size / 1024);
+#endif
             freevmr_linkto_left(node, left);
         }
     }
     else if (right)
     {
-        #if KVM_DEBUG
-            printk("only has right [%p : %dkib] : R[%p : %dkib]\n",
-                    node->base, node->size / 1024, right->base, right->size / 1024);
-        #endif
+#if KVM_DEBUG
+        printk("only has right [%p : %dkib] : R[%p : %dkib]\n",
+               node->base, node->size / 1024, right->base, right->size / 1024);
+#endif
         if (can_merge_right(node, right))
         {
-            #if KVM_DEBUG
-                printk("can merge right [%p : %dkib] : R[%p : %dkib]\n",
-                    node->base, node->size / 1024, right->base, right->size / 1024);
-            #endif
+#if KVM_DEBUG
+            printk("can merge right [%p : %dkib] : R[%p : %dkib]\n",
+                   node->base, node->size / 1024, right->base, right->size / 1024);
+#endif
             merge_right(node, right);
         }
         else
         {
-            #if KVM_DEBUG
-                printk("can not merge right [%p : %dkib] : R[%p : %dkib]\n",
-                    node->base, node->size / 1024, right->base, right->size / 1024);
-            #endif
+#if KVM_DEBUG
+            printk("can not merge right [%p : %dkib] : R[%p : %dkib]\n",
+                   node->base, node->size / 1024, right->base, right->size / 1024);
+#endif
             freevmr_linkto_right(node, right);
         }
     }
     else
         panic("impossible constraint\n");
-    
 }
 
 static node_t *freevmr_get(size_t sz)
@@ -292,8 +289,8 @@ static node_t *freevmr_get(size_t sz)
 
     if (!node)
         return NULL;
-    
-    for (; node ; node = node->next)
+
+    for (; node; node = node->next)
         if (node->size >= sz)
             break;
 
@@ -339,8 +336,8 @@ static node_t *usedvmr_lookup(uintptr_t base)
 
     if (!node)
         return NULL;
-        
-    for (; node ; node = node->next)
+
+    for (; node; node = node->next)
         if (node->base == base)
             break;
 
@@ -348,13 +345,13 @@ static node_t *usedvmr_lookup(uintptr_t base)
     {
         if (node->prev)
             node->prev->next = node->next;
-        
+
         if (node->next)
             node->next->prev = node->prev;
-        
+
         if (usedvmr_head == node)
             usedvmr_head = node->next;
-        
+
         if (usedvmr_tail == node)
             usedvmr_tail = node->prev;
 
@@ -370,14 +367,14 @@ static uintptr_t vmm_alloc(size_t sz)
     node_t *split = NULL, *node = NULL;
 
     spin_lock(vmm_spinlock);
-    
+
     split = freevmr_get(sz);
-    
+
     if (!split)
     {
-        #if KVM_DEBUG
+#if KVM_DEBUG
         klog(KLOG_FAIL, "couldn't allocate %dkib, no free virtual memory available\n", sz / 1024);
-        #endif
+#endif
         spin_unlock(vmm_spinlock);
         return 0;
     }
@@ -396,14 +393,14 @@ static uintptr_t vmm_alloc(size_t sz)
         panic("impossible contraint with size\n");
     else
         node = split;
-    
+
     used_virtual_mmsz += sz;
     addr = node->base;
     usedvmr_put(node);
-    
-    #if KVM_DEBUG
+
+#if KVM_DEBUG
     klog(KLOG_OK, "alocated %dKib @ %p\n", sz / 1024, addr);
-    #endif
+#endif
 
     spin_unlock(vmm_spinlock);
     return addr;
@@ -418,18 +415,18 @@ static void vmm_free(uintptr_t base)
 
     if (!(node = usedvmr_lookup(base)))
         panic("%p was not allocated before\n", base);
-    
-    #if KVM_DEBUG
-        printk("freeing %p\n", base);
-    #endif
-    
+
+#if KVM_DEBUG
+    printk("freeing %p\n", base);
+#endif
+
     used_virtual_mmsz -= node->size;
     freevmr_put(node);
-    
-    #if KVM_DEBUG
+
+#if KVM_DEBUG
     klog(KLOG_OK, "freed %dkib @ %p\n", node->size / 1024, node->base);
-    #endif
-    
+#endif
+
     spin_unlock(vmm_spinlock);
 }
 
@@ -452,9 +449,9 @@ static size_t vmm_getinuse(void)
 static int vmm_init(void)
 {
     klog_init(KLOG_INIT, "virtual memory manager");
-    int i =0;
+    int i = 0;
     memset(nodes, 0, sizeof nodes);
-    for (; i < (KHEAP_MAX_NODES -1); ++i)
+    for (; i < (KHEAP_MAX_NODES - 1); ++i)
     {
         nodes[i].prev = nodes + (i - 1);
         nodes[i].next = (nodes + (i + 1));
@@ -462,18 +459,16 @@ static int vmm_init(void)
 
     nodes[0].prev = NULL;
     nodes[i].next = NULL;
-    nodes[i].prev = &nodes[i -1]; 
+    nodes[i].prev = &nodes[i - 1];
 
     freenodes_head = nodes;
     freenodes_tail = &nodes[i];
-    
+
     node_t *node = NULL;
-    *(node = freenodes_get()) = (node_t)
-    {
+    *(node = freenodes_get()) = (node_t){
         .base = KHEAPBASE,
-        .size = KHEAPSZ
-    };
-    
+        .size = KHEAPSZ};
+
     freevmr_put(node);
 
     klog_init(KLOG_OK, "virtual memory manager");
@@ -483,7 +478,7 @@ static int vmm_init(void)
 #include <mm/pmm.h>
 void memory_usage(void)
 {
-    printk("\t\t\t\e[0;06mMEMORY USAGE INFO\e[0m\n");
+    printk("\n\t\t\t\e[0;06mMEMORY USAGE INFO\e[0m\n");
     printk("\t\t\t\e[0;015mPhysical Memory\e[0m\nFree  : \e[0;012m%8dKB\e[0m\nIn use: \e[0;04m%8dKB\e[0m\n\n", pmman.mem_free(), pmman.mem_used());
     printk("\t\t\t\e[0;015mVirtual Memory\e[0m\nFree  : \e[0;012m%8dKB\e[0m\nIn use: \e[0;04m%8dKB\e[0m\n\n", vmman.getfreesize(), vmman.getinuse());
 }

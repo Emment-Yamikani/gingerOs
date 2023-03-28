@@ -227,7 +227,7 @@ int dev_init(void)
         err = -ENOMEM;
         goto error;
     }
-
+    printk("ongoing\n");
     if (!(chrdevs = __cast_to_type(blkdevs) kcalloc(256, sizeof(dev_t))))
     {
         err = -ENOMEM;

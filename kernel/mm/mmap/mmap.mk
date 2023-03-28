@@ -1,2 +1,3 @@
 mmapobjs=\
-$(mmapdir)/mmap.o
+$(mmapdir)/mmap.o\
+#(mmapdir)/shadow.o

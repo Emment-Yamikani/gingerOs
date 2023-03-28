@@ -45,7 +45,7 @@ int sched_zombie(thread_t *thread);
  * 
  * @param sleep_queue 
  */
-void sched_wake1(queue_t *sleep_queue);
+int sched_wake1(queue_t *sleep_queue);
 
 /**
  * @brief causes the current 'thread' to sleep on 'sleep_queue'.

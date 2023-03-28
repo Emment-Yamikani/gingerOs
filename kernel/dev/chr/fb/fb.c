@@ -33,11 +33,13 @@ int fbdev_probe()
 
     fblen = bootinfo.framebuffer.framebuffer_pitch * bootinfo.framebuffer.framebuffer_height;
 
+    /*
     frames_lock();
     int frame = bootinfo.framebuffer.framebuffer_addr / PAGESZ;
     for (int npages = NPAGE(fblen); npages-- ; ++frame)
         frames_incr(frame);
     frames_unlock();
+    */
 
     if ((err = paging_identity_map(bootinfo.framebuffer.framebuffer_addr,
                                    bootinfo.framebuffer.framebuffer_addr, GET_BOUNDARY_SIZE(0, fblen), VM_KRW | VM_PCD)))
@@ -181,7 +183,7 @@ int fbdev_mmap(file_t *file, vmr_t *region)
     int err = 0;
     off_t off = 0;
     size_t len = 0;
-    int npages = 0;
+    int npages __unused = 0;
     uintptr_t addr = 0;
     uintptr_t to_addr = 0;
     inode_t *inode = NULL;
@@ -212,19 +214,23 @@ int fbdev_mmap(file_t *file, vmr_t *region)
     region->filesz = len;
     len = GET_BOUNDARY_SIZE(0, region->filesz);
 
+    /*
     frames_lock();
     int frame = to_addr / PAGESZ;
     for (npages = NPAGE(len) + frame; frame < npages; )
         frames_incr(frame++);
     frames_unlock();
+    */
 
     if ((err = paging_identity_map(to_addr, addr, len, region->vflags)))
     {
+        /*
         frames_lock();
         int frame = to_addr / PAGESZ;
         for (npages = NPAGE(len) + frame; frame < npages;)
             frames_decr(frame++);
         frames_unlock();
+        */
         return err;
     }
 

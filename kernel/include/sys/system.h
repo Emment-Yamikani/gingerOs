@@ -15,7 +15,7 @@
 #define PGOFFSET(p) ((uintptr_t)(p) & PAGEMASK)
 #define ISPG_ALIGNED(x) (PGOFFSET(x) == 0)
 #define PGROUND(p) ((uintptr_t)(p) & ~PAGEMASK)
-#define PGROUNDUP(sz) (((sz) + PAGEMASK) & ~(PAGEMASK))
+#define PGROUNDUP(sz) ((((uintptr_t)sz) + PAGEMASK) & ~(PAGEMASK))
 #define GET_BOUNDARY_SIZE(p, s) (PGROUNDUP((p) + (s)) - PGROUND((p)))
 
 //virtual memory base address
@@ -83,5 +83,8 @@ extern int PROC_EXIT;
 
 static inline int __always() {return 1;}
 static inline int __never() {return 0;}
+
+extern void _kernel_end();
+extern void _kernel_start();
 
 void memory_usage(void);

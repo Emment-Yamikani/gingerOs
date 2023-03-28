@@ -7,10 +7,7 @@
 #include <sys/system.h>
 #include <arch/i386/paging.h>
 
-extern uintptr_t _kernel_start;
-extern uintptr_t _kernel_end;
-
-struct pmman pmman;
+//struct pmman pmman;
 static uint32_t map[MAX_INT_BITMAP(128)] = {0};
 static bitmap_t *bitmap = BITMAP_NEW("pmmbitmap", map);
 
@@ -100,6 +97,7 @@ uintptr_t pmm_alloc(void)
     uintptr_t addr = 0;
     bitmap_lock(bitmap);
     frames_lock();
+
     if ((bit = bitmap_first_unset(bitmap, 0, 1)) < 0)
     {
         frames_unlock();
@@ -162,6 +160,7 @@ size_t pmm_mem_free(void)
     return size;
 }
 
+/*
 struct pmman pmman = 
 {
     .init = pmm_init,
@@ -170,3 +169,4 @@ struct pmman pmman =
     .mem_free = pmm_mem_free,
     .mem_used = pmm_mem_used
 };
+*/

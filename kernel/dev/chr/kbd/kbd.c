@@ -118,7 +118,7 @@ void __kbdintr(int (*getc)(void))
             cons_clr();
             break;
         case C('M'): // memory usage info
-            // pmm_meminfo();
+            memory_usage();
             break;
         default:
             if (c != 0 && input.e - input.r < INPUT_BUF)

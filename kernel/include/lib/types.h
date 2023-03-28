@@ -33,6 +33,9 @@ typedef struct thread thread_t;
 struct spinlock;
 typedef struct spinlock spinlock_t;
 
+struct mapping;
+typedef struct mapping mapping_t;
+
 struct queue;
 typedef struct queue queue_t;
 

@@ -7,6 +7,7 @@
 #include <lib/string.h>
 #include <lib/types.h>
 #include <locks/spinlock.h>
+#include <mm/page.h>
 
 #ifndef foreach
 #define foreach(elem, list) \
@@ -34,8 +35,8 @@ struct mmap;
 typedef struct vm_fault
 {
     int flags;
-    page_t *COW;
-    page_t *page;
+    pte_t *COW;
+    pte_t *page;
     uintptr_t addr;
 }vm_fault_t;
 
@@ -220,6 +221,8 @@ int mmap_clone(mmap_t *mm, mmap_t **pclone);
 #define MAP_ANON        0x0008
 #define MAP_ZERO        0x0010
 #define MAP_MAPIN       0x0020
+#define MAP_LOCK        0x0040
+#define MAP_USER        0x0080
 #define MAP_GROWSDOWN   0x0100
 /*region is a stack*/
 #define MAP_STACK       (MAP_GROWSDOWN)
@@ -234,6 +237,8 @@ int mmap_clone(mmap_t *mm, mmap_t **pclone);
 #define __flags_fixed(flags) (flags & MAP_FIXED)
 #define __flags_stack(flags) (flags & MAP_STACK)
 #define __flags_shared(flags) (flags & MAP_SHARED)
+#define __flags_locked(flags)   (flags & MAP_LOCK)
+#define __flags_user(flags)     (flags & MAP_USER)
 #define __flags_private(flags) (flags & MAP_PRIVATE)
 #define __flags_dontexpand(flags) (flags & MAP_DONTEXPAND)
 #define __flags_anon(flags)     (flags & MAP_ANON)

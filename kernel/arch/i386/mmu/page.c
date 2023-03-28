@@ -8,6 +8,7 @@
 #include <arch/i386/paging.h>
 #include <lib/string.h>
 #include <arch/i386/traps.h>
+#include <mm/mm_zone.h>
 
 /*flush the tlb*/
 void tlb_flush(void)
@@ -25,6 +26,8 @@ static int _32bit_maptable(int t, int flags)
         PDE(t)->raw = PGROUND(addr) | PGOFFSET(flags | VM_PWT | VM_UW);
     else
         PDE(t)->raw = PGROUND(addr) | PGOFFSET(flags | VM_PWT);
+    if (t >= 768)
+        send_tlb_shootdown();
     paging_invlpg((uintptr_t)PTE(t, 0));
     for (int i = 0; i < 1024; ++i)
         PTE(t, i)->raw = 0;
@@ -120,7 +123,9 @@ int paging_unmap_table(int t)
     if (!PDE(t)->structure.p)
         panic("pagetable[%p] unavailable\n", _VADDR(t, 0));
     PDE(t)->raw = 0;
+    send_tlb_shootdown();
     paging_invlpg((uintptr_t)PTE(t, 0));
+    //tlb_flush();
     return 0;
 }
 
@@ -242,9 +247,9 @@ void paging_proc_unmap(uintptr_t pgd)
     paging_switch(oldpgdir);
 }
 
-page_t *paging_getmapping(uintptr_t v)
+pte_t *paging_getmapping(uintptr_t v)
 {
-    page_t *page = NULL;
+    pte_t *page = NULL;
     if (!PDE(V_PDI(v))->structure.p)
         return NULL;
     else if (!((page = PTE(V_PDI(v), V_PTI(v)))->structure.p))
@@ -401,7 +406,7 @@ int paging_memcpypv(uintptr_t v, uintptr_t p, size_t size)
 
 int paging_init(void)
 {
-    for (int pdi = 772; pdi < V_PDI(MMAP_DEVADDR); pdi++)
+    for (int pdi = 773; pdi < V_PDI(MMAP_DEVADDR); pdi++)
         _32bit_maptable(pdi, VM_KRW | VM_PCD | VM_PWT);
     return 0;
 }
@@ -409,8 +414,8 @@ int paging_init(void)
 int paging_lazycopy(uintptr_t dst, uintptr_t src)
 {
     int err = 0;
-    page_t *srcpt = NULL;
-    table_t *srcpd = NULL;
+    pte_t *srcpt = NULL;
+    pde_t *srcpd = NULL;
     uintptr_t oldpgdir = 0;
 
     if (!(srcpd = __cast_to_type(srcpd) paging_mount(src)))
@@ -443,9 +448,7 @@ int paging_lazycopy(uintptr_t dst, uintptr_t src)
             if (srcpt[j].structure.w)
                 srcpt[j].structure.w = 0;
             send_tlb_shootdown();
-            frames_lock();
-            frames_incr(PGROUND(srcpt[j].raw) / PAGESZ);
-            frames_unlock();
+            __page_incr(PGROUND(srcpt[j].raw));
         }
 
         paging_unmount((uintptr_t)srcpt);

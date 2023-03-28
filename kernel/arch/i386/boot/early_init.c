@@ -28,6 +28,7 @@ void *kthread_main(void *);
 int early_init(void)
 {
     int err =0;
+
     if ((err = pmman.init()))
         return err;
 

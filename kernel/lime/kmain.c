@@ -14,23 +14,24 @@
 #include <sys/proc.h>
 #include <fs/fs.h>
 #include <lime/jiffies.h>
+#include <mm/mm_zone.h>
 
 void *kthread_main(void *arg __unused)
 {
     (void)arg;
-    klog(KLOG_OK, "\e[0;011m\'kernel main thread\'\e[0m running\n");
-
     tid_t tid = 0;
     int tcount = 0;
     int nthreads = 0;
     void *retval = NULL;
     thread_t **tv = NULL;
     thread_t *thread = NULL;
+    
+    klog(KLOG_OK, "\e[0;011m\'kernel main thread\'\e[0m running\n");
 
     start_builtin_threads(&nthreads, &tv);
     tcount = nthreads;
 
-    printk("%d builtin threads started\n", nthreads);
+    printk("%d builtin thread(s) started\n", nthreads);
 
     proc_init("/init");
 
@@ -38,6 +39,7 @@ void *kthread_main(void *arg __unused)
     {
         for (int i = 0; i < nthreads; ++i)
         {
+            sleep(4);
             if ((thread = tv[i]))
             {
                 thread_lock(thread);
@@ -57,7 +59,6 @@ void *kthread_main(void *arg __unused)
         }
         if (tcount <= 0)
             break;
-        sleep(4);
     }
 
     klog(KLOG_OK, "kthread_main done executing\n");

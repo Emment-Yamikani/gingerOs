@@ -10,7 +10,7 @@ typedef struct bootinfo
 {
     int     mmap_count;
     int     mods_count;
-    size_t  pmemsize;   //memory size in Kb
+    uint64_t  pmemsize;   //memory size in Kb
     char    *kcmdline;
     //mmap
     struct

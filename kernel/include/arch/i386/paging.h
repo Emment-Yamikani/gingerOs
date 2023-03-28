@@ -5,6 +5,13 @@
 #include <lib/stddef.h>
 #include <mm/mmap.h>
 
+#define TSIZE           (0x400000)
+#define TMASK           (0x3fffff)
+#define TOFFSET(p)      ((uintptr_t)p & TMASK)
+#define TROUND(p)       (((uintptr_t)p) & ~TMASK)
+#define TROUNDUP(p)     (TROUND(((uintptr_t)p) + TMASK))
+#define NTABLE(p)       ((long)(TROUNDUP((uintptr_t)p) / TSIZE))
+
 int paging_init(void);
 extern void paging_invlpg(uintptr_t);
 
@@ -54,8 +61,8 @@ int paging_unmappages(uintptr_t page, size_t sz);
 
 /// @brief get page mapping if both pagetable and page are mapped in
 /// @param vaddr 
-/// @return page_t * or NULL if pagetable or page isn't mapped in
-page_t *paging_getmapping(uintptr_t vaddr);
+/// @return pte_t * or NULL if pagetable or page isn't mapped in
+pte_t *paging_getmapping(uintptr_t vaddr);
 
 // map n pages to frames starting at 'vaddr' and 'paddr', where n=(sz/PAGESZ)
 int paging_identity_map(uintptr_t paddr, uint32_t vaddr, size_t sz, int flags);

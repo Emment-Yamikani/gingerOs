@@ -16,6 +16,7 @@
 #include <arch/i386/traps.h>
 #include <sys/sysproc.h>
 #include <lime/jiffies.h>
+#include <mm/mm_zone.h>
 
 int default_pgf_handler(vmr_t *region, vm_fault_t *vm);
 
@@ -92,7 +93,7 @@ void do_page_fault(trapframe_t *tf)
 
 
 kernel_fault:
-    printk("%s(%p): %s: %p: eno: %d\n", __func__, fault.addr, in_user ? "user" : "kernel", tf->eip, tf->eno);
+    panic("%s(%p): %s: %p: eno: %d\n", __func__, fault.addr, in_user ? "user" : "kernel", tf->eip, tf->eno);
     if (proc)
         kill(getpid(), SIGSEGV);
 
@@ -130,18 +131,17 @@ int default_pgf_handler(vmr_t *region, vm_fault_t *vm)
             return -EACCES;
 
         if (vm->COW && !__vmr_shared(region))
-        { // copy on write
+        {
+            // copy on write
             frame = PGROUND(vm->COW->raw);
-            frames_lock();
-            frame_refs = frames_get_refs(frame / PAGESZ);
+            //frames_lock();
 
-            if (frame_refs > 1)
+            if ((frame_refs = __page_count(frame)) > 1)
             {
-                frames_unlock();
+                //frames_unlock();
                 if ((copy_frame = pmman.alloc()) == 0)
                     return -ENOMEM;
-
-                frames_lock();
+                //frames_lock();
                 flags |= vm->COW->raw & PAGEMASK;
                 flags |= region->vflags;
                 vm->COW->raw = 0;
@@ -149,8 +149,7 @@ int default_pgf_handler(vmr_t *region, vm_fault_t *vm)
                 paging_memcpypp(copy_frame, frame, PAGESZ);
                 paging_identity_map(copy_frame, PGROUND(vm->addr), PAGESZ, flags);
                 send_tlb_shootdown();
-                frames_decr(frame / PAGESZ);
-                frame_refs = frames_get_refs(frame / PAGESZ);
+                __page_put(frame);
             }
             else if (frame_refs == 1)
             {
@@ -160,7 +159,7 @@ int default_pgf_handler(vmr_t *region, vm_fault_t *vm)
             }
             else
                 panic("%s:%d: PGF(%p)\n", __FILE__, __LINE__, vm->addr);
-            frames_unlock();
+            //frames_unlock();
             return 0;
         }
 
