@@ -176,3 +176,79 @@ int sched_zombie(thread_t *thread)
     cond_broadcast(thread->t_wait);
     return 0;
 }
+
+int xched_sleep(queue_t *sleep_queue, spinlock_t *lock)
+{
+    int err = 0;
+    current_assert();
+    queue_assert(sleep_queue);
+    current_assert_lock();
+
+    if ((err = thread_enqueue(sleep_queue, current, &current->sleep.node)))
+        return err;
+
+    current->sleep.guard = lock;
+    __thread_enter_state(current, T_ISLEEP);
+    current->sleep.queue = sleep_queue;
+
+    // printk("sleep_node: %p, sleep_node->next: %p\n", current->t_sleep_node, current->t_sleep_node->next);
+    if (lock)
+        spin_unlock(lock);
+
+    sched();
+
+    if (lock)
+        spin_lock(lock);
+
+    current->sleep.queue = NULL;
+    current->sleep.node = NULL;
+
+    if (atomic_read(&current->t_killed))
+        return -EINTR;
+
+    return 0;
+}
+
+int xched_wake1(queue_t *sleep_queue)
+{
+    int woken = 0;
+    thread_t *thread = NULL;
+    queue_assert(sleep_queue);
+
+    queue_lock(sleep_queue);
+    thread = thread_dequeue(sleep_queue);
+    queue_unlock(sleep_queue);
+
+    if (thread == NULL)
+        return 0;
+
+    thread_assert_lock(thread);
+    __thread_enter_state(thread, T_READY);
+
+    sched_park(thread);
+    thread_unlock(thread);
+    return woken;
+}
+
+int xched_wakeall(queue_t *sleep_queue)
+{
+    int count = 0;
+    thread_t *thread = NULL;
+    queue_node_t *next = NULL;
+    queue_assert(sleep_queue);
+
+    queue_lock(sleep_queue);
+    count = queue_count(sleep_queue);
+
+    forlinked(node, sleep_queue->head, next)
+    {
+        next = node->next;
+        thread = node->data;
+        thread_lock(thread);
+        assert(!thread_wake_n(thread), "failed to park thread");
+        thread_unlock(thread);
+    }
+
+    queue_unlock(sleep_queue);
+    return count;
+}

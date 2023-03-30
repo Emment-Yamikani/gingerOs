@@ -65,6 +65,10 @@ int sched_sleep(queue_t *sleep_queue, spinlock_t *lock);
  */
 int sched_wakeall(queue_t *sleep_queue);
 
+int xched_sleep(queue_t *sleep_queue, spinlock_t *lock);
+int xched_wake1(queue_t *sleep_queue);
+int xched_wakeall(queue_t *sleep_queue);
+
 /*get a thread from a queue*/
 thread_t *sched_next(void);
 

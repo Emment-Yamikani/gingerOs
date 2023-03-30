@@ -2,10 +2,9 @@
 
 #include <lib/stdarg.h>
 #include <lib/stddef.h>
-
 //#include <locks/spinlock.h>
 
-extern volatile int use_early_cons; 
+extern volatile int use_early_cons;
 
 void init_printk(void);
 

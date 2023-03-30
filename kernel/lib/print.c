@@ -13,6 +13,7 @@
 #include <dev/cons.h>
 #include <arch/boot/early.h>
 #include <locks/spinlock.h>
+#include <video/lfb_term.h>
 
 static spinlock_t *kvprintf_lk = SPINLOCK_NEW("kvprintf-lock");
 

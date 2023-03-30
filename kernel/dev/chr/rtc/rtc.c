@@ -85,7 +85,7 @@ int rtc0_probe(void)
     outb(RTC_CMD, 0x8A);
     outb(RTC_IO, ((value & 0xF0) | 0x0F));
 
-    outb(RTC_CMD, 0X8B);
+    outb(RTC_CMD, 0x8B);
     value = inb(RTC_IO);
     outb(RTC_CMD, 0x8B);
     outb(RTC_IO, (value | 0x40));

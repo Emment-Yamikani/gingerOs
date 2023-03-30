@@ -269,10 +269,15 @@ uintptr_t paging_alloc(size_t sz)
 {
     assert(!(sz & PAGEMASK), "invalid size, must be page aligned");
     uintptr_t base = vmman.alloc(sz);
-    if (!base)
+    if (!base){
+        printk("%s:%d: error\n", __FILE__, __LINE__);
         return 0;
+    }
     else if (paging_mappages(base, sz, VM_KRW))
+    {
+        printk("%s:%d: error\n", __FILE__, __LINE__);
         return 0;
+    }
     return base;
 }
 

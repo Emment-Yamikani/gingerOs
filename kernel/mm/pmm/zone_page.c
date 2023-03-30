@@ -156,7 +156,7 @@ void __pages_put(uintptr_t addr, size_t order)
         panic("%s(%p, %d)???\n", __func__, addr, order);
 
     if (!(zone = get_mmzone(addr, npages * PAGESZ)))
-        panic("%s(%p, %d)???\n", __func__, addr, order);
+        return;
     
     page = &zone->pages[(addr - zone->start) / PAGESZ];
     for (size_t pages = 0; pages < npages; ++pages, ++page)
@@ -221,4 +221,4 @@ void *memory(void *arg)
     return arg;
 }
 
-BUILTIN_THREAD(memory, memory, NULL);
+// BUILTIN_THREAD(memory, memory, NULL);

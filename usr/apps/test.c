@@ -17,7 +17,6 @@ void draw_line(float x, float y, float x1, float y1, int color);
 
 int main(int argc, char *const argv[])
 {
-    dup2(open("/dev/uart", O_WRONLY), 2);
     int fb = open("/dev/fbdev", O_RDWR);
     size_t fbsz = lseek(fb, 0, SEEK_END);
     framebuffer = mmap(NULL, fbsz, PROT_READ | PROT_WRITE,

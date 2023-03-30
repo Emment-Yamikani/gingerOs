@@ -30,7 +30,7 @@ typedef struct node
     size_t size;       // size of region in bytes
 } node_t;
 
-#define KHEAPBASE (VMA_HIGH(0x2000000))    // kernel heap base address.
+#define KHEAPBASE (VMA_HIGH(0x8000000))    // kernel heap base address.
 #define KHEAPSZ ((0xFE000000) - KHEAPBASE) // size of kernel heap.
 
 #define KHEAP_MAX_NODES ((int)KHEAPSZ / PAGESZ)                 // maximum blocks that can be address.
@@ -44,11 +44,11 @@ struct vmrx
     size_t v_size;     // size of memory region
     uintptr_t v_base;  // virtual base address
     uintptr_t v_paddr; // physical address
-} kheap_vmrs[] =
-    {
-        [0] = {.v_base = VMA_HIGH(0x100000), .v_size = 0, .v_refs = 1},
-        [1] = {.v_base = KHEAPBASE, .v_size = KHEAP_NODES_ARRAY_SZ, .v_paddr = 0, .v_flags = (VM_PWT | VM_KRW | VM_PCD), .v_refs = 1},
-        [2] = {.v_base = MMAP_DEVADDR, .v_refs = 1, .v_flags = (VM_PWT | VM_KRW | VM_PCD), .v_paddr = MMAP_DEVADDR}};
+} kheap_vmrs[] = {
+    [0] = {.v_base = VMA_HIGH(0x100000), .v_size = 0, .v_refs = 1},
+    [1] = {.v_base = KHEAPBASE, .v_size = KHEAP_NODES_ARRAY_SZ, .v_paddr = 0, .v_flags = (VM_PWT | VM_KRW | VM_PCD), .v_refs = 1},
+    [2] = {.v_base = MMAP_DEVADDR, .v_refs = 1, .v_flags = (VM_PWT | VM_KRW | VM_PCD), .v_paddr = MMAP_DEVADDR},
+};
 
 static node_t *usedvmr_head = NULL;
 static node_t *usedvmr_tail = NULL;
@@ -370,6 +370,7 @@ static uintptr_t vmm_alloc(size_t sz)
 
     split = freevmr_get(sz);
 
+
     if (!split)
     {
 #if KVM_DEBUG
@@ -399,7 +400,7 @@ static uintptr_t vmm_alloc(size_t sz)
     usedvmr_put(node);
 
 #if KVM_DEBUG
-    klog(KLOG_OK, "alocated %dKib @ %p\n", sz / 1024, addr);
+    printk("alocated %dKib @ %p\n", sz / 1024, addr);
 #endif
 
     spin_unlock(vmm_spinlock);
@@ -483,8 +484,7 @@ void memory_usage(void)
     printk("\t\t\t\e[0;015mVirtual Memory\e[0m\nFree  : \e[0;012m%8dKB\e[0m\nIn use: \e[0;04m%8dKB\e[0m\n\n", vmman.getfreesize(), vmman.getinuse());
 }
 
-struct vmman vmman =
-{
+struct vmman vmman = {
     .init = vmm_init,
     .alloc = vmm_alloc,
     .free = vmm_free,

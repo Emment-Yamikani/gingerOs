@@ -42,7 +42,7 @@ void* liballoc_alloc( int pages )
 	if ( page_size < 0 ) page_size = getpagesize();
 	size_t size = pages * page_size;
 	p2 = (char *)paging_alloc(size);
-	//printk("liballoc_alloc(): pointer: %p request pages: %d\n", p2, pages);
+	// printk("liballoc_alloc(): pointer: %p request pages: %d\n", p2, pages);
 	return p2;
 }
 

@@ -133,3 +133,43 @@ int thread_kill_all(void)
     current_assert();
     return tgroup_kill_thread(current->t_group, -1);
 }
+
+
+
+int thread_wake_n(thread_t *thread)
+{
+    int err = 0, held = 0;
+    thread_assert_lock(thread);
+
+    if (!__thread_isleep(thread) || __thread_zombie(thread) || __thread_terminated(thread))
+        return 0;
+    
+    if (thread->sleep.queue == NULL)
+        panic("%s:%d: No wait queue\n", __FILE__, __LINE__, thread->t_tid);
+    
+    if (thread->sleep.guard){
+        if (!spin_holding(thread->sleep.guard)){
+            spin_lock(thread->sleep.guard);
+            held = 1;
+        }
+    }
+    
+    err = thread_remove_queue(thread, thread->sleep.queue);
+
+    if (thread->sleep.guard){
+        if (spin_holding(thread->sleep.guard) && held){
+            spin_unlock(thread->sleep.guard);
+            held = 0;
+        }
+    }
+
+    if (err) return err;
+
+    if (__thread_zombie(thread) || __thread_terminated(thread))
+        return 0;
+
+    if ((err = __thread_enter_state(thread, T_READY)))
+        return err;
+
+    return sched_park(thread);
+}

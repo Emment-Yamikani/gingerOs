@@ -101,15 +101,13 @@ typedef struct thread
         void *data;         /*used to specify what holds the sleep-queue, e.g mutex, condition-variable, etc.*/
         queue_t *queue;     /*thread's sleep queue if sleeping*/
         queue_node_t *node; /*thread's sleep queue node*/
+        spinlock_t *guard;  /*non-null if sleep queue is associated with a guard lock*/
     } sleep;
 
     struct file_table *t_file_table; /*thread file table*/
     cond_t *t_wait;                  /*thread wait condition*/
 } thread_t;
 
-#define __thread_zombie(thread)        (thread->t_state == T_ZOMBIE)
-#define __thread_stopped(thread)       (thread->t_state == T_STOPPED)
-#define __thread_terminated(thread)    (thread->t_state == T_TERMINATED)
 
 #define thread_assert(t) assert(t, "no thread");
 #define thread_lock(t) {thread_assert(t); spin_lock(t->t_lock); if (LIME_DEBUG) printk("%s:%d:: TID(%d) locked [%p]\n", __FILE__, __LINE__, t->t_tid, return_address(0));}
@@ -117,6 +115,15 @@ typedef struct thread
 #define thread_assert_lock(t) {thread_assert(t); spin_assert_lock(t->t_lock);}
 
 #define thread_iskilled(t) (atomic_read(&t->t_killed))
+
+#define __thread_zombie(thread)        ({thread_assert_lock(thread); thread->t_state == T_ZOMBIE;})
+#define __thread_isleep(thread)        ({thread_assert_lock(thread); thread->t_state == T_ISLEEP;})
+#define __thread_stopped(thread)       ({thread_assert_lock(thread); thread->t_state == T_STOPPED;})
+#define __thread_terminated(thread)    ({thread_assert_lock(thread); thread->t_state == T_TERMINATED;})
+#define __thread_enter_state(thread, state) ({int err = 0;\
+                                                thread_assert_lock(thread);\
+                                                if ((state < T_EMBRYO) || (state > T_TERMINATED))\
+                                                { err = -EINVAL;} else {thread->t_state = state;}; err;})
 
 #define current_assert() assert(current, "no current thread");
 #define current_lock() thread_lock(current);
@@ -127,9 +134,9 @@ typedef struct thread
 #define current_mmap_lock()     mmap_lock(current_mmap())
 #define current_mmap_unlock()   mmap_unlock(current_mmap())
 
+int thread_new(thread_t **);
 void thread_free(thread_t *);
 void thread_dump(thread_t *);
-int thread_new(thread_t **);
 
 void tgroup_free(tgroup_t *);
 int tgroup_new(tid_t, tgroup_t **);
@@ -137,9 +144,10 @@ void tgroup_wait_all(tgroup_t *tgrp);
 int tgroup_kill_thread(tgroup_t *tgroup, tid_t tid);
 
 thread_t *thread_dequeue(queue_t *);
+int thread_ishandling_signal(thread_t *thread);
+int thread_remove_queue(thread_t *thread, queue_t *queue);
 int thread_enqueue(queue_t *, thread_t *, queue_node_t **node);
 
-int thread_ishandling_signal(thread_t *thread);
 
 
 void thread_yield(void);
@@ -149,6 +157,7 @@ int thread_kill(tid_t tid);
 void thread_exit(uintptr_t);
 int thread_cancel(tid_t tid);
 int thread_wake(thread_t *thread);
+int thread_wake_n(thread_t *thread);
 int thread_kill_n(thread_t *thread);
 int thread_join(tid_t tid, void **retval);
 int thread_fork(thread_t *dst, thread_t *src);

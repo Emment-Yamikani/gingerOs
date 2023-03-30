@@ -240,7 +240,7 @@ int physical_memory(void)
     zone->free_pages -= NPAGE(size);
     mm_zone_unlock(zone);
     printk("pages: %p\n", mm_zone[MM_ZONE_NORM].pages);
-    return 0;
+    return paging_init();
 }
 
 mm_zone_t *get_mmzone(uintptr_t addr, size_t size)

@@ -323,6 +323,22 @@ thread_t *thread_dequeue(queue_t *queue)
     return thread;
 }
 
+int thread_remove_queue(thread_t *thread, queue_t *queue)
+{
+    int err = 0;
+    queue_assert_lock(queue);
+    thread_assert_lock(thread);
+
+    queue_lock(thread->t_queues);
+    if ((err = queue_remove(thread->t_queues, (void *)queue)))
+    {
+        queue_unlock(thread->t_queues);
+        return err;
+    }
+    queue_unlock(thread->t_queues);
+    return queue_remove(queue, (void *)thread);
+}
+
 int thread_execve(proc_t *proc, thread_t *thread, void *(*entry)(void *), const char *argp[], const char *envp[])
 {
     vmr_t *stack = NULL;

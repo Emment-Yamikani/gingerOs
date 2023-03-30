@@ -15,6 +15,7 @@
 #include <fs/devfs.h>
 #include <arch/boot/early.h>
 #include <fs/posix.h>
+#include <video/lfb_term.h>
 
 int use_earlycon = 0;
 
@@ -67,9 +68,16 @@ void cons_putc(int c)
 {
     if (!use_earlycon)
         return;
-        
+    
     if (c == BACKSPACE)
         c = '\b';
+
+    if (use_gfx_cons)
+    {
+        lfb_term_putc(c);
+        return;
+    }
+
     if (c == '\n')
         pos += 80 - pos % 80;
     else if (c == '\b')
