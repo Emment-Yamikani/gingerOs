@@ -15,7 +15,7 @@
 #include <fs/devfs.h>
 #include <arch/boot/early.h>
 #include <fs/posix.h>
-#include <video/lfb_term.h>
+#include <video/lfbterm.h>
 
 int use_earlycon = 0;
 
@@ -74,7 +74,7 @@ void cons_putc(int c)
 
     if (use_gfx_cons)
     {
-        lfb_term_putc(c);
+        lfbterm_putc(c);
         return;
     }
 
@@ -129,6 +129,11 @@ static struct cons_attr
 
 void cons_save(void)
 {
+    if (use_gfx_cons)
+    {
+        lfbterm_savecolor();
+        return;
+    }
     struct cons_attr *node;
     if (!(node = kmalloc(sizeof *node)))
         return;
@@ -142,13 +147,81 @@ void cons_save(void)
     node->attr = cga_attrib;
 }
 
+#include <video/color_code.h>
+int brew_color(int __color)
+{
+    switch(__color)
+    {
+    case CGA_BLACK:
+        __color = RGB_black;
+        break;
+    case CGA_DARK_GREY:
+        __color = RGB_gray_grey;
+        break;
+    case CGA_BLUE:
+        __color = RGB_blue;
+        break;
+    case CGA_LIGHT_BLUE:
+        __color = RGB_light_blue;
+        break;
+    case CGA_GREEN:
+        __color = RGB_green;
+        break;
+    case CGA_LIGHT_GREEN:
+        __color = RGB_light_green;
+        break;
+    case CGA_CYAN:
+        __color = RGB_cyan;
+        break;
+    case CGA_LIGHT_CYAN:
+        __color = RGB_light_cyan;
+        break;
+    case CGA_RED:
+        __color = RGB_dark_red;
+        break;
+    case CGA_LIGHT_RED:
+        __color = RGB_red;
+        break;
+    case CGA_MAGENTA:
+        __color = RGB_magenta;
+        break;
+    case CGA_LIGHT_MAGENTA:
+        __color = RGB_light_pink;
+        break;
+    case CGA_BROWN:
+        __color = RGB_brown;
+        break;
+    case CGA_YELLOW:
+        __color = RGB_yellow;
+        break;
+    case CGA_LIGHT_GREY:
+        __color = RGB_light_gray;
+        break;
+    case CGA_WHITE:
+        __color = RGB_white;
+        break;
+    }
+    return __color;
+}
+
 void cons_setcolor(int back, int fore)
 {
+    if (use_gfx_cons)
+    {
+        back = brew_color(back);
+        fore = brew_color(fore);
+        lfbterm_setcolor(back, fore);
+        return;
+    }
     cga_attrib = (back << 4) | fore;
 }
 
 void cons_restore(void)
 {
+    if (use_gfx_cons){
+        lfbterm_restorecolor();
+        return;
+    }
     struct cons_attr *node;
     node  = tail;
     if (!node)
@@ -161,6 +234,7 @@ void cons_restore(void)
     }
     else
         tail =0;
+
     cga_attrib = node->attr;
     kfree(node);
 }

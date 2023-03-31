@@ -12,6 +12,8 @@
 #include <lime/jiffies.h>
 #include <video/color_code.h>
 #include <sys/sleep.h>
+#include <locks/sync.h>
+#include <video/lfbterm.h>
 
 typedef struct lfb_ctx
 {
@@ -20,8 +22,11 @@ typedef struct lfb_ctx
     struct font *font;
     uint32_t *lfb_back;
     uint32_t **scanline;
+    uint8_t cursor_char;
+    uint8_t cursor_timeout;
     int cols, rows, cc, cr;
     uint8_t *wallpaper_data;
+    spinlock_t *lock;
 } lfb_ctx_t;
 
 lfb_ctx_t ctx;
@@ -42,12 +47,13 @@ const char *wallpaper_path[] = {
 #define __set_pixel(f, x, y, c) (__peek_pixel((f), (x), (y)) = (c))
 #define __put_pixel(ctx, x, y, c) ({if (((x) < (int)fbvar.width) &&\
                                      ((y) < (int)fbvar.height) && ((x) >= 0) && ((y) >= 0))\
-                                     __set_pixel(ctx->scanline, (x), (y), (c));})
+                                     __set_pixel((ctx)->scanline, (x), (y), (c));})
 
-int lfb_term_init(void)
+int lfbterm_init(void)
 {
     uio_t uio = {0};
     int err = -ENOMEM;
+    
     if ((err = vfs_open("/dev/fbdev", &uio, O_RDWR, &lfb)))
     {
         printk("%s:%d: error, fallback to text_mode\n", __FILE__, __LINE__);
@@ -58,6 +64,11 @@ int lfb_term_init(void)
     iioctl(lfb, FBIOGET_VAR_INFO, &fbvar);
 
     memset(&ctx, 0, sizeof ctx);
+
+    if ((err = spinlock_init(NULL, "lfbterm", &ctx.lock)))
+        goto error;
+
+    err = -ENOMEM;
     if (!(ctx.scanline = kcalloc(fbvar.height, (fbvar.bpp / 8))))
         goto error;
     if (!(ctx.lfb_back = kcalloc(1, fbfix.memsz)))
@@ -73,13 +84,17 @@ int lfb_term_init(void)
     for (size_t row = 0; row < fbvar.height; row++)
         ctx.scanline[row] = &((uintptr_t *)ctx.lfb_back)[row * fbvar.width];
 
+    ctx.cursor_char = '_';
+    ctx.cursor_timeout = 35;
     ctx.op = 200;
     ctx.bg = RGB_black;
-    ctx.fg = RGB_white_smoke;
+    ctx.bg = 0x002B36;//RGB_black;
+    ctx.fg = RGB_cadet_blue;
     ctx.cols = fbvar.width / ctx.font->cols;
     ctx.rows = fbvar.height / ctx.font->rows;
 
     use_gfx_cons = 1;
+    lfbterm_clrscrn();
     return 0;
 error:
     if (ctx.txtbuf)
@@ -111,23 +126,27 @@ int font_putc(int c, struct lfb_ctx *ctx, int col, int row)
 
 void ctx_putchar(struct lfb_ctx *ctx, int c);
 
+int cxx = 0;
 void ctx_drawcursor(struct lfb_ctx *ctx)
 {
-    (void)ctx;
     jiffies_t now __unused = jiffies_get();
-    loop(){
+    loop() {
+        spin_lock(ctx->lock);
         // set
-        font_putc('|', ctx, ctx->cc, ctx->cr);
+        font_putc(ctx->cursor_char, ctx, ctx->cc, ctx->cr);
+        spin_unlock(ctx->lock);
         //now = jiffies_get();
-        sleep(1);
+        wait_ms(ctx->cursor_timeout);//sleep(1);
         //now = jiffies_get();
         // clear
+        spin_lock(ctx->lock);
         font_putc(' ', ctx, ctx->cc, ctx->cr);
-        sleep(1);
+        spin_unlock(ctx->lock);
+        wait_ms(ctx->cursor_timeout);//sleep(1);
     }
 }
 
-void lfb_term_scroll(void);
+void lfbterm_scroll(void);
 
 void ctx_putchar(struct lfb_ctx *ctx, int c)
 {
@@ -149,6 +168,7 @@ void ctx_putchar(struct lfb_ctx *ctx, int c)
         ctx->cc = 0;
         break;
     case '\b':
+        font_putc(' ', ctx, ctx->cc, ctx->cr);
         ctx->cc--;
         if (ctx->cc < 0) {
             ctx->cr--;
@@ -168,12 +188,7 @@ void ctx_putchar(struct lfb_ctx *ctx, int c)
         }
     }
     if (ctx->cr >= ctx->rows)
-        lfb_term_scroll();
-}
-
-void lfb_term_putc(int c)
-{
-    ctx_putchar(&ctx, c);
+        lfbterm_scroll();
 }
 
 void ctx_puts(struct lfb_ctx *ctx, char *str)
@@ -182,7 +197,59 @@ void ctx_puts(struct lfb_ctx *ctx, char *str)
         ctx_putchar(ctx, *str++);
 }
 
-int lfb_term_puts(const char *s)
+void lfbterm_putc(int c)
+{
+    cxx = c;
+    switch(c)
+    {
+    case _SC_UP:
+        lfbterm_puts("^[[A");
+        return;
+    case _SC_LEFT:
+        lfbterm_puts("^[[D");
+        return;
+    case _SC_RIGHT:
+        lfbterm_puts("^[[C");
+        return;
+    case _SC_DOWN:
+        lfbterm_puts("^[[B");
+        return;
+    case CTRL('C'):
+        lfbterm_puts("^C");
+        return;
+    default:
+        spin_lock(ctx.lock);
+        ctx_putchar(&ctx, c);
+        spin_unlock(ctx.lock);
+    }
+}
+
+void lfbterm_fill_rect(int x, int y, int w, int h, int color)
+{
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    if ((w < 0) || (h < 0)) return;
+
+    int xmax = w + x, ymax = h + y;
+    if (xmax > (int)fbvar.width)
+        xmax = fbvar.width;
+    if (ymax > (int)fbvar.height)
+        ymax = fbvar.height;
+
+    for (; y < ymax; ++y)
+        for (int cx = x; cx < xmax; ++cx)
+            __put_pixel((&ctx), cx, y, color);
+}
+
+void lfbterm_clrscrn(void)
+{
+    spin_lock(ctx.lock);
+    lfbterm_fill_rect(0, 0, fbvar.width, fbvar.height, ctx.bg);
+    ctx.cc = ctx.cr = 0;
+    spin_unlock(ctx.lock);
+}
+
+int lfbterm_puts(const char *s)
 {
     char *S = (char *)s;
     while (*S)
@@ -190,8 +257,9 @@ int lfb_term_puts(const char *s)
     return S - s;
 }
 
-void lfb_term_scroll(void)
+void lfbterm_scroll(void)
 {
+    font_putc(' ', &ctx, ctx.cc, ctx.cr);
     for (int row = ctx.font->rows; row < (int)fbvar.height; ++row)
         for (int col = 0; col < (int)fbvar.width; ++col)
             __put_pixel((&ctx), col, (row - ctx.font->rows), __peek_pixel(ctx.scanline, col, row));
@@ -202,11 +270,68 @@ void lfb_term_scroll(void)
     ctx.cr = ctx.rows - 1;
 }
 
-void *lfb_writer(void *arg __unused)
+void lfbterm_setcolor(int bg, int fg)
 {
+    spin_lock(ctx.lock);
+    ctx.bg = bg;
+    ctx.fg = fg;
+    spin_unlock(ctx.lock);
+}
+
+static struct cons_attr
+{
+    int bg, fg;
+    struct cons_attr *prev, *next;
+} *tail;
+
+void lfbterm_savecolor(void)
+{
+    struct cons_attr *node;
+    if (!(node = kmalloc(sizeof *node)))
+        return;
+    memset(node, 0, sizeof *node);
+    spin_lock(ctx.lock);
+    if (tail)
+    {
+        tail->next = node;
+        node->prev = tail;
+    }
+    tail = node;
+    node->bg = ctx.bg;
+    node->fg = ctx.fg;
+    spin_unlock(ctx.lock);
+}
+
+void lfbterm_restorecolor(void)
+{
+    struct cons_attr *node;
+    node = tail;
+    if (!node)
+        return;
+    spin_lock(ctx.lock);
+    if (node->prev)
+    {
+        node->prev->next = 0;
+        tail = node->prev;
+        node->prev = 0;
+    }
+    else
+        tail = 0;
+
+    ctx.bg = node->bg;
+    ctx.fg = node->fg;
+    kfree(node);
+    spin_unlock(ctx.lock);
+}
+
+void *lfbterm_cursor(void *arg __unused)
+{
+    int err = 0;
     if (use_gfx_cons == 0)
         thread_exit(-ENOENT);
+    if ((err = lfb_console_init()))
+        thread_exit(err);
     ctx_drawcursor(&ctx);
     loop();
 }
-BUILTIN_THREAD(lfb_text, lfb_writer, NULL);
+BUILTIN_THREAD(lfb_text, lfbterm_cursor, NULL);

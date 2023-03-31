@@ -22,7 +22,7 @@
 #include <arch/boot/early.h>
 #include <dev/hpet.h>
 #include <dev/bio.h>
-#include <video/lfb_term.h>
+#include <video/lfbterm.h>
 
 void *kthread_main(void *);
 
@@ -56,7 +56,7 @@ int early_init(void)
     if ((err = vfs_init()))
         return err;
 
-    lfb_term_init();
+    lfbterm_init();
     //bootstrap other cores if present
     bootothers();
 

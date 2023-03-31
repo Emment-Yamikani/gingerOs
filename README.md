@@ -1,7 +1,17 @@
 # gingerOs
 Minimal Unix-like hobby OS
 
-<img alt="gingerOs-Screenshot" src="gingerOs-Screenshot.png">
+### Screenshot0
+#
+<img alt="gingerOs-Screenshot" src="Screenshot0.png">
+
+### Screenshot1
+#
+<img alt="gingerOs-Screenshot" src="Screenshot1.png">
+
+### Screenshot2
+#
+<img alt="gingerOs-Screenshot" src="Screenshot2.png">
 
 #
 

@@ -10,7 +10,7 @@
 #include <arch/boot/boot.h>
 #include <arch/i386/paging.h>
 #include <mm/pmm.h>
-#include <video/lfb_term.h>
+#include <video/lfbterm.h>
 
 static struct dev fbdev;
 fb_fixinfo_t fix_info;
