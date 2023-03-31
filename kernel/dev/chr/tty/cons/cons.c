@@ -116,6 +116,11 @@ size_t cons_puts(const char *s)
 
 void cons_clr()
 {
+    if (use_gfx_cons)
+    {
+        lfbterm_clrscrn();
+        return;
+    }
     memsetw(CGA_PTR, ((cga_attrib << 8) & 0xff00) | (' ' & 0xff), 80 * 25);
     cga_setcursor(pos = 0);
 }

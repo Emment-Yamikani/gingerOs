@@ -25,6 +25,8 @@
 #include <locking/atomic.h>
 #include <locking/spinlock.h>
 
+extern void panic(const char *, ...);
+
 #define foreach(element, list) \
     for (typeof(*list) *tmp = list, element = *tmp; element; element = *++tmp)
 

@@ -74,13 +74,7 @@ int mutex_lock(mutex_t *mutex)
     if ((int)atomic_incr(&mutex->lock) > 0)
     {
         current_lock();
-        current->sleep.data = mutex;
-        current->sleep.type = MUTEX;
-
-        retval = sched_sleep(mutex->waiters, mutex->guard);
-
-        current->sleep.data = NULL;
-        current->sleep.type = INVALID;
+        retval = xched_sleep(mutex->waiters, mutex->guard);
         current_unlock();
     }
 
@@ -98,7 +92,7 @@ void mutex_unlock(mutex_t *mutex)
     mutex->thread = NULL;
     if ((int)atomic_decr(&mutex->lock) <= 0)
         panic("mutex->lock underflow: %d\n", atomic_read(&mutex->lock));
-    sched_wake1(mutex->waiters);
+    xched_wake1(mutex->waiters);
     spin_unlock(mutex->guard);
     popcli();
 }
@@ -119,31 +113,4 @@ int mutex_try_lock(mutex_t *mutex)
     popcli();
     spin_unlock(mutex->guard);
     return 0; // unsuccessful
-}
-
-void mutex_remove(mutex_t *mutex, thread_t *thread)
-{
-    int locked = 0;
-    assert(mutex, "no mutex");
-    thread_assert(thread);
-    thread_assert_lock(thread);
-
-
-    if (spin_holding(mutex->guard) == 0)
-    {
-        spin_lock(mutex->guard);
-        locked = 1;
-    }
-
-    assert(mutex->waiters == thread->sleep.queue, "sleep queues don't match");
-
-    queue_remove(mutex->waiters, thread);
-    queue_lock(thread->t_queues);
-    queue_remove(thread->t_queues, mutex->waiters);
-    queue_unlock(thread->t_queues);
-
-    atomic_decr(&mutex->lock);
-
-    if (spin_holding(mutex->guard) && locked)
-        spin_unlock(mutex->guard);
 }

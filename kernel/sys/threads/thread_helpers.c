@@ -13,6 +13,7 @@
 #include <arch/sys/proc.h>
 #include <locks/mutex.h>
 
+/*
 int thread_wake(thread_t *thread)
 {
     cond_t *cond = NULL;
@@ -44,6 +45,7 @@ int thread_wake(thread_t *thread)
     thread->t_state = T_READY;
     return sched_park(thread);
 }
+*/
 
 int thread_get(tgroup_t *tgrp, tid_t tid, thread_t **tref)
 {
@@ -133,7 +135,6 @@ int thread_kill_all(void)
     current_assert();
     return tgroup_kill_thread(current->t_group, -1);
 }
-
 
 
 int thread_wake_n(thread_t *thread)

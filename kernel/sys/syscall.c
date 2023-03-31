@@ -382,9 +382,9 @@ int sys_execve(void)
     char *path = NULL;
     char **argp = NULL;
     char **envp = NULL;
-    assert(!argstr(0, &path), "err fetching execv");
+    assert(argstr(0, &path) > 0, "err fetching path");
     assert(!argptr(1, (void **)&argp, sizeof(char **)), "err fetching argp");
-    assert(!argptr(1, (void **)&envp, sizeof(char **)), "err fetching envp");
+    assert(!argptr(2, (void **)&envp, sizeof(char **)), "err fetching envp");
     return execve(path, (const char **)argp, (const char **)envp);
 }
 

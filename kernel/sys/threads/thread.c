@@ -88,7 +88,7 @@ void tgroup_wait_all(tgroup_t *tgroup)
         
         if (thread->sleep.queue) {
             queue_lock(thread->sleep.queue);
-            thread_wake(thread);
+            thread_wake_n(thread);
             queue_unlock(thread->sleep.queue);
         }     
        
@@ -155,7 +155,7 @@ all:
         
         if (thread->sleep.queue) {
             queue_lock(thread->sleep.queue);
-            thread_wake(thread);
+            thread_wake_n(thread);
             queue_unlock(thread->sleep.queue);
         }
     

@@ -80,13 +80,7 @@ int cond_wait(cond_t *cond)
     if ((int)atomic_incr(&cond->count) >= 0)
     {
         current_lock();
-        current->sleep.data = cond;
-        current->sleep.type = CONDITION;
-        
-        retval = sched_sleep(cond->waiters, cond->guard);
-        
-        current->sleep.data = NULL;
-        current->sleep.type = INVALID;
+        retval = xched_sleep(cond->waiters, cond->guard);
         current_unlock();
     }
     spin_unlock(cond->guard);
@@ -95,7 +89,7 @@ int cond_wait(cond_t *cond)
 
 static void cond_wake1(cond_t *cond)
 {
-    sched_wake1(cond->waiters);
+    xched_wake1(cond->waiters);
 }
 
 void cond_signal(cond_t *cond)
@@ -109,7 +103,7 @@ void cond_signal(cond_t *cond)
 
 static void cond_wakeall(cond_t *cond)
 {
-    int waiters = sched_wakeall(cond->waiters);
+    int waiters = xched_wakeall(cond->waiters);
     if (waiters == 0)
         atomic_write(&cond->count, -1);
     else
@@ -122,30 +116,4 @@ void cond_broadcast(cond_t *cond)
     spin_lock(cond->guard);
     cond_wakeall(cond);
     spin_unlock(cond->guard);
-}
-
-void cond_remove(cond_t *cond, thread_t *thread)
-{
-    int locked = 0;
-    assert(cond, "no condition-variable");
-    thread_assert(thread);
-    thread_assert_lock(thread);
-
-    if (spin_holding(cond->guard) == 0) {
-        spin_lock(cond->guard);
-        locked = 1;
-    }
-
-    assert(cond->waiters == thread->sleep.queue, "sleep queues don't match");
-
-    queue_remove(cond->waiters, thread);
-
-    queue_lock(thread->t_queues);
-    queue_remove(thread->t_queues, cond->waiters);
-    queue_unlock(thread->t_queues);
-
-    atomic_decr(&cond->count);
-
-    if (spin_holding(cond->guard) && locked)
-        spin_unlock(cond->guard);
 }

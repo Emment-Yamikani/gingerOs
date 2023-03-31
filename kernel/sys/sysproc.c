@@ -127,7 +127,7 @@ void *sbrk(ptrdiff_t incr)
     vmr_t *heap = NULL;
     mmap_t *mmap = NULL;
     uintptr_t new_brk = 0;
-    size_t heap_max = 0xC000000;
+    size_t heap_max = 0xE000000;
     int decrease = incr < 0 ? 1 : 0;
 
     printk("[%d:%d:%d]: sbrk(%d)\n", thread_self(), getpid(), getppid(), incr);

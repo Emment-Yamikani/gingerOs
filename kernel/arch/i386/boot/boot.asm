@@ -19,8 +19,8 @@ mboot:
     dd 0            ;/* heentry_addr */
 ;define video setting
     dd 0            ;/* mode_type */
-    dd 800          ;/* mowidth */
-    dd 600          ;/* moheight */
+    dd 0            ;/* mowidth */
+    dd 0            ;/* moheight */
     dd 32           ;/* modepth */
 
 section .text

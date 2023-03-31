@@ -267,7 +267,6 @@ int main(int argc, char *argv[])
 #if NJ_USE_LIBC
 #include <stdlib.h>
 #include <string.h>
-
 #define njAllocMem malloc
 #define njFreeMem free
 #define njFillMem memset
@@ -621,18 +620,14 @@ NJ_INLINE void njDecodeSOF(void)
         c->stride = nj.mbwidth * c->ssx << 3;
         if (((c->width < 3) && (c->ssx != ssxmax)) || ((c->height < 3) && (c->ssy != ssymax)))
             njThrow(NJ_UNSUPPORTED);
-        if (!(c->pixels = (unsigned char *)njAllocMem(c->stride * nj.mbheight * c->ssy << 3))){
-            printk("%s:%d: error\n", __FILE__, __LINE__);
+        if (!(c->pixels = (unsigned char *)njAllocMem(c->stride * nj.mbheight * c->ssy << 3)))
             njThrow(NJ_OUT_OF_MEM);
-        }
     }
     if (nj.ncomp == 3)
     {
         nj.rgb = (unsigned char *)njAllocMem(nj.width * nj.height * nj.ncomp);
-        if (!nj.rgb){
-            printk("%s:%d: error\n", __FILE__, __LINE__);
+        if (!nj.rgb)
             njThrow(NJ_OUT_OF_MEM);
-        }
     }
     njSkip(nj.length);
 }
@@ -845,10 +840,8 @@ NJ_INLINE void njUpsampleH(nj_component_t *c)
     unsigned char *out, *lin, *lout;
     int x, y;
     out = (unsigned char *)njAllocMem((c->width * c->height) << 1);
-    if (!out){
-        printk("%s:%d: error\n", __FILE__, __LINE__);
+    if (!out)
         njThrow(NJ_OUT_OF_MEM);
-    }
     lin = c->pixels;
     lout = out;
     for (y = c->height; y; --y)
@@ -879,10 +872,8 @@ NJ_INLINE void njUpsampleV(nj_component_t *c)
     unsigned char *out, *cin, *cout;
     int x, y;
     out = (unsigned char *)njAllocMem((c->width * c->height) << 1);
-    if (!out){
-        printk("%s:%d: (%d) error\n", __FILE__, __LINE__, (c->width * c->height) << 1);
+    if (!out)
         njThrow(NJ_OUT_OF_MEM);
-    }
     for (x = 0; x < w; ++x)
     {
         cin = &c->pixels[x];
