@@ -147,6 +147,7 @@ thread_t *thread_dequeue(queue_t *);
 int thread_ishandling_signal(thread_t *thread);
 int thread_remove_queue(thread_t *thread, queue_t *queue);
 int thread_enqueue(queue_t *, thread_t *, queue_node_t **node);
+int queue_get_thread(queue_t *queue, tid_t tid, thread_t **pthread);
 
 
 

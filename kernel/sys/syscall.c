@@ -41,8 +41,8 @@ static uintptr_t (*syscall[])(void) = {
     [SYS_WAITPID](void *)sys_waitpid,
     [SYS_SLEEP](void *) sys_sleep,
     [SYS_EXECV](void *) sys_execv,
-    [SYS_EXECVE](void *) sys_execve,
     [SYS_GETPID](void *) sys_getpid,
+    [SYS_EXECVE](void *) sys_execve,
 
     /*Memory Management*/
 
@@ -60,6 +60,8 @@ static uintptr_t (*syscall[])(void) = {
     [SYS_THREAD_JOIN](void *) sys_thread_join,
     [SYS_THREAD_EXIT](void *) sys_thread_exit,
     [SYS_THREAD_CANCEL](void *)sys_thread_cancel,
+    [SYS_PARK](void *)sys_park,
+    [SYS_UNPARK](void *)sys_unpark,
 
     /*Protection*/
 
@@ -495,6 +497,18 @@ int sys_thread_cancel(void)
     argint(0, &thread);
 
     return thread_cancel(thread);
+}
+
+int sys_park(void)
+{
+    return park();
+}
+
+int sys_unpark(void)
+{
+    tid_t tid = 0;
+    assert(!argint(0, &tid), "err fetching tid");
+    return unpark(tid);
 }
 
 /*Protection*/

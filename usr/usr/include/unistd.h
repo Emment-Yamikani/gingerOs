@@ -53,6 +53,8 @@ extern "C"
     extern int thread_self(void);
     extern int thread_join(tid_t __tid, void *__res);
     extern void thread_exit(void *_exit);
+    extern int park(void);
+    extern int unpark(tid_t tid);
     
     extern pid_t getpgrp(void);
     extern pid_t getpgid(pid_t pid);

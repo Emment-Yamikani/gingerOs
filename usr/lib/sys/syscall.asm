@@ -100,6 +100,11 @@
 %define SYS_CHOWN           53
 %define SYS_FCHOWN          54
 
+%define SYS_THREAD_CANCEL   56
+
+%define SYS_PARK            57
+%define SYS_UNPARK          58
+
 %macro STUB 2
 global sys_%2
 sys_%2:
@@ -153,6 +158,10 @@ STUB SYS_THREAD_SELF, thread_self
 STUB SYS_THREAD_JOIN, thread_join
 STUB SYS_THREAD_EXIT, thread_exit
 STUB SYS_THREAD_YIELD, thread_yield
+STUB SYS_THREAD_CANCEL, thread_cancel
+STUB SYS_PARK, park
+STUB SYS_UNPARK, unpark
+
 
 STUB SYS_GETPGRP, getpgrp
 STUB SYS_SETPGRP, setpgrp

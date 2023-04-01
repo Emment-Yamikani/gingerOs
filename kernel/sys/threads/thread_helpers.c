@@ -136,7 +136,6 @@ int thread_kill_all(void)
     return tgroup_kill_thread(current->t_group, -1);
 }
 
-
 int thread_wake_n(thread_t *thread)
 {
     int err = 0, held = 0;
@@ -173,4 +172,39 @@ int thread_wake_n(thread_t *thread)
         return err;
 
     return sched_park(thread);
+}
+
+int queue_get_thread(queue_t *queue, tid_t tid, thread_t **pthread)
+{
+    thread_t *thread = NULL;
+    queue_node_t *next = NULL;
+
+    if (!queue || !pthread)
+        return -EINVAL;
+    
+    if (tid < 0)
+        return -EINVAL;
+
+    if (tid == thread_self())
+    {
+        *pthread = current;
+        return 0;
+    }
+
+    queue_assert_lock(queue);
+    forlinked(node, queue->head, next)
+    {
+        next = node->next;
+        thread = node->data;
+
+        thread_lock(thread);
+        if (thread->t_tid == tid)
+        {
+            *pthread = thread;
+            return 0;
+        }
+        thread_unlock(thread);
+    }
+
+    return -ESRCH;
 }

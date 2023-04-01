@@ -5,15 +5,19 @@ void *writer(void *);
 int main(int argc, char *const argv[])
 {
     tid_t tid = 0;
-    void *retval = NULL;
-    char *_ptsname = NULL;
-    int ptmx = open("/dev/ptmx", O_RDWR);
-    grantpt(ptmx);
-    unlockpt(ptmx);
-    _ptsname = ptsname(ptmx);
 
-    int pts = open(_ptsname, O_RDWR);
-    
-    printf("opened %s\n", _ptsname);
+    thread_create(&tid, writer, NULL);
+    sleep(2);
+    unpark(tid);
+    park();
     return 0;
+}
+
+void *writer(void *arg)
+{
+    printf("thread(%d), sleeping...\n", thread_self());
+    park();
+    printf("thread(%d), woken up\n", thread_self());
+    exit(0);
+    return NULL;
 }

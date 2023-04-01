@@ -84,6 +84,9 @@
 #define SYS_CHOWN           53
 #define SYS_FCHOWN          54
 
+#define SYS_PARK            57
+#define SYS_UNPARK          58
+
 /*
 #define SYSCALL5(ret, v, arg1, arg2, arg3, arg4, arg5) \
 	asm volatile("int $0x80;":"=a"(ret):"a"(v), "b"(arg1), "c"(arg2), "d"(arg3), "S"(arg4), "D"(arg5));
@@ -152,6 +155,9 @@ extern void sys_thread_yield(void);
 extern int sys_thread_self(void);
 extern int sys_thread_join(tid_t __tid, void *__res);
 extern void sys_thread_exit(void *_exit);
+extern int sys_thread_cancel();
+extern int sys_park();
+extern int sys_unpark(tid_t __tid);
 
 extern pid_t sys_getpgrp(void);
 extern pid_t sys_getpgid(pid_t pid);
@@ -366,6 +372,21 @@ int thread_join(tid_t __tid, void *__res)
 void thread_exit(void *_exit)
 {
     sys_thread_exit(_exit);
+}
+
+int thread_cancel()
+{
+    return sys_thread_cancel();
+}
+
+int park()
+{
+    return sys_park();
+}
+
+int unpark(tid_t tid)
+{
+    return sys_unpark(tid);
 }
 
 pid_t getpgrp(void)

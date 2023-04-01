@@ -91,6 +91,9 @@
 #define SYS_CHOWN           53
 #define SYS_FCHOWN          54
 
+#define SYS_PARK            57
+#define SYS_UNPARK          58
+
 
 #include <lib/types.h>
 #include <sys/_stat.h>
@@ -164,6 +167,8 @@ extern int sys_thread_self(void);
 extern int sys_thread_cancel(void);
 extern int sys_thread_join(void);
 extern void sys_thread_exit(void);
+extern int sys_park(void);
+extern int sys_unpark(void);
 
 /*Signals*/
 
