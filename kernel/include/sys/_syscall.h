@@ -93,6 +93,7 @@
 
 #define SYS_PARK            57
 #define SYS_UNPARK          58
+#define SYS_SETPARK         59
 
 
 #include <lib/types.h>
@@ -169,6 +170,7 @@ extern int sys_thread_join(void);
 extern void sys_thread_exit(void);
 extern int sys_park(void);
 extern int sys_unpark(void);
+extern void sys_setpark(void);
 
 /*Signals*/
 

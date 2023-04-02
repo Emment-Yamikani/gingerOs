@@ -6,7 +6,6 @@
 #include <locking/atomic.h>
 #include <ginger/assert.h>
 #include <ginger/barrier.h>
-#include <ginger.h>
 #include <unistd.h>
 
 /**
@@ -17,15 +16,20 @@ typedef struct spinlock
 {
     atomic_t lock;
     tid_t thread;
-    char *name;
     int flags;
 } spinlock_t;
 
-#define SPINLOCK_NEW(s)                               \
+#ifndef return_address
+#define return_address(l) __builtin_return_address(l)
+#endif
+
+#define SPINLOCK_NEW()                               \
     &(spinlock_t)                                     \
     {                                                 \
-        .thread = 0, .flags = 0, .name = s, .lock = 0 \
+        .thread = 0, .flags = 0, .lock = 0 \
     }
+
+#define __spinlock_init() (spinlock_t){.flags = 0, .lock = 0, .thread = -1}
 
 /**
  * @brief initialize a spinlock
@@ -35,7 +39,7 @@ typedef struct spinlock
  * @param __ref
  * @return int
  */
-int spinlock_init(const spinlock_t *__lock, const char *__name, spinlock_t **__ref);
+#define spinlock_init(__lock) ({int err = 0; if ((__lock))*(__lock) = __spinlock_init(); else err = -EINVAL; err;})
 
 /**
  * @brief free a spinlock object
@@ -45,7 +49,7 @@ int spinlock_init(const spinlock_t *__lock, const char *__name, spinlock_t **__r
 void spinlock_free(spinlock_t *__lock);
 
 #define spin_holding(__lock) \
-    ((__lock->thread == thread_self()) && atomic_read(&__lock->lock))
+    (((__lock)->thread == thread_self()) && atomic_read(&(__lock)->lock))
 
 /**
  * @brief acquire a spinlock
@@ -54,14 +58,14 @@ void spinlock_free(spinlock_t *__lock);
  */
 #define spin_lock(__lock)                                                                  \
     {                                                                                      \
-        assert(__lock, "no lock");                                                         \
-        if (spin_holding(__lock))                                                          \
-            panic("thread%d: %s:%d: in %s() : holding '%s' return [%p]\n",                 \
-                  thread_self(), __FILE__, __LINE__, __func__, __lock->name, return_address(0)); \
+        assert((__lock), "no lock");                                                         \
+        if (spin_holding((__lock)))                                                          \
+            panic("thread%d: %s:%d: in %s() : holding spinlock[%p] return [%p]\n",                 \
+                  thread_self(), __FILE__, __LINE__, __func__, (__lock), return_address(0)); \
         barrier();                                                                         \
-        while (atomic_xchg(&__lock->lock, 1) == 1)                                         \
+        while (atomic_xchg(&(__lock)->lock, 1) == 1)                                         \
             CPU_RELAX();                                                                   \
-        __lock->thread = thread_self();                                                    \
+        (__lock)->thread = thread_self();                                                    \
     }
 
 /**
@@ -71,13 +75,13 @@ void spinlock_free(spinlock_t *__lock);
  */
 #define spin_unlock(__lock)                                                                \
     {                                                                                      \
-        assert(__lock, "no lock");                                                         \
-        if (!spin_holding(__lock))                                                         \
-            panic("thread%d: %s:%d: in %s() : not holding '%s' return [%p]\n",  \
-                  thread_self(), __FILE__, __LINE__, __func__, __lock->name, return_address(0)); \
+        assert((__lock), "no lock");                                                         \
+        if (!spin_holding((__lock)))                                                         \
+            panic("thread%d: %s:%d: in %s() : not holding spinlock[%p] return [%p]\n",  \
+                  thread_self(), __FILE__, __LINE__, __func__, (__lock), return_address(0)); \
         barrier();                                                                         \
-        __lock->thread = 0;                                                                \
-        atomic_write(&__lock->lock, 0);                                                    \
+        (__lock)->thread = 0;                                                                \
+        atomic_write(&(__lock)->lock, 0);                                                    \
     }
 
 /**
@@ -96,4 +100,4 @@ static inline int spin_try_lock(spinlock_t *__lock)
     return held; // not the one's who locked it?
 }
 
-#define spin_assert_lock(lk) if (!spin_holding(lk)) panic("%s:%d: thread%d: caller must hold %s, return [%p]\n", __FILE__, __LINE__, thread_self(), lk->name, return_address(0));
+#define spin_assert_lock(lk) if (!spin_holding(lk)) panic("%s:%d: thread%d: caller must hold spinlock[%p], return [%p]\n", __FILE__, __LINE__, thread_self(), (lk), return_address(0));

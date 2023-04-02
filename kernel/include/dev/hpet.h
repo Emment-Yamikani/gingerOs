@@ -87,5 +87,6 @@ typedef struct hpet_timerblock
 
 int hpet_enumerate(void);
 void hpet_intr(void);
+void hpet_timer0_wait(void);
 
 #endif // DEV_HPET_H

@@ -13,6 +13,7 @@
 * rmdir()
 * fcntl()
 * sync()
+* fsync()
 * access()
 * chroot()
 * umask()

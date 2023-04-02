@@ -24,6 +24,8 @@
 
 #include <locking/atomic.h>
 #include <locking/spinlock.h>
+#include <locking/mutex.h>
+#include <locking/cond.h>
 
 extern void panic(const char *, ...);
 

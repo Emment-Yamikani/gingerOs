@@ -103,7 +103,7 @@ done:
     return;
 
 send_SIGSEGV:
-    printk("%s(%p): %s: %p\n", __func__, fault.addr, in_user ? "user" : "kernel", tf->eip);
+    printk("%s(%p): tid: %d, in %s space: eip: %p\n", __func__, fault.addr, thread_self(), in_user ? "user" : "kernel", tf->eip);
     if (proc)
         kill(getpid(), SIGSEGV);
     else

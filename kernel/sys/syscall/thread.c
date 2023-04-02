@@ -32,8 +32,10 @@ int thread_join(tid_t tid, void **retval)
     printk("%s(%d, %p)\n", __func__, thread_self(), tid, retval);
 
     current_assert();
-    if (atomic_read(&current->t_killed))
-        return -ERFKILL;
+
+    if (__thread_killed(current))
+        return -EINTR;
+
     assert(current->t_group, "no t_group");
     if ((err = thread_get(current->t_group, tid, &thread)))
         return err;
@@ -47,11 +49,8 @@ int thread_join(tid_t tid, void **retval)
 
     for (;;)
     {
-        if (atomic_read(&current->t_killed))
-        {
-            thread_unlock(thread);
-            return -ERFKILL;
-        }
+        if (__thread_killed(current))
+            return -EINTR;
 
         if (thread->t_state == T_ZOMBIE)
         {

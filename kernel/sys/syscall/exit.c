@@ -20,7 +20,7 @@ void exit(int status)
     if (proc == initproc)
         panic("init exiting\n");
 
-    if (thread_kill_all() == -ERFKILL)
+    if (thread_kill_all() == -EINTR)
     {
         thread_exit(status);
     }

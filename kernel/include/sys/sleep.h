@@ -11,3 +11,7 @@ int park(void);
 
 // wake up a thread.
 int unpark(tid_t tid);
+
+void setpark(void);
+
+int timed_wait(long ms);

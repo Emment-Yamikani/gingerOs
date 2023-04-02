@@ -10,14 +10,10 @@ typedef struct __glist_node
 typedef struct __glist
 {
     int count;
-    int guard;
     glist_node_t *head, *tail;
 } glist_t;
 
 #define GLIST_NEW() &(glist_t){0};
-
-void glist_lock(glist_t *l);
-void glist_unlock(glist_t *l);
 
 int glist_init(glist_t *, glist_t **);
 void glist_free(glist_t *);

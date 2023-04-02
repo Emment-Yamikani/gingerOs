@@ -3,9 +3,6 @@
 #include <stddef.h>
 #include <ginger.h>
 
-
-//#include <sync/spinlock.h>
-
 int glist_init(glist_t *l, glist_t **ref)
 {
     int alloc = !l;
@@ -30,67 +27,36 @@ int glist_init(glist_t *l, glist_t **ref)
 void glist_free(glist_t *l)
 {
     if (!l)
-    {
-        printf("glist_free: no list");
-        exit(1);
-    }
+        return;
     *l = (glist_t){0};
     free(l);
-}
-
-void glist_lock(glist_t *l)
-{
-    if (!l)
-    {
-            printf("glist_lock: no list");
-            exit(1);
-    }
-    //spinlock_enter(&l->guard);
-}
-
-void glist_unlock(glist_t *l)
-{
-    if (!l)
-    {
-            printf("glist_lock: no list");
-            exit(1);
-    }
-    //spinlock_exit(&l->guard);
 }
 
 int glist_add(glist_t *l, void *data)
 {
     if (!l)
-    {
-        printf("glist_add: no list");
-        exit(1);
-    }
+        return -EINVAL;
 
     glist_node_t *node = (typeof(node))malloc(sizeof *node);
 
     if (!node)
-        return-ENOMEM;
+        return -ENOMEM;
 
     node->next = NULL;
     node->prev = NULL;
     node->ptr = data;
 
-    glist_lock(l);
-
     if (!l->head)
         l->head = node;
-    else
+    
+    if (l->tail)
     {
         l->tail->next = node;
         node->prev = l->tail;
     }
 
     l->tail = node;
-
     ++l->count;
-
-    glist_unlock(l);
-
     return 0;
 }
 
@@ -100,29 +66,21 @@ void *glist_get(glist_t *glist)
     glist_node_t *node = NULL;
 
     if (!glist)
-    {
-        printf("glist_get: null glist\n");
-        exit(1);
-    }
-    
-    glist_lock(glist);
-
-    if (!glist->head)
-    {
-        glist_unlock(glist);
         return NULL;
-    }
 
-    if ((glist->head = glist->head->next))
+    if (!(node = glist->head))
+        return NULL;
+
+    if (glist->head == glist->tail)
+        glist->head = glist->tail = NULL;
+    if ((glist->head = node->next))
         glist->head->prev = NULL;
-    
+
     --glist->count;
 
     data = node->ptr;
 
     free(node);
-
-    glist_unlock(glist);
 
     return data;
 }
@@ -130,10 +88,7 @@ void *glist_get(glist_t *glist)
 glist_node_t *glist_lookup(glist_t *l, void *data)
 {
     if (!l)
-    {
-        printf("glist_lookup: no list");
-        exit(1);
-    }
+        return NULL;
 
     forlinked(tmp, l->head, tmp->next)
     {
@@ -144,14 +99,10 @@ glist_node_t *glist_lookup(glist_t *l, void *data)
     return NULL;
 }
 
-
 int glist_del(glist_t *l, void *data)
 {
     if (!l)
-    {
-        printf("glist_del: no list");
-        exit(1);
-    }
+        return -EINVAL;
 
     glist_node_t *node = glist_lookup(l, data);
     glist_remove(l, node);
@@ -159,26 +110,18 @@ int glist_del(glist_t *l, void *data)
     return 0;
 }
 
-
 void glist_remove(glist_t *l, glist_node_t *node)
 {
     if (!l)
-    {
-        printf("glist_remove: no list");
-        exit(1);
-    }
+        return;
 
     if (!node)
         return;
-    
-    glist_lock(l);
-    if (!glist_contains(l, node))
-    {
-        glist_unlock(l);
-        return;
-    }
 
-    if (node->prev)
+    if (!glist_contains(l, node))
+        return;
+
+    /*if (node->prev)
         node->prev->next = node->next;
     if (node->next)
         node->next->prev = node->prev;
@@ -186,20 +129,27 @@ void glist_remove(glist_t *l, glist_node_t *node)
         l->head = node->next;
     if (l->tail == node)
         l->tail = node->prev;
+    */
+
+    if (node->prev)
+        node->prev->next = node->next;
+    else
+        l->head = node->next;
+
+    if (node->next)
+        node->next->prev = node->prev;
+    else
+        l->tail = node->prev;
 
     --l->count;
+    *node = (glist_node_t){0};
     free(node);
-
-    glist_unlock(l);
 }
 
 int glist_contains(glist_t *l, glist_node_t *n)
 {
     if (!l)
-    {
-        printf("glist_contains: no list");
-        exit(1);
-    }
+        return -EINVAL;
     
     forlinked(tmp, l->head, tmp->next)
     {

@@ -129,7 +129,7 @@ int xched_sleep(queue_t *sleep_queue, spinlock_t *lock)
     current->sleep.queue = NULL;
     current->sleep.node = NULL;
 
-    if (atomic_read(&current->t_killed))
+    if (__thread_killed(current))
         return -EINTR;
 
     return 0;

@@ -55,6 +55,7 @@ extern "C"
     extern void thread_exit(void *_exit);
     extern int park(void);
     extern int unpark(tid_t tid);
+    extern void setpark(void);
     
     extern pid_t getpgrp(void);
     extern pid_t getpgid(pid_t pid);

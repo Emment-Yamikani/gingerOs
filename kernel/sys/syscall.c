@@ -62,6 +62,7 @@ static uintptr_t (*syscall[])(void) = {
     [SYS_THREAD_CANCEL](void *)sys_thread_cancel,
     [SYS_PARK](void *)sys_park,
     [SYS_UNPARK](void *)sys_unpark,
+    [SYS_SETPARK](void *)sys_setpark,
 
     /*Protection*/
 
@@ -509,6 +510,11 @@ int sys_unpark(void)
     tid_t tid = 0;
     assert(!argint(0, &tid), "err fetching tid");
     return unpark(tid);
+}
+
+void sys_setpark(void)
+{
+    setpark();
 }
 
 /*Protection*/

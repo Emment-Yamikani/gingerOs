@@ -68,20 +68,23 @@ typedef struct tgroup
     atomic_t nthreads; // number of active thread(both running and sleeping)
 } tgroup_t;
 
-#define THREAD_USER 0x01
-#define THREAD_HANDLING_SIGNAL 0x02
+#define THREAD_USER             0x01
+#define THREAD_HANDLING_SIGNAL  0x02
+#define THREAD_SETPARK          0x04
+#define THREAD_SETWAKEUP        0x08
+#define THREAD_KILLED           0x10
 
 typedef struct thread
 {
     tid_t t_tid;           /*thread ID*/
     tid_t t_gid;           /*thread group ID*/
-    x86_thread_t *t_tarch; /*thread architecture*/
-    int fpu_enabled;
     void *fpu_ctx;
+    int fpu_enabled;
     tstate_t t_state;      /*thread state*/
     uintptr_t t_exit;      /*thread exit code*/
-    atomic_t t_killed;     /*thread killed by other*/
+    atomic_t t_killer;     /*thread killed by other*/
     atomic_t t_flags;      /*thread flags*/
+    x86_thread_t *t_tarch; /*thread architecture*/
     proc_t *owner;
 
     spinlock_t *t_lock;        /*thread lock*/
@@ -92,12 +95,6 @@ typedef struct thread
     queue_t *t_queues; /*thread queues*/
     struct
     {
-        enum
-        {
-            INVALID,        /*invalid sleep struct*/
-            CONDITION,      /*condition variable*/
-            MUTEX,          /*mutex*/
-        } type;             /*type of queue*/
         void *data;         /*used to specify what holds the sleep-queue, e.g mutex, condition-variable, etc.*/
         queue_t *queue;     /*thread's sleep queue if sleeping*/
         queue_node_t *node; /*thread's sleep queue node*/
@@ -113,17 +110,20 @@ typedef struct thread
 #define thread_lock(t) {thread_assert(t); spin_lock(t->t_lock); if (LIME_DEBUG) printk("%s:%d:: TID(%d) locked [%p]\n", __FILE__, __LINE__, t->t_tid, return_address(0));}
 #define thread_unlock(t) {thread_assert(t); spin_unlock(t->t_lock); if (LIME_DEBUG) printk("%s:%d:: TID(%d) unlocked [%p]\n", __FILE__, __LINE__, t->t_tid, return_address(0));}
 #define thread_assert_lock(t) {thread_assert(t); spin_assert_lock(t->t_lock);}
+#define thread_lock_held(thread) ({ thread_assert(thread); spin_holding(thread->t_lock);})
 
-#define thread_iskilled(t) (atomic_read(&t->t_killed))
-
-#define __thread_zombie(thread)        ({thread_assert_lock(thread); thread->t_state == T_ZOMBIE;})
-#define __thread_isleep(thread)        ({thread_assert_lock(thread); thread->t_state == T_ISLEEP;})
-#define __thread_stopped(thread)       ({thread_assert_lock(thread); thread->t_state == T_STOPPED;})
-#define __thread_terminated(thread)    ({thread_assert_lock(thread); thread->t_state == T_TERMINATED;})
+#define __thread_zombie(thread)             ({thread_assert_lock(thread); thread->t_state == T_ZOMBIE; })
+#define __thread_isleep(thread)             ({thread_assert_lock(thread); thread->t_state == T_ISLEEP; })
+#define __thread_stopped(thread)            ({thread_assert_lock(thread); thread->t_state == T_STOPPED; })
+#define __thread_terminated(thread)         ({thread_assert_lock(thread); thread->t_state == T_TERMINATED; })
+#define __thread_setflags(thread, flags)    ({thread_assert_lock(thread); atomic_or(&thread->t_flags, (flags)); })
+#define __thread_maskflags(thread, flags)   ({thread_assert_lock(thread); atomic_and(&thread->t_flags, ~(flags)); })
+#define __thread_testflags(thread, flags)   ({thread_assert_lock(thread); (atomic_read(&thread->t_flags) & (flags)); })
+#define __thread_killed(thread)             ({ int held = thread_lock_held(thread); if ((!held)) thread_lock(thread); int killed = __thread_testflags(thread, THREAD_KILLED); if ((!held)) thread_unlock(thread); killed;})
 #define __thread_enter_state(thread, state) ({int err = 0;\
                                                 thread_assert_lock(thread);\
-                                                if ((state < T_EMBRYO) || (state > T_TERMINATED))\
-                                                { err = -EINVAL;} else {thread->t_state = state;}; err;})
+                                                if (((state) < T_EMBRYO) || ((state) > T_TERMINATED))\
+                                                { err = -EINVAL;} else {thread->t_state = (state);}; err;})
 
 #define current_assert() assert(current, "no current thread");
 #define current_lock() thread_lock(current);
@@ -148,7 +148,6 @@ int thread_ishandling_signal(thread_t *thread);
 int thread_remove_queue(thread_t *thread, queue_t *queue);
 int thread_enqueue(queue_t *, thread_t *, queue_node_t **node);
 int queue_get_thread(queue_t *queue, tid_t tid, thread_t **pthread);
-
 
 
 void thread_yield(void);

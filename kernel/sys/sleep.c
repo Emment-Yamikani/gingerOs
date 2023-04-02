@@ -27,6 +27,12 @@ int park(void)
 {
     int err = 0;
     current_lock();
+    if (__thread_testflags(current, THREAD_SETWAKEUP))
+    {
+        __thread_maskflags(current, (THREAD_SETPARK | THREAD_SETWAKEUP));
+        current_unlock();
+        return 0;
+    }
     err = xched_sleep(park_queue, NULL);
     current_unlock();
     return err;
@@ -36,16 +42,20 @@ int unpark(tid_t tid)
 {
     int err = 0;
     thread_t *thread = NULL;
-
     queue_lock(park_queue);
-    if ((err = queue_get_thread(park_queue, tid, &thread)))
-        goto error;
+    err = queue_get_thread(park_queue, tid, &thread);
 
-    if (thread == current) {
-        err = -EINVAL;
-        thread_unlock(thread);
-        goto error;
+    if (err) {
+        if (err == -ESRCH) {
+            current_lock();
+            tgroup_t *tgrp = current->t_group;
+            current_unlock();
+            if ((err = thread_get(tgrp, tid, &thread))) goto error;
+        }else goto error;
     }
+
+    err = -EINVAL;
+    if (thread == current) goto error;
 
     if ((err = thread_wake_n(thread))) {
         thread_unlock(thread);
@@ -58,4 +68,16 @@ int unpark(tid_t tid)
 error:
     queue_unlock(park_queue);
     return err;
+}
+
+void setpark(void)
+{
+    current_lock();
+    __thread_setflags(current, THREAD_SETPARK);
+    current_unlock();
+}
+
+int timed_wait(long ms)
+{
+    return jiffies_sleep(ms);
 }

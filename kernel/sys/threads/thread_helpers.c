@@ -13,39 +13,10 @@
 #include <arch/sys/proc.h>
 #include <locks/mutex.h>
 
-/*
 int thread_wake(thread_t *thread)
 {
-    cond_t *cond = NULL;
-    mutex_t *mutex = NULL;
-
-    thread_assert(thread);
-    thread_assert_lock(thread);
-
-    if (thread->sleep.queue == NULL)
-        return 0;
-    
-    switch (thread->sleep.type)
-    {
-    case CONDITION:
-        cond = thread->sleep.data;
-        cond_remove(cond, thread);
-        break;
-    case MUTEX:
-        mutex =  thread->sleep.data;
-        mutex_remove(mutex, thread);
-        break;
-    default:
-        panic("sleeping thread has no sleep struct type\n");
-    }
-
-    if ((thread->t_state == T_ZOMBIE) || (thread->t_state == T_TERMINATED))
-        return 0;
-    // park thread ready for running
-    thread->t_state = T_READY;
-    return sched_park(thread);
+    return thread_wake_n(thread);
 }
-*/
 
 int thread_get(tgroup_t *tgrp, tid_t tid, thread_t **tref)
 {
@@ -77,11 +48,12 @@ int thread_kill_n(thread_t *thread)
     if (thread == current)
         return 0;
     thread_assert_lock(thread);
-    if ((thread->t_state == T_ZOMBIE) ||
-        (thread->t_state == T_TERMINATED) ||
-        atomic_read(&thread->t_killed))
+    if ((__thread_zombie(thread)) ||
+        (__thread_terminated(thread)) ||
+        __thread_killed(thread))
         return 0;
-    atomic_write(&thread->t_killed, thread_self());
+    __thread_setflags(thread, THREAD_KILLED);
+    atomic_write(&thread->t_killer, thread_self());
     return 0;
 }
 
@@ -101,12 +73,13 @@ int thread_kill(tid_t tid)
 
 int thread_wait(thread_t *thread, int reap, void **retval)
 {
+    int err = 0;
     thread_assert_lock(thread);
 
     loop()
     {
-        if (atomic_read(&current->t_killed))
-            return -ERFKILL;
+        if (__thread_killed(current))
+            return -EINTR;
 
         if ((thread->t_state == T_ZOMBIE) || (thread->t_state == T_TERMINATED))
         {
@@ -118,7 +91,10 @@ int thread_wait(thread_t *thread, int reap, void **retval)
         }
 
         thread_unlock(thread);
-        cond_wait(thread->t_wait);
+        if ((err = cond_wait(thread->t_wait))) {
+            thread_lock(thread);
+            return err;
+        }
         thread_lock(thread);
     }
 
@@ -140,6 +116,9 @@ int thread_wake_n(thread_t *thread)
 {
     int err = 0, held = 0;
     thread_assert_lock(thread);
+    
+    if (__thread_testflags(thread, THREAD_SETPARK))
+        __thread_setflags(thread, THREAD_SETWAKEUP);
 
     if (!__thread_isleep(thread) || __thread_zombie(thread) || __thread_terminated(thread))
         return 0;

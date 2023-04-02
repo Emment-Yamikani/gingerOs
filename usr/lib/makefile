@@ -49,6 +49,8 @@ ctype/isxdigit.o \
 ctype/tolower.o \
 ctype/toupper.o \
 dirent/dirent.o \
+locks/cond.o\
+locks/mutex.o\
 math/math.o\
 stdio/printf.o \
 stdio/gets.o \

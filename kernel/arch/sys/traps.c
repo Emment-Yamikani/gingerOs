@@ -30,9 +30,8 @@ void paging_tbl_shootdown();
 void trap(trapframe_t *tf)
 {
     if (current){
-        if (thread_iskilled(current)){
-            thread_exit(-ERFKILL);
-        }
+        if (__thread_killed(current))
+            thread_exit(-EINTR);
     }
 
     switch (tf->ino){
@@ -43,9 +42,9 @@ void trap(trapframe_t *tf)
         syscall_stub(tf);
         // printk(" sysret\n");
 
-        if (thread_iskilled(current)){
-            thread_exit(-ERFKILL);
-        }
+        if (__thread_killed(current))
+            thread_exit(-EINTR);
+
         break;
     case T_LOCAL_TIMER: // Local APIC timer
         lapic_timerintr();
@@ -85,16 +84,14 @@ void trap(trapframe_t *tf)
     if (current == NULL)
         return;
 
-    if (thread_iskilled(current)){
-        thread_exit(-ERFKILL);
-    }
+    if (__thread_killed(current))
+        thread_exit(-EINTR);
 
     if (atomic_read(&current->t_sched_attr.t_timeslice))
         sched_yield();
 
-    if (thread_iskilled(current)){
-        thread_exit(-ERFKILL);
-    }
+    if (__thread_killed(current))
+        thread_exit(-EINTR);
 
     if (proc == NULL)
         return;

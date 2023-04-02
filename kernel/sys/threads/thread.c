@@ -113,7 +113,7 @@ int tgroup_kill_thread(tgroup_t *tgroup, tid_t tid)
     if (tgroup == NULL)
         return -EINVAL;
     
-    if (current && thread_iskilled(current))
+    if (current && __thread_killed(current))
         return -EALREADY;
 
     if (tid == -1)
@@ -144,6 +144,7 @@ all:
 
     forlinked(node, tgroup->queue->head, next)
     {
+        err = 0;
         next = node->next;
         thread = node->data;
 
@@ -152,22 +153,24 @@ all:
 
         thread_lock(thread);
         thread_kill_n(thread);
-        
+
         if (thread->sleep.queue) {
             queue_lock(thread->sleep.queue);
             thread_wake_n(thread);
             queue_unlock(thread->sleep.queue);
         }
-    
-        queue_unlock(tgroup->queue);
-        thread_wait(thread, 1, NULL);
-        queue_lock(tgroup->queue);
 
-        thread_unlock(thread);
+        queue_unlock(tgroup->queue);
+        err = thread_wait(thread, 1, NULL);
+        queue_lock(tgroup->queue);
+        if (err) {
+            thread_unlock(thread);
+            break;
+        }
     }
 
     queue_unlock(tgroup->queue);
-    return 0;
+    return err;
 }
 
 static tid_t thread_tid_alloc(void)

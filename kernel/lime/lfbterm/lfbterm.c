@@ -87,9 +87,9 @@ int lfbterm_init(void)
     ctx.cursor_char = '_';
     ctx.cursor_timeout = 35;
     ctx.op = 200;
-    ctx.bg = RGB_black;
     ctx.bg = 0x002B36;//RGB_black;
-    ctx.fg = RGB_cadet_blue;
+    ctx.bg = RGB_black;
+    ctx.fg = RGB_alice_blue;
     ctx.cols = fbvar.width / ctx.font->cols;
     ctx.rows = fbvar.height / ctx.font->rows;
 
@@ -129,20 +129,15 @@ void ctx_putchar(struct lfb_ctx *ctx, int c);
 int cxx = 0;
 void ctx_drawcursor(struct lfb_ctx *ctx)
 {
-    jiffies_t now __unused = jiffies_get();
     loop() {
         spin_lock(ctx->lock);
-        // set
         font_putc(ctx->cursor_char, ctx, ctx->cc, ctx->cr);
         spin_unlock(ctx->lock);
-        //now = jiffies_get();
-        wait_ms(ctx->cursor_timeout);//sleep(1);
-        //now = jiffies_get();
-        // clear
+        timed_wait(ctx->cursor_timeout);
         spin_lock(ctx->lock);
         font_putc(' ', ctx, ctx->cc, ctx->cr);
         spin_unlock(ctx->lock);
-        wait_ms(ctx->cursor_timeout);//sleep(1);
+        timed_wait(ctx->cursor_timeout);
     }
 }
 
@@ -150,6 +145,7 @@ void lfbterm_scroll(void);
 
 void ctx_putchar(struct lfb_ctx *ctx, int c)
 {
+    font_putc(' ', ctx, ctx->cc, ctx->cr);
     switch(c)
     {
     case'\n':
@@ -168,7 +164,6 @@ void ctx_putchar(struct lfb_ctx *ctx, int c)
         ctx->cc = 0;
         break;
     case '\b':
-        font_putc(' ', ctx, ctx->cc, ctx->cr);
         ctx->cc--;
         if (ctx->cc < 0) {
             ctx->cr--;

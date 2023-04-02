@@ -194,19 +194,13 @@ size_t kbd0_read(struct devid *dd __unused, off_t offset __unused, void *__buf, 
     kbd0_lock();
     while (sz > 0)
     {
-        if (atomic_read(&current->t_killed))
-        {
-            kbd0_unlock();
+        if (__thread_killed(current))
             return -EINTR;
-        }
 
         while (input.r == input.w)
         {
-            if (atomic_read(&current->t_killed))
-            {
-                kbd0_unlock();
+            if (__thread_killed(current))
                 return -EINTR;
-            }
 
             kbd0_unlock();
             cond_wait(kbd0_event);

@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <locking/spinlock.h>
 
-static spinlock_t *vdprintf_lock = SPINLOCK_NEW("vdprintf-lock");
+static spinlock_t *vdprintf_lock = SPINLOCK_NEW();
 
 #define __fallthrough __attribute__((fallthrough));
 

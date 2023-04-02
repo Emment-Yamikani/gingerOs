@@ -104,6 +104,7 @@
 
 %define SYS_PARK            57
 %define SYS_UNPARK          58
+%define SYS_SETPARK         59
 
 %macro STUB 2
 global sys_%2
@@ -161,7 +162,7 @@ STUB SYS_THREAD_YIELD, thread_yield
 STUB SYS_THREAD_CANCEL, thread_cancel
 STUB SYS_PARK, park
 STUB SYS_UNPARK, unpark
-
+STUB SYS_SETPARK, setpark
 
 STUB SYS_GETPGRP, getpgrp
 STUB SYS_SETPGRP, setpgrp

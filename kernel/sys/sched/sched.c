@@ -80,6 +80,17 @@ void sched(void)
     //printk("%s:%d: %s() tid(%d), ncli: %d, intena: %d [%p]\n", __FILE__, __LINE__, __func__, current->t_tid, cpu->ncli, cpu->intena, return_address(0));
     
     current_assert_lock();
+
+    if (__thread_testflags(current, THREAD_SETPARK) && __thread_isleep(current))
+    {
+        if (__thread_testflags(current, THREAD_SETWAKEUP))
+        {
+            __thread_maskflags(current, (THREAD_SETPARK | THREAD_SETWAKEUP));
+            popcli();
+            return;
+        }
+    }
+
     swtch(&current->t_tarch->context, cpu->context);
     current_assert_lock();
     
@@ -145,10 +156,10 @@ __noreturn void schedule(void)
 
         cli();
 
-        if (thread_iskilled(thread))
+        if (__thread_killed(thread))
         {
             thread->t_state = T_ZOMBIE;
-            thread->t_exit = -ERFKILL;
+            thread->t_exit = -EINTR;
             sched_zombie(thread);
             thread_unlock(thread);
             continue;

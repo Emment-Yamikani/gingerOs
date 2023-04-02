@@ -12,6 +12,7 @@ typedef uint64_t jiffies64_t;
 void jiffies_update(void);
 jiffies_t jiffies_get(void);
 jiffies64_t jiffies64_get(void);
+int jiffies_sleep(jiffies_t time);
 
 #define time_after(unknown, known) ((long)(known) - (long)(unknown) < 0)
 #define time_before(unknown, known) ((long)(unknown) - (long)(known) < 0)

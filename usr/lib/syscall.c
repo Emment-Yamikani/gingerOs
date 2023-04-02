@@ -86,6 +86,7 @@
 
 #define SYS_PARK            57
 #define SYS_UNPARK          58
+#define SYS_SETPARK         59
 
 /*
 #define SYSCALL5(ret, v, arg1, arg2, arg3, arg4, arg5) \
@@ -158,6 +159,7 @@ extern void sys_thread_exit(void *_exit);
 extern int sys_thread_cancel();
 extern int sys_park();
 extern int sys_unpark(tid_t __tid);
+extern void sys_setpark(void);
 
 extern pid_t sys_getpgrp(void);
 extern pid_t sys_getpgid(pid_t pid);
@@ -387,6 +389,11 @@ int park()
 int unpark(tid_t tid)
 {
     return sys_unpark(tid);
+}
+
+void setpark(void)
+{
+    sys_setpark();
 }
 
 pid_t getpgrp(void)

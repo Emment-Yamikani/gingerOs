@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <stddef.h>
 
 typedef volatile uintptr_t atomic_t;
 
@@ -19,9 +18,14 @@ static inline void atomic_write(atomic_t *ptr, atomic_t val)
     __atomic_store(ptr, &val, __ATOMIC_SEQ_CST);
 }
 
+static inline void atomic_clear(atomic_t *ptr)
+{
+    atomic_write(ptr, 0);
+}
+
 static inline uintptr_t atomic_add(atomic_t *ptr, atomic_t val)
 {
-    return __atomic_fetch_add(ptr, val, __ATOMIC_SEQ_CST);
+    return __atomic_fetch_add(ptr, val, __ATOMIC_SEQ_CST); 
 }
 
 static inline uintptr_t atomic_sub(atomic_t *ptr, atomic_t val)
@@ -44,6 +48,26 @@ static inline uintptr_t atomic_xchg(atomic_t *ptr, atomic_t val)
     atomic_t ret;
     __atomic_exchange(ptr, &val, &ret, __ATOMIC_SEQ_CST);
     return ret;
+}
+
+static inline uintptr_t atomic_or(atomic_t *ptr, atomic_t val)
+{
+    return __atomic_fetch_or(ptr, val, __ATOMIC_SEQ_CST);
+}
+
+static inline uintptr_t atomic_and(atomic_t *ptr, atomic_t val)
+{
+    return __atomic_fetch_and(ptr, val, __ATOMIC_SEQ_CST);
+}
+
+static inline uintptr_t atomic_xor(atomic_t *ptr, atomic_t val)
+{
+    return __atomic_fetch_xor(ptr, val, __ATOMIC_SEQ_CST);
+}
+
+static inline uintptr_t atomic_nand(atomic_t *ptr, atomic_t val)
+{
+    return __atomic_fetch_nand(ptr, val, __ATOMIC_SEQ_CST);
 }
 
 #endif // LOCKS_ATOMIC_H

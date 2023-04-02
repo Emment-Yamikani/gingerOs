@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <locking/spinlock.h>
 #include <unistd.h>
+#include <ginger.h>
 
 
 #if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
@@ -20,7 +21,7 @@
 # endif
 #endif
 
-static spinlock_t *spinlock = SPINLOCK_NEW("liballoc-spinlock");
+static spinlock_t *spinlock = SPINLOCK_NEW();
 static int page_size = -1;
 
 
@@ -38,9 +39,21 @@ int liballoc_unlock()
 
 void* liballoc_alloc( int pages )
 {
-	if ( page_size < 0 ) page_size = getpagesize();
-	size_t size = pages * page_size;
-	return (void *)sbrk(size);
+	if (page_size < 0)
+		page_size = getpagesize();
+	unsigned int size = pages * page_size;
+
+	char *p2 = (char *)mmap(0, size, PROT_NONE, (MAP_PRIVATE | MAP_ANONYMOUS), -1, 0);
+	if (p2 == MAP_FAILED)
+		return NULL;
+
+	if (mprotect(p2, size, PROT_READ | PROT_WRITE) != 0)
+	{
+		munmap(p2, size);
+		return NULL;
+	}
+
+	return p2;
 }
 
 //int dprintf(int, const char *, ...);
