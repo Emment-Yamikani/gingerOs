@@ -40,51 +40,77 @@ x86-32bit
         iv).    The Memory allocator can now monitor who owns a page
                 and what they're using it for.
         v). Newly implemented physical memory manager interface.
-            mm_zone_t *get_mmzone(uintptr_t addr, size_t size);
-            - get the zone associated with physical page address 'addr'.
-            - on success, a pointer to the 'locked' zone is returned else NULL is 'return'.
-            - physical page address range must all be in one memory zone, else 'NULL' is returned. 
+        ```c
+        mm_zone_t *get_mmzone(uintptr_t addr, size_t size);
+        ```
+        - get the zone associated with physical page address 'addr'.
+        - on success, a pointer to the 'locked' zone is returned else NULL is 'return'.
+        - physical page address range must all be in one memory zone, else 'NULL' is returned. 
         
+        ```C
         mm_zone_t *mm_zone_get(int z);
-            - same as 'get_mm_zone()', except, it gets an index to the physical page as a parameter.
+        ```
+        - same as 'get_mm_zone()', except, it gets an index to the physical page as a parameter.
 
-        *NOTE: after using the returned zone struct pointer, 
-            the programmer is expected to call 'mm_zone_unlock(zone)'.
-            Guess what will happen on failure to follow this simple rule? Yeah, DEADLOCK.
-
+        **NOTE**:
+        
+        *After using the returned zone struct pointer, 
+            the programmer is expected to call '```mm_zone_unlock(zone)```'.
+            Guess what will happen on failure to follow this simple rule? Yeah, DEADLOCK.*
+        
+        ```C
         int page_incr(page_t *page);
-            - increase the reference count of the page
+        ```
+        - increase the reference count of the page.
 
+        ```C
         int __page_incr(uintptr_t addr);
-            - same as page_incr(), except, it takes a physical address to the page as a parameter.
+        ```
+        - same as ```page_incr()```, except, it takes a physical address to the page as a parameter.
         
+        ```C
         int page_count(page_t *page);
-            - returns the reference count of the page
+        ```
+        - returns the reference count of the page.
         
+        ```C
         int __page_count(uintptr_t addr);
-            - same as page_count(), except, it takes a physical address to the page as a parameter.
+        ```
+        - same as ```page_count()```, except, it takes a physical address to the page as a parameter.
 
+        ```C    
         page_t *alloc_page(gfp_mask_t gfp);
-            - allocate a single page.
-        
-        page_t *alloc_pages(gfp_mask_t gfp, size_t order);
-            - allocate 'n' pages, where n is a power of 2.
-        
-        uintptr_t page_address(page_t *page);
-            - get physical address of the page.
+        ```
+        - allocate a single page.
 
+        ```C    
+        page_t *alloc_pages(gfp_mask_t gfp, size_t order);
+        ```
+        - allocate 'n' pages, where n is a power of 2.
+
+        ```C    
+        uintptr_t page_address(page_t *page);
+        ```
+        - get physical address of the page.
+
+        ```C    
         uintptr_t __get_free_page(gfp_mask_t gfp);
         uintptr_t __get_free_pages(gfp_mask_t gfp, size_t order);
-            - These two function the same way as alloc_page() and alloc_pages(),
-                only differnce that they directly return the physical address of the first page allocated
+        ```
+        - These two function the same way as ```alloc_page()``` and ```alloc_pages()```,
+        only differnce that they directly return the physical address of the first page allocated
 
+        ```C    
         void pages_put(page_t *page, size_t order);
         void page_put(page_t *page);
-            - these two are used to reliquish a reference to the page(s).
+        ```
+        - these two are used to reliquish a reference to the page(s).
 
+        ```C    
         void __pages_put(uintptr_t addr, size_t order);
         void __page_put(uintptr_t addr);
-            - same as pages_put() and page_put(), only that they take 'addr' instead of 'page_t *'
+        ```
+        - same as ```pages_put()``` and ```page_put()```, only that they take 'addr' instead of 'page_t *'
 - Virtual Filesystem
     - ramfs called gingerfs, a minimal filesystem.
     - devfs.
