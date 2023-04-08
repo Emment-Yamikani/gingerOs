@@ -15,15 +15,15 @@
 
 typedef enum
 {
-    /*embryo*/
+    /*Embryo*/
     T_EMBRYO = 0,
-    /*interruptable sleep*/
+    /*Interruptable sleep*/
     T_ISLEEP = 1,
-    /*ready*/
+    /*Ready*/
     T_READY = 2,
-    /*running*/
+    /*Running*/
     T_RUNNING = 3,
-    /*zombie*/
+    /*Zombie*/
     T_ZOMBIE = 4,
     /*thread was stopped*/
     T_STOPPED = 5,
@@ -49,11 +49,7 @@ typedef struct sched_attr
 } sched_attr_t;
 
 /*default scheduling attributes*/
-#define SCHED_ATTR_DEFAULT() \
-    (sched_attr_t)           \
-    {                        \
-        0                    \
-    }
+#define SCHED_ATTR_DEFAULT() (sched_attr_t){0}
 
 /*soft affinity for the cpu*/
 #define SCHED_SOFT_AFFINITY 0
@@ -119,11 +115,9 @@ typedef struct thread
 #define __thread_setflags(thread, flags)    ({thread_assert_lock(thread); atomic_or(&thread->t_flags, (flags)); })
 #define __thread_maskflags(thread, flags)   ({thread_assert_lock(thread); atomic_and(&thread->t_flags, ~(flags)); })
 #define __thread_testflags(thread, flags)   ({thread_assert_lock(thread); (atomic_read(&thread->t_flags) & (flags)); })
-#define __thread_killed(thread)             ({ int held = thread_lock_held(thread); if ((!held)) thread_lock(thread); int killed = __thread_testflags(thread, THREAD_KILLED); if ((!held)) thread_unlock(thread); killed;})
-#define __thread_enter_state(thread, state) ({int err = 0;\
-                                                thread_assert_lock(thread);\
-                                                if (((state) < T_EMBRYO) || ((state) > T_TERMINATED))\
-                                                { err = -EINVAL;} else {thread->t_state = (state);}; err;})
+#define __thread_enter_state(thread, state) ({int err = 0; thread_assert_lock(thread); if (((state) < T_EMBRYO) || ((state) > T_TERMINATED)) { err = -EINVAL;} else {thread->t_state = (state);}; err; })
+#define __thread_killed(thread)             ({ int held = thread_lock_held(thread); if ((!held)) thread_lock(thread); int killed = __thread_testflags(thread, THREAD_KILLED); if ((!held)) thread_unlock(thread); killed; })
+#define __thread_ishandling_signal(thread)  ({ int held = thread_lock_held(thread); if ((!held)) thread_lock(thread); int handling = __thread_testflags(thread, THREAD_HANDLING_SIGNAL); if ((!held)) thread_unlock(thread); handling; })
 
 #define current_assert() assert(current, "no current thread");
 #define current_lock() thread_lock(current);
@@ -144,7 +138,6 @@ void tgroup_wait_all(tgroup_t *tgrp);
 int tgroup_kill_thread(tgroup_t *tgroup, tid_t tid);
 
 thread_t *thread_dequeue(queue_t *);
-int thread_ishandling_signal(thread_t *thread);
 int thread_remove_queue(thread_t *thread, queue_t *queue);
 int thread_enqueue(queue_t *, thread_t *, queue_node_t **node);
 int queue_get_thread(queue_t *queue, tid_t tid, thread_t **pthread);

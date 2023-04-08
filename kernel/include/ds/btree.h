@@ -37,13 +37,19 @@ typedef struct btree
 } btree_t;
 
 #define btree_assert(btree) assert(btree, "No Btree")
-#define btree_assert_locked(btree) {btree_assert(btree); spin_assert_lock(btree->lock);}
+#define btree_lock(btree)       ({btree_assert(btree); spin_lock(btree->lock);})
+#define btree_unlock(btree)     ({btree_assert(btree); spin_unlock(btree->lock);})
+#define btree_holding(btree)    ({btree_assert(btree); spin_holding(btree->lock);})
+#define btree_assert_locked(btree) ({btree_assert(btree); spin_assert_lock(btree->lock);})
 
-#define btree_nr_nodes(btree) ({btree_assert_locked(btree); (btree->nr_nodes); })
-#define btree_isempty(btree) ({ btree_assert_locked(btree); (btree->root == NULL);})
+#define btree_nr_nodes(btree)   ({btree_assert_locked(btree); (btree->nr_nodes); })
+#define btree_isempty(btree)    ({ btree_assert_locked(btree); (btree->root == NULL);})
 
 #define btree_node_isleft(node)     ({ node->parent ? node->parent->left == node ? 1 : 0 : 0;})
 #define btree_node_isright(node)    ({ node->parent ? node->parent->right == node ? 1 : 0 : 0;})
+
+void btree_free(btree_t *btree);
+int btree_alloc(btree_t **pbtree);
 
 /**
  * @brief btree_alloc_node

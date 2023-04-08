@@ -4,6 +4,7 @@
 #include <lib/string.h>
 #include <lime/string.h>
 #include <mm/kalloc.h>
+#include <arch/i386/paging.h>
 #include <printk.h>
 
 #define CHK_IPTR(ip)                \
@@ -48,8 +49,20 @@ int iclose(inode_t *ip)
 
 size_t iread(inode_t *ip, off_t pos, void *buf, size_t sz)
 {
+    size_t size __unused= 0;
+    int holding __unused = 0;
+    ssize_t retval __unused = 0;
+    page_t *page __unused = NULL;
+    ssize_t data_size __unused = 0;
+    char *virt_addr __unused = NULL;
+    uintptr_t page_addr __unused = 0;
+    ssize_t pgno __unused = pos / PAGESZ;
+    uintptr_t dest_buff __unused = (uintptr_t)buf;
+    uintptr_t dest_end __unused __unused = (uintptr_t)buf + sz;
+
     if (!ip)
         return -EINVAL;
+    
     if (ISDEV(ip))
         return kdev_read(_INODE_DEV(ip), pos, buf, sz);
 
@@ -61,11 +74,50 @@ size_t iread(inode_t *ip, off_t pos, void *buf, size_t sz)
     if (!ip->ifs->fsuper->iops->read)
         return -ENOSYS;
 
-    return ip->ifs->fsuper->iops->read(ip, pos, buf, sz);
+    /*if (!(holding = mapping_holding(ip->mapping)))
+        mapping_lock(ip->mapping);
+
+    for (size_t i = 0; i < NPAGE(sz); ++i, ++pgno) {
+        if ((retval = mapping_get_page(ip->mapping, pgno, &page_addr, &page))) {
+            if (!holding)
+                mapping_unlock(ip->mapping);
+            printk("error: %d\n", data_size);
+            return data_size;
+        }
+
+        virt_addr = (char *)page->virtual;
+
+        size = MIN((PAGESZ - PGOFFSET(pos)), MIN(PAGESZ, (dest_end - dest_buff)));
+        memcpy((void *)dest_buff, (void *)(virt_addr + PGOFFSET(pos)), size);
+        pos += size;
+        dest_buff += size;
+        data_size += size;
+        printk("req: %d, read: %d, size: %d\n", sz, data_size, size);
+    }
+    if (!holding)
+        mapping_unlock(ip->mapping);
+        160000 179537
+
+    */
+
+    data_size = ip->ifs->fsuper->iops->read(ip, pos, buf, sz);
+    //printk("req: %d, read: %d, pos: %d, isize: %d\n", sz, data_size, pos, ip->i_size);
+    return data_size;
 }
 
 size_t iwrite(inode_t *ip, off_t pos, void *buf, size_t sz)
 {
+    size_t size = 0;
+    int holding = 0;
+    ssize_t retval = 0;
+    page_t *page = NULL;
+    ssize_t data_size = 0;
+    char *virt_addr = NULL;
+    uintptr_t page_addr = 0;
+    ssize_t pgno = pos / PAGESZ;
+    uintptr_t src_buff = (uintptr_t)buf;
+    uintptr_t src_end __unused = (uintptr_t)buf + sz;
+
     if (!ip)
         return -EINVAL;
     if (ISDEV(ip))
@@ -79,7 +131,32 @@ size_t iwrite(inode_t *ip, off_t pos, void *buf, size_t sz)
     if (!ip->ifs->fsuper->iops->write)
         return -ENOSYS;
 
-    return ip->ifs->fsuper->iops->write(ip, pos, buf, sz);
+    if (!(holding = mapping_holding(ip->mapping)))
+        mapping_lock(ip->mapping);
+
+    for (size_t i = 0; i < NPAGE(sz); ++i, ++pgno)
+    {
+        if ((retval = mapping_get_page(ip->mapping, pgno, &page_addr, &page)))
+        {
+            if (!holding) mapping_unlock(ip->mapping);
+            return data_size;
+        }
+
+        virt_addr = (char *)page->virtual;
+
+        size = MIN((PAGESZ - PGOFFSET(pos)), MIN(PAGESZ, (src_end - src_buff)));
+        memcpy((void *)(virt_addr + PGOFFSET(pos)), (void *)src_buff, size);
+        pos += size;
+        src_buff += size;
+        data_size += size;
+    }
+    
+    if (!holding)
+        mapping_unlock(ip->mapping);
+
+    
+    return data_size;
+    // return ip->ifs->fsuper->iops->write(ip, pos, buf, sz);
 }
 
 int iioctl(inode_t *ip, int req, void *argp)

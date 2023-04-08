@@ -60,8 +60,5 @@ void* liballoc_alloc( int pages )
 
 int liballoc_free( void* ptr, int pages )
 {
-	(void)ptr;
-	(void)pages;
-	dprintf(2, "warning: freeing memory\n");
-	return 0;
+	return munmap(ptr, pages * getpagesize());
 }

@@ -3,10 +3,11 @@
 void do_list(DIR *dir){
     struct dirent *file = readdir(dir);
     while(file){
-        printf("%s\n", file->d_name);
+        printf("%s   ", file->d_name);
         free(file);
         file = readdir(dir);
     }
+    printf("\n");
 }
 
 int main(int argc, const char *argv[])

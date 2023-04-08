@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
     pid_t pid = 0;
     int staloc = 0;
 
-    char *argp[] = {"sh", NULL};
+    char *argp[] = {"dh", NULL};
 
     if ((err = open_stdio()))
         return err;

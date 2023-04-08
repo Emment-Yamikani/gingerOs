@@ -10,6 +10,7 @@ int ialloc(inode_t **ref)
     int err =0;
     inode_t *ip = NULL;
     spinlock_t *lock = NULL;
+    mapping_t *mapping = NULL;
     //cond_t *reader_wait = NULL, *writer_wait = NULL;
 
     if (!ref)
@@ -24,6 +25,9 @@ int ialloc(inode_t **ref)
     if ((err = spinlock_init(NULL, "inode", &lock)))
         goto error;
 
+    if ((err = mapping_new(&mapping)))
+        goto error;
+
     /*
     if ((err = cond_init(NULL, "inode-reader", &reader_wait)))
         goto error;
@@ -35,7 +39,9 @@ int ialloc(inode_t **ref)
 
     ip->i_refs = 1;
     ip->i_lock = lock;
-   
+    ip->mapping = mapping;
+    mapping->inode = ip;
+    ip->i_refs++;
     /*
     ip->i_readers = reader_wait;
     ip->i_writers = writer_wait;
@@ -44,10 +50,10 @@ int ialloc(inode_t **ref)
     *ref = ip;
     return 0;
 error:
-    if (ip)
-        kfree(ip);
-    if (lock)
-        spinlock_free(lock);
+    if (ip) kfree(ip);
+    if (lock) spinlock_free(lock);
+    if (mapping) mapping_free(mapping);
+
     /*
     if (reader_wait)
         cond_free(reader_wait);

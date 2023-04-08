@@ -25,18 +25,25 @@
 #include <video/lfbterm.h>
 
 void *kthread_main(void *);
+int cga_putc(int);
+
+extern int cga_printf(char *, ...);
+extern int cga_panic(char *, ...);
+extern int ppp();
+
+int pos = 0;
 
 int early_init(void)
 {
     int err =0;
 
+    if ((err = vmman.init()))
+        return err;
+
     if ((err = pmman.init()))
         return err;
 
     if ((err = mp_process()))
-        return err;
-        
-    if ((err = vmman.init()))
         return err;
 
     pic_init();

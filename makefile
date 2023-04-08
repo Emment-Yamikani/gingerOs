@@ -47,7 +47,7 @@ $(isodir)/boot/lime.elf: $(archdir)/linker.ld $(linked_objs)
 
 run:
 	qemu-system-i386	\
-	-smp 4 				\
+	-smp 1 				\
 	-m size=512M		\
 	-cdrom	ginger.iso	\
 	-no-reboot			\
@@ -60,7 +60,7 @@ _iso_:
 	grub-mkrescue -o ginger.iso $(isodir)
 
 module:
-	./mkinitrd -o $(isodir)/modules/ramfs -d $(ramfs_dir)
+	./mkdisk -o $(isodir)/modules/ramfs -d $(ramfs_dir)
 
 debug:
 	objdump -d iso/boot/lime.elf -M intel > lime.asm

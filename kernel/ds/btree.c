@@ -4,6 +4,37 @@
 #include <bits/errno.h>
 #include <mm/kalloc.h>
 
+int btree_alloc(btree_t **pbtree)
+{
+    int err = 0;
+    spinlock_t *lock = NULL;
+    btree_t *btree = NULL;
+    if (pbtree == NULL)
+        return -EINVAL;
+    if ((err = spinlock_init(NULL, "btree", &lock)))
+        goto error;
+    err = -ENOMEM;
+    if ((btree = kmalloc(sizeof *btree)) == NULL)
+        goto error;
+    memset(btree, 0, sizeof *btree);
+    btree->lock = lock;
+    *pbtree = btree;
+    return 0;
+error:
+    if (btree) kfree(btree);
+    if (lock) spinlock_free(lock);
+    return err;
+}
+
+void btree_free(btree_t *btree)
+{
+    if (btree == NULL)
+        return;
+    if (btree->lock) spinlock_free(btree->lock);
+    *btree = (btree_t){0};
+    kfree(btree);
+}
+
 btree_node_t *btree_alloc_node(void)
 {
     btree_node_t *node = NULL;
@@ -132,9 +163,6 @@ btree_node_t *btree_largest_node(btree_t *btree)
 void btree_delete(btree_t *btree, btree_key_t key)
 {
     btree_node_t *node = NULL;
-
-    if (btree == NULL)
-        return;
     btree_assert_locked(btree);
     node = btree_lookup(btree, key);
     btree_delete_node(btree, node);
@@ -144,10 +172,8 @@ int btree_search(btree_t *btree, btree_key_t key, void **pdata)
 {
     btree_assert_locked(btree);
     btree_node_t *node = btree_lookup(btree, key);
-    if (node == NULL)
-        return -ENOENT;
-    if (pdata)
-        *pdata = node->data;
+    if (node == NULL) return -ENOENT;
+    if (pdata) *pdata = node->data;
     return 0;
 }
 

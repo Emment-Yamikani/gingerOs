@@ -14,9 +14,10 @@
 #include <sys/_wait.h>
 
 static uintptr_t (*syscall[])(void) = {
+    [SYS_KPUTC](void *) sys_kputc,
+
     /*File Management*/
 
-    [SYS_KPUTC](void *) sys_kputc,
     [SYS_OPEN](void *) sys_open,
     [SYS_READ](void *) sys_read,
     [SYS_WRITE](void *) sys_write,

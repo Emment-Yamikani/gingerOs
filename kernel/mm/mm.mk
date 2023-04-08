@@ -12,4 +12,5 @@ mmobjs:=\
 $(liballocobjs)\
 $(mmapobjs)\
 $(pmmobjs)\
-$(vmmobjs)
+$(vmmobjs)\
+$(mmdir)/mapping.o

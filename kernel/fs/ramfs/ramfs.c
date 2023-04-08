@@ -9,6 +9,7 @@
 #include <fs/posix.h>
 #include <sys/_stat.h>
 #include <sys/mman/mman.h>
+#include <fs/ramfs2.h>
 
 static iops_t ramfs_iops;
 static inode_t *iroot = NULL;
@@ -273,6 +274,8 @@ error:
 int ramfs_init(void)
 {
     int err =0;
+    if ((err = ramfs2_init()) == 0)
+        return 0;
     if ((err = vfs_register(&ramfs)))
         goto error;
     return 0;

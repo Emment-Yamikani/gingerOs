@@ -1,6 +1,7 @@
 #include <mm/mm_zone.h>
 #include <mm/pmm.h>
 #include <sys/kthread.h>
+#include <arch/i386/paging.h>
 
 uintptr_t mm_alloc(void);
 void mm_free(uintptr_t);
@@ -20,6 +21,8 @@ page_t *alloc_pages(gfp_mask_t gfp, size_t order)
     size_t index = 0;
     size_t start = 0;
     page_t *page = NULL;
+    uintptr_t paddr = 0;
+    uintptr_t vaddr = 0;
     mm_zone_t *zone = NULL;
     size_t alloced = 0, npages = _BS(order);
     int where = !(gfp & 0x0F) ? MM_ZONE_NORM : (gfp & 0x0F) - 1;
@@ -50,6 +53,26 @@ done:
         page[count].flags.mm_zone = zone - mm_zone;
         page[count].ref_count++;
         zone->free_pages--;
+    }
+
+    if (gfp & GFP_ZERO) // zero out the page frame(s)
+    {
+        for (size_t count = 0; count < npages; ++count) {
+            paddr = zone->start + ((&page[count] - zone->pages) * PAGESZ);
+        map:
+            vaddr = paging_mount(paddr);
+            if (vaddr == 0) {
+                if (current) {
+                    current_lock();
+                    xched_sleep(zone->sleep_queue, zone->lock);
+                    current_unlock();
+                    goto map;
+                }
+            } else {
+                memset((void *)vaddr, 0, PAGESZ);
+                paging_unmount((uintptr_t)vaddr);
+            }
+        }
     }
     mm_zone_unlock(zone);
     return page;

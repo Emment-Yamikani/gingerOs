@@ -42,6 +42,9 @@ typedef struct queue queue_t;
 struct proc;
 typedef struct proc proc_t;
 
+struct page;
+typedef struct page page_t;
+
 struct super_block;
 
 struct fops;

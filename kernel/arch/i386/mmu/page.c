@@ -411,8 +411,9 @@ int paging_memcpypv(uintptr_t v, uintptr_t p, size_t size)
 
 int paging_init(void)
 {
-    for (int pdi = 773; pdi < V_PDI(MMAP_DEVADDR); pdi++)
-        _32bit_maptable(pdi, VM_KRW | VM_PCD | VM_PWT);
+    for (int pdi = 772; pdi < V_PDI(MMAP_DEVADDR); pdi++)
+        if (!PDE(pdi)->structure.p)
+            _32bit_maptable(pdi, VM_KRW | VM_PCD | VM_PWT);
     return 0;
 }
 

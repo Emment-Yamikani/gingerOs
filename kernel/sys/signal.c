@@ -8,36 +8,37 @@
 #include <mm/kalloc.h>
 #include <sys/thread.h>
 #include <sys/sysproc.h>
+#include <sys/sleep.h>
 
 int sig_default_action[] = {
-    [SIGABRT] = SIGACT_ABORT,
-    [SIGALRM] = SIGACT_TERMINATE,
-    [SIGBUS] = SIGACT_ABORT,
-    [SIGCHLD] = SIGACT_IGNORE,
-    [SIGCONT] = SIGACT_CONTINUE,
-    [SIGFPE] = SIGACT_ABORT,
-    [SIGHUP] = SIGACT_TERMINATE,
-    [SIGILL] = SIGACT_ABORT,
-    [SIGINT] = SIGACT_TERMINATE,
-    [SIGKILL] = SIGACT_TERMINATE,
-    [SIGPIPE] = SIGACT_TERMINATE,
-    [SIGQUIT] = SIGACT_ABORT,
-    [SIGSEGV] = SIGACT_ABORT,
-    [SIGSTOP] = SIGACT_STOP,
-    [SIGTERM] = SIGACT_TERMINATE,
-    [SIGTSTP] = SIGACT_STOP,
-    [SIGTTIN] = SIGACT_STOP,
-    [SIGTTOU] = SIGACT_STOP,
-    [SIGUSR1] = SIGACT_TERMINATE,
-    [SIGUSR2] = SIGACT_TERMINATE,
-    [SIGPOLL] = SIGACT_TERMINATE,
-    //[SIGPROF] = SIGACT_TERMINATE,
-    [SIGSYS] = SIGACT_ABORT,
-    [SIGTRAP] = SIGACT_ABORT,
-    [SIGURG] = SIGACT_IGNORE,
-    //[SIGVTALRM] = SIGACT_TERMINATE,
-    //[SIGXCPU] = SIGACT_ABORT,
-    //[SIGXFSZ] = SIGACT_ABORT,
+    [SIGABRT - 1] = SIGACT_ABORT,
+    [SIGALRM - 1] = SIGACT_TERMINATE,
+    [SIGBUS - 1] = SIGACT_ABORT,
+    [SIGCHLD - 1] = SIGACT_IGNORE,
+    [SIGCONT - 1] = SIGACT_CONTINUE,
+    [SIGFPE - 1] = SIGACT_ABORT,
+    [SIGHUP - 1] = SIGACT_TERMINATE,
+    [SIGILL - 1] = SIGACT_ABORT,
+    [SIGINT - 1] = SIGACT_TERMINATE,
+    [SIGKILL - 1] = SIGACT_TERMINATE,
+    [SIGPIPE - 1] = SIGACT_TERMINATE,
+    [SIGQUIT - 1] = SIGACT_ABORT,
+    [SIGSEGV - 1] = SIGACT_ABORT,
+    [SIGSTOP - 1] = SIGACT_STOP,
+    [SIGTERM - 1] = SIGACT_TERMINATE,
+    [SIGTSTP - 1] = SIGACT_STOP,
+    [SIGTTIN - 1] = SIGACT_STOP,
+    [SIGTTOU - 1] = SIGACT_STOP,
+    [SIGUSR1 - 1] = SIGACT_TERMINATE,
+    [SIGUSR2 - 1] = SIGACT_TERMINATE,
+    [SIGPOLL - 1] = SIGACT_TERMINATE,
+    //[SIGPROF - 1] = SIGACT_TERMINATE,
+    [SIGSYS - 1] = SIGACT_ABORT,
+    [SIGTRAP - 1] = SIGACT_ABORT,
+    [SIGURG - 1] = SIGACT_IGNORE,
+    //[SIGVTALRM - 1] = SIGACT_TERMINATE,
+    //[SIGXCPU - 1] = SIGACT_ABORT,
+    //[SIGXFSZ - 1] = SIGACT_ABORT,
 };
 
 void signals_free(SIGNAL signals)
@@ -157,7 +158,9 @@ other:
      * Others processes must be of the same user or group
      * inorder to send signals to one another process.
      */
-    if ((proc != process) && (proc->ftable->uio.u_uid) && ((proc->ftable->uio.u_uid != process->ftable->uio.u_uid) && (proc->ftable->uio.u_gid != process->ftable->uio.u_gid)))
+    if ((proc != process) && (proc->ftable->uio.u_uid) &&
+        ((proc->ftable->uio.u_uid != process->ftable->uio.u_uid) &&
+        (proc->ftable->uio.u_gid != process->ftable->uio.u_gid)))
     {
         file_table_unlock(process->ftable);
         file_table_unlock(proc->ftable);
@@ -219,7 +222,8 @@ int signal_pgrp_send(PGROUP pgroup, int sig, ssize_t *ref)
     return err;
 }
 
-void (*signal(int sig, void (*handler)(int)))(int){
+void (*signal(int sig, void (*handler)(int)))(int)
+{
     typeof(handler) old_handler = NULL;
 
     if ((sig < 1) || (sig >= NSIG))
@@ -436,27 +440,17 @@ done:
 
 int pause(void)
 {
+    int err = 0;
     cond_t *cond = NULL;
-    atomic_t handled = 0;
 
     proc_lock(proc);
     signals_lock(proc->signals);
-
     cond = proc->signals->sig_wait;
+    signals_unlock(proc_signals(proc));
+    proc_unlock(proc);
 
-    atomic_write(&handled, atomic_read(&proc->signals->nsig_handled));
-
-    while (atomic_read(&handled) <= atomic_read(&proc->signals->nsig_handled))
-    {
-        signals_unlock(proc->signals);
-        proc_unlock(proc);
-
-        if (cond_wait(cond))
-            thread_exit(-EINTR);
-
-        proc_lock(proc);
-        signals_lock(proc->signals);
-    }
+    if ((err = cond_wait(cond)))
+        thread_exit(err);
 
     return -EINTR;
 }

@@ -101,11 +101,6 @@ int thread_wait(thread_t *thread, int reap, void **retval)
     return 0;
 }
 
-int thread_ishandling_signal(thread_t *thread)
-{
-    return (atomic_read(&thread->t_flags) & THREAD_HANDLING_SIGNAL);
-}
-
 int thread_kill_all(void)
 {
     current_assert();

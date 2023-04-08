@@ -43,6 +43,7 @@ typedef struct bootinfo
     }framebuffer;
 
     multiboot_info_t mbi; // save data
+    uintptr_t free_physaddr;
 }bootinfo_t;
 
 extern bootinfo_t bootinfo;

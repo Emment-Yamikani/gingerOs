@@ -34,12 +34,12 @@
 #define USTACK_LIMIT (USER_STACK - (USTACKSIZE * NTHREADS))
 #define TRAMPOLINE ((void *)0x8000)
 
-#define _BS(b) ((1 << b))
-#define _BITMASK(f, b) (f & (~b))
-#define MIN(a, b) ((a < b) ? a : b)
-#define MAX(a, b) ((a > b) ? a : b)
-#define SHL(a, b) (a << b)
-#define ABS(a) ((long)a < 0 ? -(long)a : a)
+#define _BS(b) ((1 << (b)))
+#define _BITMASK(f, b) ((f) & (~(b)))
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#define SHL(a, b) ((a) << (b))
+#define ABS(a) ((long)(a) < 0 ? -(long)(a) : (a))
 
 #define foreach(elem, list) \
     for (typeof(*list) *tmp = list, elem = *tmp; elem; elem = *++tmp)

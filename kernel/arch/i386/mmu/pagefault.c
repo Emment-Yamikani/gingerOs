@@ -45,7 +45,7 @@ void do_page_fault(trapframe_t *tf)
     {
         if ((tf->eip == 0xDEADDEAD) && in_user)
         {
-            if ((thread_ishandling_signal(current)))
+            if ((__thread_ishandling_signal(current)))
                 arch_return_signal(tf);
             else if (proc && (current == proc->tmain))
                 exit(tf->eax);

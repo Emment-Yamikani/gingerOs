@@ -69,7 +69,7 @@ int handle_signals(trapframe_t *tf)
     proc_lock(proc);
     signals_lock(proc_signals(proc));
 
-    if (signals_pending(proc) && (thread_ishandling_signal(current) == 0))
+    if (signals_pending(proc) && (__thread_ishandling_signal(current) == 0))
     {
         sig = signals_next(proc);
         arch_handle_signal(sig, tf);
@@ -84,7 +84,6 @@ int arch_handle_signal(int sig, trapframe_t *tf)
 {
     x86_thread_t *thread = NULL;
     uintptr_t *ustack = NULL, handler = 0;
-    
 
     handler = (uintptr_t)signals_get_handler(proc_signals(proc), sig);
 
@@ -97,10 +96,9 @@ int arch_handle_signal(int sig, trapframe_t *tf)
         panic("SIGACT_STOP\n");
         break;
     case SIGACT_IGNORE:
-        panic("SIGACT_IGNORE\n");
-        break;
+        return 0;
     case SIGACT_CONTINUE:
-        panic("SIGACT_CONTINUE\n");
+        panic("SIGACT_CONTINUE: %d\n", sig);
         break;
     case SIGACT_ABORT:
         __fallthrough;
@@ -115,7 +113,7 @@ int arch_handle_signal(int sig, trapframe_t *tf)
     current_lock();
     thread = current->t_tarch;
     thread->savedtf = *tf;
-    atomic_or(&current->t_flags, THREAD_HANDLING_SIGNAL);
+    __thread_setflags(current, THREAD_HANDLING_SIGNAL);
 
     ustack = (uintptr_t *)tf->esp;
     memset(tf, 0, sizeof *tf);
@@ -148,11 +146,11 @@ void arch_return_signal(trapframe_t *tf)
     current_lock();
     if (trapframe_isuser(tf) == 0)
         panic("page fault: thread(%d)\n", current->t_tid);
-    if (thread_ishandling_signal(current) == 0)
+    if (__thread_ishandling_signal(current) == 0)
         panic("thread not handling any signal\n");
     
     thread = current->t_tarch;
-    atomic_and(&current->t_flags, ~THREAD_HANDLING_SIGNAL);
+    __thread_maskflags(current, THREAD_HANDLING_SIGNAL);
     *tf = thread->savedtf;
     current_unlock();
 }

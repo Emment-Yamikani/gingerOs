@@ -37,8 +37,9 @@ static int get_modules(multiboot_info_t *info)
     {
         bootinfo.mods[i].addr = VMA_HIGH(mods[i].mod_start);
         bootinfo.mods[i].cmdline = (char *)VMA_HIGH(mods[i].cmdline);
-        bootinfo.mods[i].size = mods[i].mod_end - mods[i].mod_start;
+        bootinfo.mods[i].size = (mods[i].mod_end - mods[i].mod_start);
         bootinfo.mods_count++;
+        bootinfo.free_physaddr = (PGROUNDUP((mods[i].mod_end)) < 0x1000000) ? 0x1000000 : PGROUNDUP((mods[i].mod_end));
     }
     return 0;
 }

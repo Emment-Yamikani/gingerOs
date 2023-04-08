@@ -9,9 +9,6 @@
 #include <lib/string.h>
 #include <lime/assert.h>
 
-extern void _kernel_start();
-extern void _kernel_end();
-
 static spinlock_t *vmm_spinlock = SPINLOCK_NEW("vmm_spinlock");
 static size_t used_virtual_mmsz = 0;
 
