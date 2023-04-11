@@ -239,7 +239,6 @@ int physical_memory(void)
         }
     }
 
-    //panic("i: %d, j: %d, addr: %p, page: %p\n", i, j, page_address(alloc_page(GFP_NORMAL)), mm_zone->pages);
     return paging_init();
 }
 

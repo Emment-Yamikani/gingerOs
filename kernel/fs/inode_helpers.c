@@ -49,16 +49,16 @@ int iclose(inode_t *ip)
 
 size_t iread(inode_t *ip, off_t pos, void *buf, size_t sz)
 {
-    size_t size __unused= 0;
-    int holding __unused = 0;
-    ssize_t retval __unused = 0;
-    page_t *page __unused = NULL;
-    ssize_t data_size __unused = 0;
-    char *virt_addr __unused = NULL;
-    uintptr_t page_addr __unused = 0;
-    ssize_t pgno __unused = pos / PAGESZ;
-    uintptr_t dest_buff __unused = (uintptr_t)buf;
-    uintptr_t dest_end __unused __unused = (uintptr_t)buf + sz;
+    size_t size= 0;
+    int holding = 0;
+    ssize_t retval = 0;
+    page_t *page = NULL;
+    ssize_t data_size = 0;
+    char *virt_addr = NULL;
+    uintptr_t page_addr = 0;
+    ssize_t pgno = pos / PAGESZ;
+    uintptr_t dest_buff = (uintptr_t)buf;
+    uintptr_t dest_end = (uintptr_t)buf + sz;
 
     if (!ip)
         return -EINVAL;
@@ -74,10 +74,16 @@ size_t iread(inode_t *ip, off_t pos, void *buf, size_t sz)
     if (!ip->ifs->fsuper->iops->read)
         return -ENOSYS;
 
-    /*if (!(holding = mapping_holding(ip->mapping)))
+    if (!(holding = mapping_holding(ip->mapping)))
         mapping_lock(ip->mapping);
 
     for (size_t i = 0; i < NPAGE(sz); ++i, ++pgno) {
+        if ((pos >= ip->i_size))
+        {
+            data_size = -1;
+            break;
+        }
+
         if ((retval = mapping_get_page(ip->mapping, pgno, &page_addr, &page))) {
             if (!holding)
                 mapping_unlock(ip->mapping);
@@ -86,23 +92,22 @@ size_t iread(inode_t *ip, off_t pos, void *buf, size_t sz)
         }
 
         virt_addr = (char *)page->virtual;
-
-        size = MIN((PAGESZ - PGOFFSET(pos)), MIN(PAGESZ, (dest_end - dest_buff)));
+        size = MIN(PAGESZ, (dest_end - dest_buff));
+        size = MIN(size, (ip->i_size - pos));
+        size = MIN((PAGESZ - PGOFFSET(pos)), size);
         memcpy((void *)dest_buff, (void *)(virt_addr + PGOFFSET(pos)), size);
+        // printk("req: %d, read: %d, pos: %d, isize: %d\n", sz, size, pos, ip->i_size);
         pos += size;
         dest_buff += size;
         data_size += size;
-        printk("req: %d, read: %d, size: %d\n", sz, data_size, size);
     }
+
     if (!holding)
         mapping_unlock(ip->mapping);
-        160000 179537
 
-    */
-
-    data_size = ip->ifs->fsuper->iops->read(ip, pos, buf, sz);
-    //printk("req: %d, read: %d, pos: %d, isize: %d\n", sz, data_size, pos, ip->i_size);
+    // printk("req: %d, read: %d, pos: %d, isize: %d\n", sz, data_size, pos, ip->i_size);
     return data_size;
+    // data_size = ip->ifs->fsuper->iops->read(ip, pos, buf, sz);
 }
 
 size_t iwrite(inode_t *ip, off_t pos, void *buf, size_t sz)

@@ -94,6 +94,7 @@ int mapping_get_page(mapping_t *map, ssize_t pgno, uintptr_t *pphys, page_t **pp
 done:
     if (page_valid(page) == 0)
     {
+        err = -EINVAL;
         offset = pgno * PAGESZ;
         virt = (void *)page->virtual;
         read_size = MIN(PAGESZ, (map->inode->i_size - offset));
