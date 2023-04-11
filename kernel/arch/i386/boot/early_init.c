@@ -29,7 +29,7 @@ int cga_putc(int);
 
 extern int cga_printf(char *, ...);
 extern int cga_panic(char *, ...);
-extern int ppp();
+extern uint32_t __alloc_frame();
 
 int pos = 0;
 

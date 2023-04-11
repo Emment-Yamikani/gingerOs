@@ -39,6 +39,7 @@ page_t *alloc_pages(gfp_mask_t gfp, size_t order)
                 continue;
             }
 
+            //printk("%s index: %d, count: %d, needed: %d\n", str_zone[zone - mm_zone], index, zone->pages[index].ref_count, npages);
             if ((++alloced) == npages)
                 goto done;
         }

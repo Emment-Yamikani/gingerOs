@@ -222,14 +222,16 @@ int physical_memory(void)
     zone->free_pages -= NPAGE(size);
     mm_zone_unlock(zone);
 
-    for (int i = 0; i < bootinfo.mods_count; ++i) {
+    int i = 0, j =0;
+    for (i = 0; i < bootinfo.mods_count; ++i) {
         size = PGROUNDUP(module[i].size);
-        index = (addr = PGROUND(VMA_LOW(module[i].addr))) / PAGESZ;
-        for (int j = 0; j < (int)NPAGE(size); ++j, ++index, addr += PAGESZ) {
+            addr = PGROUND(VMA_LOW(module[i].addr));
+        for (j = 0; j < (int)NPAGE(size); ++j, ++index, addr += PAGESZ) {
             zone = get_mmzone(addr, PAGESZ);
             zone->free_pages--;
+            index = (addr - zone->start) / PAGESZ;
             zone->pages[index].ref_count = 1;
-            zone->pages[index].flags.mm_zone = 0;
+            zone->pages[index].flags.mm_zone = zone - mm_zone;
             zone->pages[index].flags.raw |= VM_KRW;
             mm_zone_unlock(zone);
             if (addr >= 0x1000000)
@@ -237,8 +239,7 @@ int physical_memory(void)
         }
     }
 
-
-    return 0;
+    //panic("i: %d, j: %d, addr: %p, page: %p\n", i, j, page_address(alloc_page(GFP_NORMAL)), mm_zone->pages);
     return paging_init();
 }
 

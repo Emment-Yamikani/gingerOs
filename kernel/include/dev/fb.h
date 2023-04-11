@@ -14,20 +14,20 @@
 
 struct fb_bitfield
 {
-    uint32_t offset;    // position in pixel
-    uint32_t length;    // length of bitfield
-    uint32_t msb_right; // true if most significant byte is right
+    uint8_t offset;    // position in pixel
+    uint8_t length;    // length of bitfield
+    uint8_t msb_right; // true if most significant byte is right
 };
 
 typedef struct fb_fixinfo
 {
-    char id[64];        // indentification
-    int accel;          // type of acceleration card in use
-    uint32_t type;      // type of framebuffer
-    uint32_t caps;      // capabilities
-    size_t  memsz;    // total memory size of framebuffer
-    uintptr_t addr;  // physical address of framebuffer
-    size_t line_length; // bytes per line
+    char        id[64];     // indentification
+    int         accel;      // type of acceleration card in use
+    uint32_t    type;       // type of framebuffer
+    uint32_t    caps;       // capabilities
+    size_t      memsz;      // total memory size of framebuffer
+    uintptr_t   addr;       // physical address of framebuffer
+    size_t      line_length;// bytes per line
 } fb_fixinfo_t;
 
 typedef struct fb_varinfo

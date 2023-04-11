@@ -12,7 +12,7 @@ static int get_mmap(multiboot_info_t *info)
     if (!mmap)
         return -EINVAL;
     if (!(info->flags & MULTIBOOT_INFO_MEM_MAP))
-        return -1;
+        return -ENOENT;
 
     for (int i =0; mmap < (multiboot_memory_map_t *)(info->mmap_addr + info->mmap_length); ++i)
     {

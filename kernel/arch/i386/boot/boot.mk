@@ -9,4 +9,5 @@ $(bootdir)/boot.o\
 $(bootdir)/bootothers.o\
 $(bootdir)/early_init.o\
 $(bootdir)/init.o\
-$(bootdir)/mmap.o
+$(bootdir)/mmap.o\
+$(bootdir)/multiboot.o
