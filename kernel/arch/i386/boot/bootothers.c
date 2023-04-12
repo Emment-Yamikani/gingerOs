@@ -51,7 +51,7 @@ void bootothers(void)
         return;
     }
 
-    if (vfs_lookup("/ap_module", NULL, O_RDONLY, &apmod, NULL)){
+    if (vfs_open("/ap_module", NULL, O_RDONLY, 0, &apmod)){
         printk("AP startup module not found\n");
         return;
     }

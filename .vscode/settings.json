@@ -82,6 +82,7 @@
         "valarray": "c",
         "variant": "c",
         "qtcoredepends": "c",
-        "qtdbusdepends": "c"
+        "qtdbusdepends": "c",
+        "complex": "c"
     }
 }

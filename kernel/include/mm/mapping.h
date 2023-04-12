@@ -4,6 +4,7 @@
 #include <lib/stddef.h>
 #include <lib/types.h>
 #include <ds/btree.h>
+#include <ds/queue.h>
 
 typedef struct mapping
 {
@@ -11,6 +12,7 @@ typedef struct mapping
     btree_t *btree;
     uint32_t flags;
     size_t nrpages;
+    queue_t *usermaps;
 
     spinlock_t *lock;
 } mapping_t;
@@ -20,6 +22,7 @@ typedef struct mapping
 #define mapping_unlock(mapping)         ({mapping_assert(mapping); spin_unlock(mapping->lock)})
 #define mapping_holding(mapping)        ({mapping_assert(mapping); spin_holding(mapping->lock);})
 #define mapping_assert_locked(mapping)  ({mapping_assert(mapping); spin_assert_lock(mapping->lock);})
+
 
 int mapping_new(mapping_t **pmap);
 void mapping_free(mapping_t *map);

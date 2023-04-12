@@ -258,8 +258,15 @@ int fmmap(struct file *file, vmr_t *vmr)
         if (!(file->f_flags & O_EXCL))
             return -EACCES;
 
+
     if (ISDEV(file->f_inode))
         return kdev_fmmap(_INODE_DEV(file->f_inode), file, vmr);
+
+    if (file->f_inode->i_type != FS_RGL)
+        return -EINVAL;
+
+    vmr->file = file->f_inode;
+    return 0;
 
     CHK_FPTR(file);
 

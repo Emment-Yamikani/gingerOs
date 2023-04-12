@@ -32,14 +32,15 @@ x86-32bit
     2. Introducing the 'all-new' Physical memory allocator.
         based in part on the Linux concept of memory zones.
         This allocator adds new features to the kernel such as:
-        i).     Sleeping(waiting) for memory if we run out of memory.
-        ii).    Threads can now retry a memory allocation if they want to.
-        iii).   Threads can decide from which pool they want to allocate memory.
+
+            i).     Sleeping(waiting) for memory if we run out of memory.
+            ii).    Threads can now retry a memory allocation if they want to.
+            iii).   Threads can decide from which pool they want to allocate memory.
                 This in general increases the allocation throughput and maximizes on
                 memory allocation-flexibility.
-        iv).    The Memory allocator can now monitor who owns a page
+            iv).    The Memory allocator can now monitor who owns a page
                 and what they're using it for.
-        v). Newly implemented physical memory manager interface.
+            v). Newly implemented physical memory manager interface.
         ```c
         mm_zone_t *get_mmzone(uintptr_t addr, size_t size);
         ```

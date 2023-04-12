@@ -537,7 +537,7 @@ int vfs_mount(const char *dir, const char *name, inode_t *ip)
     return vfs_mountat(name, dir, NULL, MS_BIND, NULL, ip, NULL);
 }
 
-int vfs_lookup(const char *fn, uio_t *uio, int mode, inode_t **iref, dentry_t **dref)
+int vfs_lookup(const char *fn, uio_t *uio, int oflags, mode_t mode __unused, inode_t **iref, dentry_t **dref)
 {
     int err = 0;
     path_t *path = NULL;
@@ -561,7 +561,7 @@ int vfs_lookup(const char *fn, uio_t *uio, int mode, inode_t **iref, dentry_t **
     if ((err = vfs_parse_path((char *)fn, cwd, &abs_path)))
         goto error;
 
-    // printk("%s(%s): uio: 0x%p, mode: %x, iref: 0x%p, dref: 0x%p\n", __func__, fn, uio, mode, iref, dref);
+    // printk("%s(%s): uio: 0x%p, oflags: %x, iref: 0x%p, dref: 0x%p\n", __func__, fn, uio, oflags, iref, dref);
 
     // printk("VFS ROOT: \e[017;0m%s\e[0m: %p\n", droot->d_name, droot->d_inode);
 
@@ -575,7 +575,7 @@ int vfs_lookup(const char *fn, uio_t *uio, int mode, inode_t **iref, dentry_t **
         ichild = dentry->d_inode;
         // printk("%s(): \'%s\' \e[0;12mfound\e[0m\n", __func__, dentry->d_name);
         // dentry_dump(dentry);
-        if ((err = iperm(ichild, uio, mode)))
+        if ((err = iperm(ichild, uio, oflags)))
             goto error;
         // printk("found THIS FILE\n");
         goto found;
@@ -606,7 +606,7 @@ int vfs_lookup(const char *fn, uio_t *uio, int mode, inode_t **iref, dentry_t **
         if ((err = vfs_dentry_bind(dir, dentry)))
             goto error;
 
-        if ((err = iperm(ichild, uio, mode)))
+        if ((err = iperm(ichild, uio, oflags)))
             dir = dentry;
         iparent = ichild;
     }
@@ -641,7 +641,7 @@ error:
     return err;
 }
 
-int vfs_open(const char *fn, uio_t *uio, int mode, inode_t **iref)
+int vfs_open(const char *fn, uio_t *uio, int oflags, mode_t mode, inode_t **iref)
 {
-    return vfs_lookup(fn, uio, mode, iref, NULL);
+    return vfs_lookup(fn, uio, oflags, mode, iref, NULL);
 }

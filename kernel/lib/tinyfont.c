@@ -19,7 +19,7 @@ struct font *font_open(char *path)
     struct tinyfont head = {0};
     uio_t uio = {0};
     inode_t *file = NULL;
-    vfs_open(path, &uio, O_RDONLY, &file);
+    vfs_open(path, &uio, O_RDONLY, 0, &file);
     
     if ((size_t)iread(file, 0, &head, sizeof(head)) != sizeof(head))
     {

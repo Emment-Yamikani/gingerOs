@@ -104,7 +104,7 @@ int chown(const char *pathname, uid_t uid, gid_t gid)
     file_table_lock(table);
     uio = table->uio;
 
-    if ((err = vfs_open(pathname, &uio, O_RDWR, &file)))
+    if ((err = vfs_open(pathname, &uio, O_RDWR, 0, &file)))
     {
         file_table_unlock(table);
         goto error;

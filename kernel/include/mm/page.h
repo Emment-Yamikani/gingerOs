@@ -14,6 +14,7 @@ typedef struct page
     page_flags_t flags;
     mapping_t *mapping;
     atomic_t ref_count;
+    atomic_t map_count;
     uintptr_t virtual; // virtual addr
 } page_t;
 

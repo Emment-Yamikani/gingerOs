@@ -54,7 +54,7 @@ int lfbterm_init(void)
     uio_t uio = {0};
     int err = -ENOMEM;
     
-    if ((err = vfs_open("/dev/fbdev", &uio, O_RDWR, &lfb)))
+    if ((err = vfs_open("/dev/fbdev", &uio, O_RDWR, 0, &lfb)))
     {
         printk("%s:%d: error, fallback to text_mode\n", __FILE__, __LINE__);
         return err;

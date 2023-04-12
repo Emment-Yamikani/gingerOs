@@ -13,4 +13,5 @@ $(liballocobjs)\
 $(mmapobjs)\
 $(pmmobjs)\
 $(vmmobjs)\
-$(mmdir)/mapping.o
+$(mmdir)/mapping.o\
+$(mmdir)/usermap.o

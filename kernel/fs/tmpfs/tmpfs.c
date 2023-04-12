@@ -192,7 +192,7 @@ try_bind:
 
 static int tmpfs_ioctl(inode_t *ip __unused, int req __unused, void *argp __unused)
 {
-    return -EINVAL;
+    return -ENOTTY;
 }
 
 static int tmpfs_lseek(inode_t *ip __unused, off_t off __unused, int whence __unused)

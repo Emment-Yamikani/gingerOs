@@ -17,19 +17,19 @@
             return -ENOSYS;         \
     }
 
-int iopen(inode_t *ip, int mode, ...)
+int iopen(inode_t *ip, int oflags, ...)
 {
     if (!ip)
         return -EINVAL;
     if (ISDEV(ip))
-        return kdev_open(_INODE_DEV(ip), mode);
+        return kdev_open(_INODE_DEV(ip), oflags);
     
     CHK_IPTR(ip);
 
     if (!ip->ifs->fsuper->iops->open)
         return -ENOSYS;
 
-    return ip->ifs->fsuper->iops->open(ip, mode);
+    return ip->ifs->fsuper->iops->open(ip, oflags);
 }
 
 int iclose(inode_t *ip)
@@ -246,9 +246,9 @@ int ireaddir(inode_t *dir, off_t offset, struct dirent *dirent) {
 }
 
 /* check for file permission */
-int iperm(inode_t *ip, uio_t *uio, int mode)
+int iperm(inode_t *ip, uio_t *uio, int oflags)
 {
-    //printk("%s(\e[0;15mip=%p, uio=%p, mode=%d)\e[0m\n", __func__, ip, uio, mode);
+    //printk("%s(\e[0;15mip=%p, uio=%p, oflags=%d)\e[0m\n", __func__, ip, uio, oflags);
     if (!ip || !uio)
         return -EINVAL;
 
@@ -258,7 +258,7 @@ int iperm(inode_t *ip, uio_t *uio, int mode)
         return 0;
     }
 
-    if (((mode & O_ACCMODE) == O_RDONLY) || (mode & O_ACCMODE) != O_WRONLY)
+    if (((oflags & O_ACCMODE) == O_RDONLY) || (oflags & O_ACCMODE) != O_WRONLY)
     {
         if (ip->i_uid == uio->u_uid)
         {
@@ -280,7 +280,7 @@ int iperm(inode_t *ip, uio_t *uio, int mode)
     }
 
 write_perms:
-    if (((mode & O_ACCMODE) == O_WRONLY) || (mode & O_ACCMODE) == O_RDWR)
+    if (((oflags & O_ACCMODE) == O_WRONLY) || (oflags & O_ACCMODE) == O_RDWR)
     {
         if (ip->i_uid == uio->u_uid)
         {
@@ -302,7 +302,7 @@ write_perms:
     }
 
 exec_perms:
-    if ((mode & O_EXCL))
+    if ((oflags & O_EXCL))
     {
         if (ip->i_uid == uio->u_uid)
         {
@@ -383,4 +383,17 @@ int ichown(inode_t *ip, uid_t uid, gid_t gid)
         return -ENOSYS;
 
     return ip->ifs->fsuper->iops->chown(ip, uid, gid);
+}
+
+int inode_getpage(inode_t *ip, ssize_t pgno, uintptr_t *ppaddr, page_t **ppage) {
+    int err = 0;
+    
+    if (!ip)
+        return -EINVAL;
+    
+    mapping_lock(ip->mapping);
+    err = mapping_get_page(ip->mapping, pgno, ppaddr, ppage);
+    mapping_unlock(ip->mapping);
+    
+    return err;
 }

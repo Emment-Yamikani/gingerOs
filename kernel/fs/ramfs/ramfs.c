@@ -316,7 +316,8 @@ int ramfs_load()
 {
     int err = 0;
     uio_t uio = {.u_cwd = "/", .u_gid = 0, .u_uid = 0};
-    if ((err = vfs_lookup("/dev/ramdisk", &uio, O_RDONLY | O_EXCL, &iramdisk, NULL)))
+    mode_t mode = 0;
+    if ((err = vfs_lookup("/dev/ramdisk", &uio, O_RDONLY | O_EXCL, mode, &iramdisk, NULL)))
         goto error;
     if ((err = ramfs_read_super()))
         goto error;

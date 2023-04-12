@@ -225,9 +225,9 @@ int vfs_canonicalize_path(char *fn, char *cwd, char ***ref);
 
 int vfs_mount(const char *dir, const char *name, inode_t *ip);
 
-int vfs_open(const char *fn, uio_t *uio, int oflags, inode_t **iref);
+int vfs_open(const char *fn, uio_t *uio, int oflags, mode_t mode, inode_t **iref);
 
-int vfs_lookup(const char *fn, uio_t *uio, int oflags, inode_t **iref, dentry_t **dref);
+int vfs_lookup(const char *fn, uio_t *uio, int oflags, mode_t mode, inode_t **iref, dentry_t **dref);
 
 int vfs_mountat(const char *__src,
                 const char *__target,

@@ -17,6 +17,9 @@
 #include <sys/sysproc.h>
 #include <lime/jiffies.h>
 #include <mm/mm_zone.h>
+#include <mm/mapping.h>
+#include <fs/inode.h>
+#include <mm/usermap.h>
 
 int default_pgf_handler(vmr_t *region, vm_fault_t *vm);
 
@@ -118,6 +121,8 @@ int default_pgf_handler(vmr_t *region, vm_fault_t *vm)
     off_t offset = 0;
     char buf[PAGESZ];
     int frame_refs = 0;
+    page_t *page = NULL;
+    shared_mapping_t *shared __unused = NULL;
     uintptr_t frame = 0, copy_frame = 0;
 
     if (region == NULL || vm == NULL)
@@ -173,16 +178,21 @@ int default_pgf_handler(vmr_t *region, vm_fault_t *vm)
 
         if (region->file)
         {
-            if ((frame = pmman.alloc()) == 0)
-                return -ENOMEM;
-            size = __min(PAGESZ, __min(region->filesz, region->file->i_size - offset));
-            memset(buf, 0, PAGESZ);
-            iread(region->file, offset, buf, size);
-            paging_memcpyvp(frame, (uintptr_t)buf, PAGESZ);
-            if ((err = paging_identity_map(frame, PGROUND(vm->addr), PAGESZ, region->vflags)))
-            {
-                pmman.free(frame);
-                return err;
+            if (!__vmr_shared(region)) {
+                if ((frame = pmman.alloc()) == 0)
+                    return -ENOMEM;
+                size = __min(PAGESZ, __min(region->filesz, region->file->i_size - offset));
+                memset(buf, 0, PAGESZ);
+                iread(region->file, offset, buf, size);
+                paging_memcpyvp(frame, (uintptr_t)buf, PAGESZ);
+                if ((err = paging_identity_map(frame, PGROUND(vm->addr), PAGESZ, region->vflags)))
+                {
+                    pmman.free(frame);
+                    return err;
+                }
+            }
+            else {
+                panic("%s: %d: shared page\n", __FILE__, __LINE__);
             }
             send_tlb_shootdown();
         }
@@ -206,16 +216,30 @@ int default_pgf_handler(vmr_t *region, vm_fault_t *vm)
 
     if (region->file)
     {
-        if ((frame = pmman.alloc()) == 0)
-            return -ENOMEM;
-        size = __min(PAGESZ, __min(region->filesz, region->file->i_size - offset));
-        memset(buf, 0, PAGESZ);
-        iread(region->file, offset, buf, size);
-        paging_memcpyvp(frame, (uintptr_t)buf, PAGESZ);
-        if ((err = paging_identity_map(frame, PGROUND(vm->addr), PAGESZ, region->vflags)))
+        if (!__vmr_shared(region)) {
+            if ((frame = pmman.alloc()) == 0)
+                return -ENOMEM;
+            size = __min(PAGESZ, __min(region->filesz, region->file->i_size - offset));
+            memset(buf, 0, PAGESZ);
+            iread(region->file, offset, buf, size);
+            paging_memcpyvp(frame, (uintptr_t)buf, PAGESZ);
+            if ((err = paging_identity_map(frame, PGROUND(vm->addr), PAGESZ, region->vflags)))
+            {
+                pmman.free(frame);
+                return err;
+            }
+        }
+        else
         {
-            pmman.free(frame);
-            return err;
+            err = inode_getpage(region->file, offset / PAGESZ, &frame, &page);
+            // printk("offset: %dframe: %p, err: %d\n", offset, frame, err);
+            __page_incr(frame);
+            // if ((err = shared_mapping_alloc(region->mmap, region->file, offset / PAGESZ, PGROUND(vm->addr), &shared)))
+                // return err;
+            
+            if ((err = paging_identity_map(frame, PGROUND(vm->addr), PAGESZ, region->vflags)))
+                return err;
+            // panic("%s: %d: shared page\n", __FILE__, __LINE__);
         }
         send_tlb_shootdown();
     }

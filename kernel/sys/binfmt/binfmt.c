@@ -33,7 +33,7 @@ int binfmt_load(const char *fn, proc_t *proc, proc_t **ref)
     uio = current->t_file_table->uio;
     file_table_unlock(current->t_file_table);
 
-    if ((err = vfs_open(fn, &uio, O_RDONLY | O_EXEC, &image)))
+    if ((err = vfs_open(fn, &uio, O_RDONLY | O_EXEC, 0, &image)))
         goto error;
 
     switch (image->i_type)

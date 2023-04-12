@@ -34,6 +34,8 @@
 
 ## Threads
 #
+* Per-thread signaling.
+
 
 ## Kernel Modules
 #

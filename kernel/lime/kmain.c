@@ -33,6 +33,7 @@ void *kthread_main(void *arg __unused)
 
     printk("%d builtin thread(s) started\n", nthreads);
 
+    loop();
     proc_init("/init");
 
     loop()
@@ -64,3 +65,21 @@ void *kthread_main(void *arg __unused)
     klog(KLOG_OK, "kthread_main done executing\n");
     return NULL;
 }
+
+void *file_create(void *arg __unused) {
+    int err = 0;
+    int mode = 0;
+    uio_t uio = {0};
+    inode_t *inode = NULL;
+
+    err = vfs_open("/tmp/file", &uio, O_RDWR | O_CREAT, mode, &inode);
+    if (err) goto error;
+
+    printk("filesz: %dbytes\n", inode->i_size);
+
+error:
+    loop();
+    return NULL;
+}
+
+BUILTIN_THREAD(file_creation, file_create, NULL);

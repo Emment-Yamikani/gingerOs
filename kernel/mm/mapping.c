@@ -90,7 +90,8 @@ int mapping_get_page(mapping_t *map, ssize_t pgno, uintptr_t *pphys, page_t **pp
 
     map->nrpages++;
     page->mapping = map;
-    page->flags = (page_flags_t){.can_swap = 1, .shared = 1};
+    page->flags.shared = 1;
+    page->flags.can_swap = 1;
 done:
     if (page_valid(page) == 0)
     {
@@ -100,7 +101,12 @@ done:
         read_size = MIN(PAGESZ, (map->inode->i_size - offset));
         if (((ssize_t)map->inode->ifs->fsuper->iops->read(map->inode, offset, virt, read_size) != read_size))
             goto error;
-        page->flags = (page_flags_t){.dirty = 0, .valid = 1, .read = 1, .write = 1, .exec = 1};
+        
+        page->flags.dirty = 0;
+        page->flags.valid = 1;
+        page->flags.read = 1;
+        page->flags.write = 1;
+        page->flags.exec = 1;
     }
     if (ppage) *ppage = page;
     if (pphys) *pphys = page_address(page);

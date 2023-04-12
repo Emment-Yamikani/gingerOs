@@ -86,6 +86,7 @@ file_t *fileget(struct file_table *table, int fd)
 
 int open(const char *fn, int oflags, ...)
 {
+    mode_t mode = 0;
     int err = 0, fd = 0;
     file_t *file = NULL;
     inode_t *inode = NULL;
@@ -99,7 +100,7 @@ int open(const char *fn, int oflags, ...)
 
     file_table_lock(table);
 
-    if ((err = vfs_lookup(fn, &table->uio, oflags, &inode, &dentry))) //@FIXME: provide process uio_t not 'NULL'
+    if ((err = vfs_lookup(fn, &table->uio, oflags, mode, &inode, &dentry))) //@FIXME: provide process uio_t not 'NULL'
     {
         file_table_unlock(table);
         goto error;
@@ -280,11 +281,12 @@ int stat(const char *fn, struct stat *buf)
 {
     size_t err = 0;
     inode_t *inode = NULL;
+    mode_t mode = 0;
     file_table_lock(current->t_file_table);
     uio_t uio = current->t_file_table->uio;
     file_table_unlock(current->t_file_table);
 
-    if ((err = vfs_open(fn, &uio, O_RDONLY | O_EXCL, &inode)))
+    if ((err = vfs_open(fn, &uio, O_RDONLY | O_EXCL, mode, &inode)))
         return err;
     if ((err = iperm(inode, &uio, O_RDONLY | O_EXCL)))
         return err;
@@ -452,7 +454,7 @@ int chdir(char *fn)
     file_table_lock(current->t_file_table);
     uio_t uio = current->t_file_table->uio;
 
-    if ((err = vfs_open(fn, &uio, O_RDONLY | O_EXCL, &inode)))
+    if ((err = vfs_open(fn, &uio, O_RDONLY | O_EXCL, 0, &inode)))
     {
         file_table_unlock(current->t_file_table);
         return err;
