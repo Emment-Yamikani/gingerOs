@@ -195,9 +195,9 @@ int sysputchar(int c)
     return sys_kputc(c);
 }
 
-int open(const char *path, int mode, ...)
+int open(const char *path, int oflags, int mode)
 {
-    return sys_open(path, mode);
+    return sys_open(path, oflags, mode);
 }
 
 int read(int fd, void *__buf, unsigned int size)

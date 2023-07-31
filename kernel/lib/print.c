@@ -61,7 +61,6 @@ char *__int_str(intmax_t i, char b[], int base, bool plusSignIfNeeded, bool spac
                 int paddingNo, bool justify, bool zeroPad)
 {
     char digit[32] = {0};
-    memset(digit, 0, 32);
     strcpy(digit, "0123456789");
 
     if (base == 16)

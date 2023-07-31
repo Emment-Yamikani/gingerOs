@@ -46,9 +46,9 @@ $(isodir)/boot/lime.elf: $(archdir)/linker.ld $(linked_objs)
 	$(cc) $(ldflags) $^ -o $@ $(kernel_flags)
 
 run:
-	qemu-system-i386	\
-	-smp 1 				\
-	-m size=512M		\
+	qemu-system-x86_64	\
+	-smp 4 				\
+	-m size=1G			\
 	-cdrom	ginger.iso	\
 	-no-reboot			\
 	-no-shutdown		\

@@ -10,11 +10,9 @@
 #include <fs/pipefs.h>
 #include <fs/tmpfs.h>
 
-int vfs_mountat(const char *__src __unused,
-                const char *__target __unused,
-                const char *__type __unused,
-                uint32_t __mount_flags __unused,
-                const void *__data __unused, inode_t *__inode, uio_t *__uio __unused)
+int vfs_mountat(const char *__src, const char *__target,
+                const char *__type, uint32_t __mount_flags,
+                const void *__data, inode_t *__inode, uio_t *__uio)
 {
     int err = 0;
     struct filesystem *fs = NULL;

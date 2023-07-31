@@ -40,11 +40,6 @@ static int tmpfs_close(inode_t *ip __unused)
     return -EINVAL;
 }
 
-static int tmpfs_creat(inode_t *ip __unused, dentry_t *dentry __unused, int mode __unused)
-{
-    return -EINVAL;
-}
-
 static int tmpfs_find(inode_t *dir, const char *name, inode_t **ref)
 {
     int err = 0;
@@ -190,6 +185,31 @@ try_bind:
     goto try_bind;
 }
 
+static int tmpfs_create(inode_t *dir, dentry_t *dentry, int mode)
+{
+    int err = 0;
+    inode_t *inode = NULL;
+    if ((err = ialloc(&inode)))
+        goto error;
+
+    inode->i_mask = mode;
+    inode->ifs = dir->ifs;
+    inode->i_type = FS_RGL;
+    dentry->d_inode = inode;
+    inode->i_dentry = dentry;
+    inode->i_gid = dir->i_gid;
+    inode->i_uid = dir->i_uid;
+
+    if ((err = tmpfs_mount(dir, dentry->d_name, inode)))
+        goto error;
+
+    return 0;
+error:
+    if (inode)
+        irelease(inode);
+    return err;
+}
+
 static int tmpfs_ioctl(inode_t *ip __unused, int req __unused, void *argp __unused)
 {
     return -ENOTTY;
@@ -200,9 +220,19 @@ static int tmpfs_lseek(inode_t *ip __unused, off_t off __unused, int whence __un
     return -EINVAL;
 }
 
-static size_t tmpfs_read(inode_t *ip __unused, off_t off __unused, void *buf __unused, size_t sz __unused)
+static size_t tmpfs_read(inode_t *ip, off_t off, void *buf, size_t sz)
 {
-    return -EINVAL;
+    char *data __unused = NULL;
+    if (!ip || !buf)
+        return -EINVAL;
+
+    if (off >= ip->i_size || (!ip->i_priv))
+        return -1;
+
+    size_t size = MIN((ip->i_size - off), sz);
+    data = ip->i_priv;
+    memcpy(buf, data + off, size);
+    return size;
 }
 
 static int tmpfs_sync(inode_t *ip __unused)
@@ -210,9 +240,35 @@ static int tmpfs_sync(inode_t *ip __unused)
     return -EINVAL;
 }
 
-static size_t tmpfs_write(inode_t *ip __unused, off_t off __unused, void *buf __unused, size_t sz __unused)
+static size_t tmpfs_write(inode_t *ip, off_t off, void *buf, size_t sz)
 {
-    return -EINVAL;
+    size_t size = 0;
+    void *data = NULL;
+
+    if (!ip || !buf)
+        return -EINVAL;
+    
+    if (INODE_ISDIR(ip))
+        return -EISDIR;
+
+    if ((off + sz) > ip->i_size) {
+        if (!ip->i_priv) {
+            data = kcalloc(1, off + sz);
+            if (!data)
+                return -EAGAIN;
+        } else {
+            data = krealloc(ip->i_priv, off + sz);
+            if (!data)
+                return -EAGAIN;
+        }
+        ip->i_size = off + sz;
+        ip->i_priv = data;
+    }
+
+    size = MIN((ip->i_size - off), sz);
+    memcpy(data + off, buf, size);
+
+    return size;
 }
 
 static int tmpfs_readdir(inode_t *dir, off_t offset, struct dirent *dirent)
@@ -288,6 +344,28 @@ static int tmpfs_readdir(inode_t *dir, off_t offset, struct dirent *dirent)
     return 0;
 }
 
+static int tmpfs_mmap(file_t *file __unused, vmr_t *region __unused) {
+    int err = 0;
+    off_t offset __unused = 0;
+    ssize_t size __unused = 0;
+    inode_t *inode = NULL;
+
+    if (!file || !region)
+        return -EINVAL;
+
+    inode = file->f_inode;
+
+    if (!inode)
+        return -EINVAL;
+    
+    size = (region->file_pos + region->filesz);
+
+    
+
+    return 0;
+    return err;
+}
+
 static int tmpfs_load()
 {
     return 0;
@@ -316,7 +394,7 @@ error:
 static iops_t tmpfs_iops = {
     .open = tmpfs_open,
     .close = tmpfs_close,
-    .creat = tmpfs_creat,
+    .creat = tmpfs_create,
     .find = tmpfs_find,
     .ioctl = tmpfs_ioctl,
     .lseek = tmpfs_lseek,
@@ -325,6 +403,21 @@ static iops_t tmpfs_iops = {
     .write = tmpfs_write,
     .readdir = tmpfs_readdir,
     .mount = tmpfs_mount,
+};
+
+__unused static struct fops tmpfs_fops = (struct fops){
+    .can_read = posix_file_can_read,
+    .can_write = posix_file_can_write,
+    .close = posix_file_close,
+    .open = posix_file_open,
+    .eof = posix_file_eof,
+    .ioctl = posix_file_ioctl,
+    .lseek = posix_file_lseek,
+    .read = posix_file_read,
+    .write = posix_file_write,
+    .readdir = posix_file_readdir,
+    .stat = posix_file_ffstat,
+    .mmap = tmpfs_mmap,
 };
 
 static super_block_t tmpfs_sb = {

@@ -205,9 +205,14 @@ int sys_open(void)
 {
     int oflags = 0;
     char *path = NULL;
+    mode_t mode = 0;
     assert(argstr(0, &path) > 0, "err fetching argstr");
     assert(!argint(1, &oflags), "err fetching argint");
-    return open(path, oflags);
+
+    if ((oflags & O_CREAT) || (oflags & __O_TMPFILE))
+        assert(!argint(2, &mode), "err fetching argint");
+
+    return open(path, oflags, mode);
 }
 
 int sys_read(void)

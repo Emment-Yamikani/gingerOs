@@ -2,10 +2,8 @@
 
 int main(int argc, char *const argv[])
 {
-    int fd = open("/she", O_RDONLY);
-    void *addr = mmap(NULL, 100, PROT_READ, MAP_SHARED, fd, 0);
-
-    printf("%s\n", addr);
-    memcpy((addr + 35), "How is the weather\n", 20);
+    int fd = open("/tmp/sync", O_RDWR);
+    void *addr = mmap(NULL, 100, PROT_READ, MAP_PRIVATE, fd, 0);
+    printf("%s: done executing: with: %s", __FILE__, addr);
     return 0;
 }

@@ -1,0 +1,38 @@
+STRLEN(3)                                                      Library Functions Manual                                                     STRLEN(3)
+
+NNAAMMEE
+       strlen - calculate the length of a string
+
+LLIIBBRRAARRYY
+       Standard C library (_l_i_b_c, _-_l_c)
+
+SSYYNNOOPPSSIISS
+       ##iinncclluuddee <<ssttrriinngg..hh>>
+
+       ssiizzee__tt ssttrrlleenn((ccoonnsstt cchhaarr **_s));;
+
+DDEESSCCRRIIPPTTIIOONN
+       The ssttrrlleenn() function calculates the length of the string pointed to by _s, excluding the terminating null byte ('\0').
+
+RREETTUURRNN VVAALLUUEE
+       The ssttrrlleenn() function returns the number of bytes in the string pointed to by _s.
+
+AATTTTRRIIBBUUTTEESS
+       For an explanation of the terms used in this section, see aattttrriibbuutteess(7).
+
+       ┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────┬─────────┐
+       │IInntteerrffaaccee                                                                                                          │ AAttttrriibbuuttee     │ VVaalluuee   │
+       ├───────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼───────────────┼─────────┤
+       │ssttrrlleenn()                                                                                                           │ Thread safety │ MT-Safe │
+       └───────────────────────────────────────────────────────────────────────────────────────────────────────────────────┴───────────────┴─────────┘
+
+SSTTAANNDDAARRDDSS
+       POSIX.1-2001, POSIX.1-2008, C89, C99, C11, SVr4, 4.3BSD.
+
+NNOOTTEESS
+       In cases where the input buffer may not contain a terminating null byte, ssttrrnnlleenn(3) should be used instead.
+
+SSEEEE AALLSSOO
+       ssttrriinngg(3), ssttrrnnlleenn(3), wwccsslleenn(3), wwccssnnlleenn(3)
+
+Linux man-pages 6.01                                                  2022-10-09                                                            STRLEN(3)

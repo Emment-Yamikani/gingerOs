@@ -31,8 +31,6 @@ extern int cga_printf(char *, ...);
 extern int cga_panic(char *, ...);
 extern uint32_t __alloc_frame();
 
-int pos = 0;
-
 int early_init(void)
 {
     int err =0;
@@ -64,7 +62,7 @@ int early_init(void)
         return err;
 
     lfbterm_init();
-    //bootstrap other cores if present
+    // bootstrap other cores if present
     bootothers();
 
     paging_unmap_table(0);
@@ -72,7 +70,7 @@ int early_init(void)
     paging_unmap_table(2);
     paging_unmap_table(3);
 
-    //signal others cores
+    // signal others cores
     atomic_xchg(&cpu->online, 1);
 
     kthread_create(kthread_main, NULL, NULL, NULL);

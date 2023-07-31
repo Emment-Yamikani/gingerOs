@@ -8,7 +8,7 @@
 #include <bits/dirent.h>
 
 int pipe(int []);
-int open(const char *fn, int oflags, ...);
+int open(const char *fn, int oflags, mode_t mode);
 size_t read(int fd, void *buf, size_t sz);
 size_t write(int fd, void *buf, size_t sz);
 

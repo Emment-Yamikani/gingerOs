@@ -53,7 +53,7 @@ void ioapic_init()
     for (int i = 0; i < maxints; i++)
     {
         ioapic_write(REG_TABLE(i), INT_MASK | (IRQ_OFFSET + i));
-        ioapic_write(REG_TABLE(i + 1), 0);
+        ioapic_write(REG_TABLE(i) + 1, 0);
     }
 }
 

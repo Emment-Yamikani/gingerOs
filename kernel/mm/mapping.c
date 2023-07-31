@@ -68,6 +68,9 @@ int mapping_get_page(mapping_t *map, ssize_t pgno, uintptr_t *pphys, page_t **pp
 
     mapping_assert_locked(map);
 
+    if (map->inode->i_size == 0)
+        return 0;
+
     btree_lock(map->btree);
     err = btree_search(map->btree, pgno, (void **)&page);
     if (err == 0) {btree_unlock(map->btree); goto done;}
@@ -92,24 +95,30 @@ int mapping_get_page(mapping_t *map, ssize_t pgno, uintptr_t *pphys, page_t **pp
     page->mapping = map;
     page->flags.shared = 1;
     page->flags.can_swap = 1;
+
 done:
     if (page_valid(page) == 0)
     {
-        err = -EINVAL;
         offset = pgno * PAGESZ;
         virt = (void *)page->virtual;
         read_size = MIN(PAGESZ, (map->inode->i_size - offset));
+
+        if (!read_size) goto read_okay;
+
         if (((ssize_t)map->inode->ifs->fsuper->iops->read(map->inode, offset, virt, read_size) != read_size))
             goto error;
-        
+
+    read_okay:
         page->flags.dirty = 0;
         page->flags.valid = 1;
         page->flags.read = 1;
         page->flags.write = 1;
         page->flags.exec = 1;
     }
+
     if (ppage) *ppage = page;
     if (pphys) *pphys = page_address(page);
+
     return 0;
 error:
     if (page) page_put(page);

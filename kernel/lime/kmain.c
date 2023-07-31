@@ -33,7 +33,7 @@ void *kthread_main(void *arg __unused)
 
     printk("%d builtin thread(s) started\n", nthreads);
 
-    loop();
+    // loop();
     proc_init("/init");
 
     loop()
@@ -74,10 +74,17 @@ void *file_create(void *arg __unused) {
 
     err = vfs_open("/tmp/file", &uio, O_RDWR | O_CREAT, mode, &inode);
     if (err) goto error;
+    iwrite(inode, 0, "Hello, World\n", 14);
 
-    printk("filesz: %dbytes\n", inode->i_size);
+    iwrite(inode, 12, " Xkay you\n", 11);
 
+    char buf[25] = {0};
+    iread(inode, 0, buf, sizeof buf -1);
+    
+    printk("filesz: %d, data: %s\n", inode->i_size, buf);
+    loop();
 error:
+    printk("failed to open file, error: %d\n", err);
     loop();
     return NULL;
 }

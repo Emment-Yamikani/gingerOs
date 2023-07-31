@@ -78,7 +78,11 @@ void do_page_fault(trapframe_t *tf)
 
         if (!region->vmops || !region->vmops->fault)
         {
-            if ((err = default_pgf_handler(region, &fault)))
+            if ((err = default_pgf_handler(region, &fault)) == -EFAULT)
+            {
+                mmap_unlock(mmap);
+                goto send_SIGBUS;
+            } else if (err)
             {
                 mmap_unlock(mmap);
                 goto send_SIGSEGV;
@@ -96,6 +100,9 @@ void do_page_fault(trapframe_t *tf)
 
 
 kernel_fault:
+    if (in_user)
+        goto send_SIGSEGV;
+
     panic("%s(%p): %s: %p: eno: %d\n", __func__, fault.addr, in_user ? "user" : "kernel", tf->eip, tf->eno);
     if (proc)
         kill(getpid(), SIGSEGV);
@@ -105,7 +112,17 @@ done:
     popcli();
     return;
 
+send_SIGBUS:
+    printk("%s(%p): tid: %d, in %s space: eip: %p\n", __func__, fault.addr, thread_self(), in_user ? "user" : "kernel", tf->eip);
+    
+    if (proc)
+        kill(getpid(), SIGBUS);
+    else
+        panic("%s:%d: Kernel SIGBUS\n", __FILE__, __LINE__);
+
+    return;
 send_SIGSEGV:
+    
     printk("%s(%p): tid: %d, in %s space: eip: %p\n", __func__, fault.addr, thread_self(), in_user ? "user" : "kernel", tf->eip);
     if (proc)
         kill(getpid(), SIGSEGV);
@@ -178,6 +195,9 @@ int default_pgf_handler(vmr_t *region, vm_fault_t *vm)
 
         if (region->file)
         {
+            if (region->file->i_size == 0)
+                return -EFAULT;
+
             if (!__vmr_shared(region)) {
                 if ((frame = pmman.alloc()) == 0)
                     return -ENOMEM;
@@ -192,7 +212,15 @@ int default_pgf_handler(vmr_t *region, vm_fault_t *vm)
                 }
             }
             else {
-                panic("%s: %d: shared page\n", __FILE__, __LINE__);
+                err = inode_getpage(region->file, offset / PAGESZ, &frame, &page);
+                //printk("offset: %dframe: %p, err: %d\n", offset, frame, err);
+                __page_incr(frame);
+                // if ((err = shared_mapping_alloc(region->mmap, region->file, offset / PAGESZ, PGROUND(vm->addr), &shared)))
+                // return err;
+
+                if ((err = paging_identity_map(frame, PGROUND(vm->addr), PAGESZ, region->vflags)))
+                    return err;
+                // panic("%s: %d: shared page\n", __FILE__, __LINE__);
             }
             send_tlb_shootdown();
         }
@@ -216,6 +244,9 @@ int default_pgf_handler(vmr_t *region, vm_fault_t *vm)
 
     if (region->file)
     {
+        if (region->file->i_size == 0)
+            return -EFAULT;
+
         if (!__vmr_shared(region)) {
             if ((frame = pmman.alloc()) == 0)
                 return -ENOMEM;

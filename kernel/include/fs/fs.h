@@ -46,7 +46,7 @@ typedef struct iops
     int (*bind)(inode_t *, const char *, inode_t *);
     int (*mount)(inode_t *, const char *, inode_t *);
     int (*open)(inode_t *, int, ...);
-    int (*creat)(inode_t *, dentry_t *, int);
+    int (*creat)(inode_t *, dentry_t *, mode_t);
     int (*find)(inode_t *, const char *, inode_t **);
     int (*sync)(inode_t *);
     int (*close)(inode_t *);
@@ -255,6 +255,7 @@ int irelease(inode_t *);
 
 int iincrement(inode_t *inode);
 
+int icreate(inode_t *dir, dentry_t *dentry, mode_t mode);
 int ichown(inode_t *ip, uid_t uid, gid_t gid);
 int ibind(inode_t *dir, const char *name, inode_t *child);
 int imount(inode_t *dir, const char *name, inode_t *child);

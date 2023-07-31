@@ -84,9 +84,8 @@ file_t *fileget(struct file_table *table, int fd)
     return table->file[fd];
 }
 
-int open(const char *fn, int oflags, ...)
+int open(const char *fn, int oflags, mode_t mode)
 {
-    mode_t mode = 0;
     int err = 0, fd = 0;
     file_t *file = NULL;
     inode_t *inode = NULL;

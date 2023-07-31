@@ -112,16 +112,16 @@ size_t iread(inode_t *ip, off_t pos, void *buf, size_t sz)
 
 size_t iwrite(inode_t *ip, off_t pos, void *buf, size_t sz)
 {
-    size_t size = 0;
-    int holding = 0;
-    ssize_t retval = 0;
-    page_t *page = NULL;
-    ssize_t data_size = 0;
-    char *virt_addr = NULL;
-    uintptr_t page_addr = 0;
-    ssize_t pgno = pos / PAGESZ;
-    uintptr_t src_buff = (uintptr_t)buf;
-    uintptr_t src_end __unused = (uintptr_t)buf + sz;
+    size_t size __unused = 0;
+    int holding __unused = 0;
+    ssize_t retval __unused = 0;
+    page_t *page __unused = NULL;
+    ssize_t data_size __unused = 0;
+    char *virt_addr __unused = NULL;
+    uintptr_t page_addr __unused = 0;
+    ssize_t pgno __unused = pos / PAGESZ;
+    uintptr_t src_buff __unused = (uintptr_t)buf;
+    uintptr_t src_end __unused __unused = (uintptr_t)buf + sz;
 
     if (!ip)
         return -EINVAL;
@@ -143,14 +143,32 @@ size_t iwrite(inode_t *ip, off_t pos, void *buf, size_t sz)
     {
         if ((retval = mapping_get_page(ip->mapping, pgno, &page_addr, &page)))
         {
-            if (!holding) mapping_unlock(ip->mapping);
+            if (!holding)
+                mapping_unlock(ip->mapping);
+            printk("error: %d\n", data_size);
             return data_size;
         }
 
-        virt_addr = (char *)page->virtual;
+        if (!page) { // write through to disk
+            if ((size_t)(retval = ip->ifs->fsuper->iops->write(ip, pos, buf, sz)) != sz)
+            {
+                if (!holding)
+                    mapping_unlock(ip->mapping);
+                return retval;
+            }
 
-        size = MIN((PAGESZ - PGOFFSET(pos)), MIN(PAGESZ, (src_end - src_buff)));
+            if (!holding)
+                mapping_unlock(ip->mapping);
+
+            return retval;
+        }
+
+        virt_addr = (char *)page->virtual;
+        size = MIN(PAGESZ, (src_end - src_buff));
+        size = MIN(size, (ip->i_size - pos));
+        size = MIN((PAGESZ - PGOFFSET(pos)), size);
         memcpy((void *)(virt_addr + PGOFFSET(pos)), (void *)src_buff, size);
+        printk("req: %d, written: %d, pos: %d, isize: %d\n", sz, size, pos, ip->i_size);
         pos += size;
         src_buff += size;
         data_size += size;
@@ -158,10 +176,9 @@ size_t iwrite(inode_t *ip, off_t pos, void *buf, size_t sz)
     
     if (!holding)
         mapping_unlock(ip->mapping);
-
     
     return data_size;
-    // return ip->ifs->fsuper->iops->write(ip, pos, buf, sz);
+    return ip->ifs->fsuper->iops->write(ip, pos, buf, sz);
 }
 
 int iioctl(inode_t *ip, int req, void *argp)
@@ -396,4 +413,20 @@ int inode_getpage(inode_t *ip, ssize_t pgno, uintptr_t *ppaddr, page_t **ppage) 
     mapping_unlock(ip->mapping);
     
     return err;
+}
+
+int icreate(inode_t *dir, dentry_t *dentry, mode_t mode)
+{
+    if (dir == NULL || dentry == NULL)
+        return -EINVAL;
+
+    CHK_IPTR(dir);
+
+    if (!INODE_ISDIR(dir))
+        return -ENOTDIR;
+
+    if (!dir->ifs->fsuper->iops->creat)
+        return -ENOSYS;
+
+    return dir->ifs->fsuper->iops->creat(dir, dentry, mode);
 }

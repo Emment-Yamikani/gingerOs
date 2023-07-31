@@ -48,19 +48,18 @@ typedef struct dev
     struct fops fops;
 } dev_t;
 
-#define DEV(d, T)                   \
-    dev_t d##dev = {                \
-        .dev_name = #d,             \
-        .dev_probe = d##_probe,     \
-        .dev_mount = d##_mount,     \
-        .devid = T,                 \
-        .devops = {                 \
-            .open = d##_open,   \
-            .close = d##_close, \
-            .read = d##_read,   \
-            .write = d##_write, \
-            .ioctl = d##_ioctl, \
-        },                      \
+#define DEV(d, T) dev_t d##dev = {  \
+    .dev_name = #d,         \
+    .dev_probe = d##_probe, \
+    .dev_mount = d##_mount, \
+    .devid = T,             \
+    .devops = {             \
+        .open = d##_open,   \
+        .close = d##_close, \
+        .read = d##_read,   \
+        .write = d##_write, \
+        .ioctl = d##_ioctl, \
+    },                      \
 }
 
 #define _DEV_T(major, minor) ((devid_t)(((minor & 0xff) << 8) | (major & 0xff)))

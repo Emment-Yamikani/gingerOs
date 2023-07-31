@@ -543,7 +543,7 @@ int vfs_lookup(const char *fn, uio_t *uio, int oflags, mode_t mode __unused, ino
     path_t *path = NULL;
     dentry_t *dentry = NULL, *dir = NULL;
     inode_t *iparent = NULL, *ichild = NULL;
-    char **tokens = NULL, *cwd = NULL, *abs_path = NULL;
+    char **tokens = NULL, *cwd = NULL, *abs_path = NULL, *last_token = NULL;
 
     if (!fn || (!dref && !iref))
     {
@@ -567,6 +567,9 @@ int vfs_lookup(const char *fn, uio_t *uio, int oflags, mode_t mode __unused, ino
 
     if ((err = vfs_canonicalize_path((char *)abs_path, cwd, &tokens)))
         goto error;
+
+    foreach(tok, tokens)
+        last_token = tok;
 
     switch ((err = vfs_get_mountpoint(tokens, &path)))
     {
@@ -598,8 +601,11 @@ int vfs_lookup(const char *fn, uio_t *uio, int oflags, mode_t mode __unused, ino
         if ((err = dentry_alloc(token, &dentry)))
             goto error;
 
-        if ((err = ifind(iparent, token, &ichild)))
+        if ((err = ifind(iparent, token, &ichild))) {
+            if ((oflags & O_CREAT) && (token == last_token))
+                goto creat;
             goto error;
+        }
 
         dentry->d_inode = ichild;
 
@@ -628,6 +634,18 @@ found:
         *dref = dentry;
     }
     return 0;
+
+creat:
+    if ((err = icreate(iparent, dentry, mode)))
+        goto error;
+
+    ichild = dentry->d_inode;
+
+    if ((err = vfs_dentry_bind(dir, dentry)))
+        goto error;
+
+    goto found;
+
 error:
     if (dentry)
         dentry_close(dentry);

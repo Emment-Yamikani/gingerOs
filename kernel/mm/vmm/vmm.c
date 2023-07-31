@@ -58,6 +58,17 @@ static node_t *freenodes_tail = NULL;
 
 static node_t nodes[KHEAP_MAX_NODES];
 
+void vmm_dump_node(node_t *node)
+{
+    if (!node)
+        panic("No root to dump\n");
+    node->prev ? printk("Prev[0x%p, %d KiB]", node->prev->base, node->prev->size / 1024)
+               : printk("[Null]");
+    printk("<-[0x%p, %d KiB]->", node->base, node->size / 1024);
+    node->next ? printk("Next[0x%p, %d KiB]\n", node->next->base, node->next->size / 1024)
+               : printk("[Null]\n");
+}
+
 static int can_merge_left(node_t *node, node_t *left)
 {
     assert(node, "no node");
@@ -94,11 +105,13 @@ static void freenodes_put(node_t *node)
     assert(node, "no node");
     assert(node->size, "invalid memory region size");
     assert(node->base >= KHEAPBASE, "invalid memory region base address");
+    node->next = NULL;
+    node->prev = NULL;
+
     if (!freenodes_head)
         freenodes_head = node;
     if (freenodes_tail)
         freenodes_tail->next = node;
-    node->next = NULL;
     node->prev = freenodes_tail;
     freenodes_tail = node;
 }
@@ -150,7 +163,10 @@ static void freevmr_linkto_left(node_t *node, node_t *left)
     if (left->next)
         left->next->prev = node;
     else
+    {
         freevmr_tail = node;
+        node->next = NULL;
+    }
     left->next = node;
     node->prev = left;
 }
@@ -164,7 +180,10 @@ static void freevmr_linkto_right(node_t *node, node_t *right)
     if (right->prev)
         right->prev->next = node;
     else
+    {
         freevmr_head = node;
+        node->prev = NULL;
+    }
     right->prev = node;
     node->next = right;
 }
@@ -176,6 +195,11 @@ static void freevmr_put(node_t *node)
     assert(node->base >= KHEAPBASE, "invalid memory region base address");
 
     node_t *tmp = NULL, *right = freevmr_head, *left = NULL;
+
+    node->prev = NULL;
+    node->next = NULL;
+
+    // printk("putting back: [0x%p, %dKiB] return to 0x%p\n", node->base, node->size / 1024, return_address(0));
 
     if (!freevmr_head)
     {
@@ -224,8 +248,15 @@ static void freevmr_put(node_t *node)
             printk("can not merge with any L[%p : %dkib] : [%p : %dkib] : R[%p : %dkib]\n",
                    left->base, left->size / 1024, node->base, node->size / 1024, right->base, right->size / 1024);
 #endif
-            freevmr_linkto_left(node, left);
-            freevmr_linkto_right(node, right);
+            // freevmr_linkto_left(node, left);
+            // freevmr_linkto_right(node, right);
+
+            node->prev = left;
+            node->next = right;
+            
+            left->next = node;
+            right->prev = node;
+
         }
     }
     else if (left)
@@ -282,31 +313,47 @@ static node_t *freevmr_get(size_t sz)
 {
     assert(sz, "invalid memory size request");
     assert(!(sz & PAGEMASK), "invalid size, must be page aligned");
-    node_t *node = freevmr_head;
+    node_t *node = freevmr_head, *next = NULL, *prev = NULL;
 
     if (!node)
         return NULL;
 
+    // printk("\nrequested: %d\n", sz / 1024);
+
     for (; node; node = node->next)
+    {
+        // vmm_dump_node(node);
         if (node->size >= sz)
             break;
+    }
 
     if (node)
     {
-        if (node->prev)
-            node->prev->next = node->next;
-
-        if (node->next)
-            node->next->prev = node->prev;
-
-        if (freevmr_head == node)
-            freevmr_head = node->next;
-
-        if (freevmr_tail == node)
-            freevmr_tail = node->prev;
+        next = node->next;
+        prev = node->prev;
 
         node->next = NULL;
         node->prev = NULL;
+
+        if (prev)
+            prev->next = next;
+
+        if (freevmr_head == node)
+        {
+            freevmr_head = next;
+            if (freevmr_head)
+                freevmr_head->prev = NULL;
+        }
+
+        if (next)
+            next->prev = prev;
+
+        if (freevmr_tail == node)
+        {
+            freevmr_tail = next;
+            if (freevmr_tail)
+                freevmr_tail->next = NULL;
+        }
     }
 
     return node;
@@ -367,13 +414,13 @@ static uintptr_t vmm_alloc(size_t sz)
 
     split = freevmr_get(sz);
 
-
     if (!split)
     {
 #if KVM_DEBUG
-        klog(KLOG_FAIL, "couldn't allocate %dkib, no free virtual memory available\n", sz / 1024);
+        printk("couldn't allocate %dkib, no free virtual memory available\n", sz / 1024);
 #endif
         spin_unlock(vmm_spinlock);
+        // printk("No split\n");
         return 0;
     }
 
@@ -383,6 +430,7 @@ static uintptr_t vmm_alloc(size_t sz)
         assert(node, "no free nodes left");
         node->base = split->base;
         node->size = sz;
+        // printk("Region too big: [0x%p, %d KiB], after split: %d KiB\n", split->base, split->size / 1024, (split->size - sz) / 1024);
         split->base += sz;
         split->size -= sz;
         freevmr_put(split);
@@ -393,6 +441,7 @@ static uintptr_t vmm_alloc(size_t sz)
         node = split;
 
     used_virtual_mmsz += sz;
+
     addr = node->base;
     usedvmr_put(node);
 
@@ -400,6 +449,7 @@ static uintptr_t vmm_alloc(size_t sz)
     printk("alocated %dKib @ %p\n", sz / 1024, addr);
 #endif
 
+    // printk("node: %p, data: %p, end: %p, size: %d kiB\n", node, addr, node->size + addr, node->size / 1024);
     spin_unlock(vmm_spinlock);
     return addr;
 }
@@ -420,9 +470,11 @@ static void vmm_free(uintptr_t base)
 
     used_virtual_mmsz -= node->size;
     freevmr_put(node);
+    // vmm_dump_list(node);
+    // printk("done freeing\n");
 
 #if KVM_DEBUG
-    klog(KLOG_OK, "freed %dkib @ %p\n", node->size / 1024, node->base);
+    printk("freed %dkib @ %p\n", node->size / 1024, node->base);
 #endif
 
     spin_unlock(vmm_spinlock);

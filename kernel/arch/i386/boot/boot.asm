@@ -1,7 +1,7 @@
 bits 32
-MULTIBOOT_ALIGN equ 1<<0             ;align loaded modules on page boundaries
-MEMINFO         equ 1<<1             ;provide memory map
-VIDEOMODE       equ 1<<2             ;set video mode
+MULTIBOOT_ALIGN equ (1<<0)             ;align loaded modules on page boundaries
+MEMINFO         equ (1<<1)             ;provide memory map
+VIDEOMODE       equ (1<<2)             ;set video mode
 MAGIC           equ 0x1BADB002       ;'magic number' lets bootloader find the header
 FLAGS           equ MULTIBOOT_ALIGN | MEMINFO | VIDEOMODE  ;this is the Multiboot 'flag' field
 CHECKSUM        equ -(MAGIC + FLAGS) ;checksum of above, to prove we are multiboot
@@ -19,8 +19,8 @@ mboot:
     dd 0            ;/* heentry_addr */
 ;define video setting
     dd 0            ;/* mode_type */
-    dd 800            ;/* mowidth */
-    dd 600            ;/* moheight */
+    dd 1024         ;/* mowidth */
+    dd 768          ;/* moheight */
     dd 32           ;/* modepth */
 
 section .text

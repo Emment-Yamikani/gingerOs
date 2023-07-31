@@ -65,6 +65,7 @@ acpiMADT_t *acpi_find_madt(rsdp20_t *rsdp, int revno)
     else{
         madt = (acpiMADT_t *)acpi_parse_xsdt((acpiSDT_t *)((uint32_t)rsdp->xsdtaddr), "APIC");
     }
+
     return madt;
 }
 
@@ -116,6 +117,7 @@ int acpi_mp(void)
     rsdp20_t *rsdp = (rsdp20_t *)acpi_findrsdp();
     if (!rsdp)
         return 0;
+    //panic("rsdp: %p: %d, rsdt: %p\n", rsdp, rsdp->rsdp.revno, rsdp->rsdp.rsdtaddr);
     int size = (rsdp->rsdp.revno < 2) ? sizeof(rsdp_t) : rsdp->length;
     acpi_validate_table((char *)rsdp, size);
     acpiMADT_t *madt = acpi_find_madt(rsdp, rsdp->rsdp.revno);

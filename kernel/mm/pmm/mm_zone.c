@@ -72,9 +72,9 @@ static int enumarate_zones(void)
     if ((bootinfo.pmemsize / 1024) < 16)
         panic("RAM size < 16MiB\n");
 
+    mm_zone[MM_ZONE_DMA].start = start;
     mm_zone[MM_ZONE_DMA].pages = page_array;
     mm_zone[MM_ZONE_DMA].flags = MM_ZONE_VALID;
-    mm_zone[MM_ZONE_DMA].start = start;
     mm_zone[MM_ZONE_DMA].nrpages = size / PAGESZ;
     mm_zone[MM_ZONE_DMA].free_pages = size / PAGESZ;
 
