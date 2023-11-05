@@ -55,8 +55,7 @@ void mapping_free(mapping_t *map)
     kfree(map);
 }
 
-int mapping_get_page(mapping_t *map, ssize_t pgno, uintptr_t *pphys, page_t **ppage)
-{
+int mapping_get_page(mapping_t *map, ssize_t pgno, uintptr_t *pphys, page_t **ppage) {
     int err = 0;
     off_t offset = 0;
     void *virt = NULL;
@@ -73,7 +72,10 @@ int mapping_get_page(mapping_t *map, ssize_t pgno, uintptr_t *pphys, page_t **pp
 
     btree_lock(map->btree);
     err = btree_search(map->btree, pgno, (void **)&page);
-    if (err == 0) {btree_unlock(map->btree); goto done;}
+    if (err == 0) {
+        btree_unlock(map->btree);
+        goto done;
+    }
 
     if ((page = alloc_page(GFP_KERNEL)) == NULL) {
         btree_unlock(map->btree);

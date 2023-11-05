@@ -76,6 +76,9 @@ typedef struct __boot_info
     uint32_t mods_cnt;
 } __attribute__((packed)) boot_info_t;
 
+typedef multiboot_module_t mod_entry_t;
+typedef multiboot_memory_map_t mmap_entry_t;
+
 extern boot_info_t boot_info;
 
 extern multiboot_info_t *mboot;

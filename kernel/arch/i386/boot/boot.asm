@@ -47,7 +47,7 @@ MULTIBOOT_BOOTLOADER_MAGIC equ 0x2BADB002
 LOWER_HALF  equ 0x1000000   ; 1Mib, static memory(paged in from start)
 
 MSG db "Hello and Welcome to gingerOS :)", 0
-fmt db "last addr: %p", 0xa, 0
+fmt db "Last addr: %p", 0xa, 0
 extern get_last_addr
 extern boot_info
 extern __get_boot_info

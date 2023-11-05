@@ -14,15 +14,15 @@ static int get_mmap(multiboot_info_t *info)
     if (!(info->flags & MULTIBOOT_INFO_MEM_MAP))
         return -ENOENT;
 
-    for (int i =0; mmap < (multiboot_memory_map_t *)(info->mmap_addr + info->mmap_length); ++i)
-    {
-        bootinfo.mmap[i].addr = mmap->addr;
-        bootinfo.mmap[i].size = mmap->len;
-        bootinfo.mmap[i].type = mmap->type;
-        bootinfo.mmap_count++;
-        bootinfo.pmemsize += mmap->len / 1024;
-        mmap = (multiboot_memory_map_t *)((uintptr_t)mmap+ mmap->size + sizeof (mmap->size));
-    }
+    for (int i =0; mmap < (mmap_entry_t *)(info->mmap_addr + info->mmap_length); ++i) {
+            bootinfo.pmemsize      += mmap->len; 
+            bootinfo.mmap[i].size = mmap->len;
+            bootinfo.mmap[i].type = mmap->type;
+            bootinfo.mmap[i].addr = mmap->addr;
+            printk("mmap(%d): %p, len: %d, type: %d, size: %d\n",
+                i, mmap->addr, mmap->len, mmap->type, mmap->size);
+            mmap = (mmap_entry_t *)(((uintptr_t)mmap) + mmap->size + sizeof (mmap->size));
+        }
 
     bootinfo.pmemsize &= ~0x3ff; //absolute size 
     return 0;

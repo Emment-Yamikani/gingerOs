@@ -7,15 +7,15 @@
 #include <arch/i386/paging.h>
 #include <printk.h>
 
-#define CHK_IPTR(ip)                \
-    {                               \
-        if (!ip->ifs)               \
-            return -ENOSYS;         \
-        if (!ip->ifs->fsuper)       \
-            return -ENOSYS;         \
-        if (!ip->ifs->fsuper->iops) \
-            return -ENOSYS;         \
-    }
+#define CHK_IPTR(ip)            \
+{                               \
+    if (!ip->ifs)               \
+        return -ENOSYS;         \
+    if (!ip->ifs->fsuper)       \
+        return -ENOSYS;         \
+    if (!ip->ifs->fsuper->iops) \
+        return -ENOSYS;         \
+}
 
 int iopen(inode_t *ip, int oflags, ...)
 {

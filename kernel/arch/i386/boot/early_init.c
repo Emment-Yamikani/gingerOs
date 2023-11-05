@@ -61,6 +61,7 @@ int early_init(void)
     if ((err = vfs_init()))
         return err;
 
+
     lfbterm_init();
     // bootstrap other cores if present
     bootothers();

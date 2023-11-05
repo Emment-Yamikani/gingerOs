@@ -1,0 +1,10 @@
+/iso/boot/*.elf
+/iso/modules/*
+/.vscode
+*.d
+*.o
+*.a
+*.iso
+lime.asm
+serial
+serial.log
