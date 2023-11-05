@@ -46,7 +46,7 @@ int early_init(void)
 
     pic_init();
     ioapic_init();
-    
+
     if ((err = hpet_enumerate()))
         return err;
     
