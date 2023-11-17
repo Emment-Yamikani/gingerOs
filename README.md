@@ -17,9 +17,9 @@ Minimal Unix-like hobby OS
 
 ## Architecture
 
-###x86-32bit
+### x86-32bit
 
-###x86_64 64bit @[gingerOs-x86_64](https://GitHub.com/Emment-Yamikani/gingerOs-x86_64.git)
+### x86_64 64bit @[gingerOs-x86_64](https://GitHub.com/Emment-Yamikani/gingerOs-x86_64.git)
 #
 
 ## Features
