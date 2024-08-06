@@ -1,4 +1,7 @@
 # gingerOs
+
+This Repo is now archived, please refer to @[gingerOs-x86_64](https://GitHub.com/Emment-Yamikani/gingerOs-x86_64.git) for a currently maintained Repo.
+
 Minimal Unix-like hobby OS
 
 ### Screenshot0
